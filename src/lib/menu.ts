@@ -47,7 +47,7 @@ export async function loadMenu(): Promise<Menu> {
     // Pours have no glass_id in the schema; they are shown with a rocks glass.
     pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, ...pourLine(p) })).sort(byName),
     cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
-    cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling), href: `/wine/${w.id}`, ...wineLine(w) })).sort(byName),
+    cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, ...wineLine(w) })).sort(byName),
   };
 }
 
@@ -310,8 +310,9 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   return { ...recipe, lines };
 }
 
-/** Glass a Cellar wine is shown with: a flute for sparkling, otherwise a wine glass. */
-export const wineGlass = (sparkling: boolean) => (sparkling ? "flute" : "wine glass");
+/** Glass a Cellar wine is shown with: a sake cup for sake, a flute for sparkling, otherwise a wine glass. */
+export const wineGlass = (sparkling: boolean, type: string | null) =>
+  type?.trim().toLowerCase() === "sake" ? "sake cup" : sparkling ? "flute" : "wine glass";
 
 export type Wine = {
   id: string;

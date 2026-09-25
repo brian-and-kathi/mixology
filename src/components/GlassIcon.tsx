@@ -89,6 +89,14 @@ const SHAPES: Record<string, ReactNode> = {
       <path {...faint()} d="M27 20h10" />
     </>
   ),
+  // Ochoko: a small, low, straight-sided sake cup, drawn on the same baseline as the other glasses.
+  ochoko: (
+    <>
+      <path {...S} d="M19 36h26v13a5 5 0 0 1-5 5H24a5 5 0 0 1-5-5V36z" />
+      <path {...faint()} d="M23 43h18" />
+      <ellipse cx="32" cy="36" rx="13" ry="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+    </>
+  ),
   hurricane: (
     <>
       <path {...S} d="M22 8h20" />
@@ -132,6 +140,7 @@ const BY_NAME: Record<string, string> = {
   "copper mug": "coppermug",
   "wine glass": "wine",
   flute: "flute",
+  "sake cup": "ochoko",
   hurricane: "hurricane",
   "irish coffee glass": "irishcoffee",
   mug: "mug",

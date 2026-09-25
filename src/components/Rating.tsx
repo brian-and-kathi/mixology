@@ -48,7 +48,7 @@ export function RatingScore({ kind, id, initial }: { kind: Kind; id: string; ini
   );
 }
 
-/** "Rate it": five gold stars, one changeable vote per device; the device's own vote shows when it comes back. */
+/** "Rate it" ("Your rating" once voted): five gold stars, one changeable vote per device; the device's own vote shows when it comes back. */
 export function RateDrink({ kind, id, name, initial }: { kind: Kind; id: string; name: string; initial: State }) {
   const key = `${kind}:${id}`;
   const r = useRating(key, initial);
@@ -78,15 +78,15 @@ export function RateDrink({ kind, id, name, initial }: { kind: Kind; id: string;
   const lit = hover ?? r.mine ?? 0;
   return (
     <section className="rate">
-      <h2>Rate it</h2>
-      <div className="rate-stars" role="radiogroup" aria-label={`Your rating for ${name}`} onMouseLeave={() => setHover(null)}>
+      <h2>{r.mine ? "Your rating" : "Rate it"}</h2>
+      <div className="rate-stars" role="radiogroup" aria-label={`Rate ${name}`} onMouseLeave={() => setHover(null)}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
             key={n}
             type="button"
             role="radio"
             aria-checked={r.mine === n}
-            aria-label={`${n} star${n > 1 ? "s" : ""}`}
+            aria-label={`Rate ${n} of 5`}
             className={n <= lit ? "rate-star on" : "rate-star"}
             onMouseEnter={() => setHover(n)}
             onClick={() => vote(n)}
@@ -97,7 +97,13 @@ export function RateDrink({ kind, id, name, initial }: { kind: Kind; id: string;
         ))}
       </div>
       <p className="rate-meta quiet" aria-live="polite">
-        {error ? <span className="rate-error">{error}</span> : r.votes > 0 ? `${r.votes} rating${r.votes === 1 ? "" : "s"}` : "Be the first to rate it"}
+        {error ? (
+          <span className="rate-error">{error}</span>
+        ) : r.votes > 0 ? (
+          `${r.votes} rating${r.votes === 1 ? "" : "s"}${r.mine ? "" : " · Tap a star to add yours"}`
+        ) : (
+          "Be the first to rate it"
+        )}
         {r.mine && !error ? (
           <>
             {" · "}

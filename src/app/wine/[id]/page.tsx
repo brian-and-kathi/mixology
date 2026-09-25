@@ -28,7 +28,7 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
 
   return (
     <PhoneShell title={wine.name} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}
-      lead={<DrinkLead glass={wineGlass(wine.sparkling)} kind="product" id={wine.id} rating={rating} />}>
+      lead={<DrinkLead glass={wineGlass(wine.sparkling, wine.type)} kind="product" id={wine.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
       {serve ? (
         <section>

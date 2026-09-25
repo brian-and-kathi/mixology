@@ -71,7 +71,7 @@ export function serveLine(neat: boolean, rocks: boolean, chilled: boolean): stri
 /** Cellar wines reuse the serve columns: Chilled = serves_chilled, Room temp = serves_neat, Over ice = serves_rocks. */
 export function wineServeLine(chilled: boolean, neat: boolean, rocks: boolean): string | null {
   const ways = [chilled && "chilled", neat && "at room temperature", rocks && "over ice"].filter(Boolean);
-  return ways.length ? `Usually served ${ways.join(" or ")}` : null;
+  return ways.length ? `Usually ${ways.join(" or ")}` : null;
 }
 
 /** Short TV serve line: "Coupe · served up", "Double rocks glass · over one large cube". */

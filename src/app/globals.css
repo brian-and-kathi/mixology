@@ -250,12 +250,13 @@ a.card:active { background: #202020; }
 .score-num { font-weight: 500; color: var(--text); }
 .score-star { color: var(--gold); font-size: 0.92em; }
 /* "Rate it": five 48px tap targets; unrated stars are quiet outlines, chosen ones filled gold. */
-.rate-stars { display: flex; gap: 0.15rem; margin-left: -9px; }
-.rate-star { width: 48px; height: 48px; padding: 9px; border: 0; background: none; color: rgba(255, 255, 255, 0.35); cursor: pointer; -webkit-tap-highlight-color: transparent; border-radius: 10px; }
+.rate-stars { display: flex; gap: 0; margin-left: -13px; }
+.rate-star { flex: 0 0 56px; width: 56px; height: 52px; padding: 11px 13px; border: 0; background: none; color: rgba(255, 255, 255, 0.35); cursor: pointer; -webkit-tap-highlight-color: transparent; border-radius: 0; }
 .rate-star svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
 .rate-star.on { color: var(--gold); }
 .rate-star.on svg { fill: currentColor; }
-.rate-star:focus-visible, .rate-clear:focus-visible { outline: 2px solid var(--cream); outline-offset: 1px; }
+.rate-star:focus-visible { outline: 2px solid var(--cream); outline-offset: -4px; }
+.rate-clear:focus-visible { outline: 2px solid var(--cream); outline-offset: 1px; }
 .rate-star:disabled { cursor: default; }
 .rate-meta { font-size: 0.9rem; min-height: 2.75rem; display: flex; align-items: center; flex-wrap: wrap; white-space: pre; }
 .rate-clear { border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; padding: 0.75rem 0.1rem; cursor: pointer; }

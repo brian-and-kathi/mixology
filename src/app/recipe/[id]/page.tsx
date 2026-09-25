@@ -10,7 +10,7 @@ import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
 
-/** Recipe card: glass + service, ingredients, method, then rating (only when there is one). */
+/** Recipe card: glass + service, ingredients, method, then guest rating. */
 export default async function RecipePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const recipe = await loadRecipe(id);
@@ -70,13 +70,6 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
       ) : null}
 
       <RateDrink kind="recipe" id={recipe.id} name={recipe.name} initial={rating} />
-
-      {recipe.rating ? (
-        <section className="rating" aria-label={`Rated ${recipe.rating} of 5`}>
-          {"★".repeat(recipe.rating)}
-          <span className="quiet">{"★".repeat(Math.max(0, 5 - recipe.rating))}</span>
-        </section>
-      ) : null}
     </PhoneShell>
   );
 }

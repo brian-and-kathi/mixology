@@ -29,7 +29,7 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
         <h2>How it's served</h2>
         <p className="quiet">{serveLine(pour.serves_neat, pour.serves_rocks, pour.serves_chilled)}</p>
       </section>
-      {/* Guests only see notes and ratings that exist; no "No tasting note" filler. */}
+      {/* Guests only see notes that exist; no "No tasting note" filler. */}
       {pour.serve_note ? <p>{pour.serve_note}</p> : null}
       {pour.description ? (
         <section>
@@ -38,12 +38,6 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
         </section>
       ) : null}
       <RateDrink kind="product" id={pour.id} name={pour.name} initial={rating} />
-      {pour.rating ? (
-        <section className="rating" aria-label={`Rated ${pour.rating} of 5`}>
-          {"★".repeat(pour.rating)}
-          <span className="quiet">{"★".repeat(Math.max(0, 5 - pour.rating))}</span>
-        </section>
-      ) : null}
     </PhoneShell>
   );
 }

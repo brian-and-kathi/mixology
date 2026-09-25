@@ -4,7 +4,7 @@ import { GlassIcon } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
 import { isAdmin } from "@/lib/admin-guard";
 import { altGlassLine, cap, glassLine, lineText, methodParts } from "@/lib/format";
-import { loadRecipe } from "@/lib/menu";
+import { bottleLine, loadRecipe, PHONE_DOT } from "@/lib/menu";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +48,9 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
                 {!line.available ? <span className="tag-out">out tonight</span> : null}
                 {line.use_instead ? <strong> (use {cap(line.use_instead)})</strong> : null}
                 {!line.required ? <span className="quiet"> (optional)</span> : null}
-                {line.note ? <span className="quiet note">{line.note}</span> : null}
+                {line.bottles ? <span className="quiet bottles">{bottleLine(line.bottles, PHONE_DOT, line.preferred)}</span> : null}
+                {/* A "Grand Marnier preferred" note is already in the bottle line as "Grand Marnier (preferred)". */}
+                {line.note && !line.preferred ? <span className="quiet note">{line.note}</span> : null}
               </span>
             </li>
           ))}

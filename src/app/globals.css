@@ -207,6 +207,8 @@ a.card:active { background: #202020; }
 .measure { white-space: nowrap; }
 .measure { font-variant-numeric: tabular-nums; color: var(--quiet); }
 .ingredient .note { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
+/* In-stock bottles behind the ingredient (loadRecipe / spec_supply), under the name column. */
+.ingredient .bottles { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
 .out { color: var(--quiet); }
 .tag-out { margin-left: 0.4rem; font-size: 0.75rem; letter-spacing: 0.04em; color: var(--quiet); }
 .method { font-size: 1.05rem; line-height: 1.55; }

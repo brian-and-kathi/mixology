@@ -129,7 +129,20 @@ export function TvBoard({ columns }: { columns: Column[] }) {
       setBasis(widths);
       return;
     }
-    setAssign(packed);
+    // When a split section fits on one page, balance its sub-columns by item count
+    // (ceil(n/k) in each, the remainder in the last) instead of filling the first one up.
+    const balanced = packed.map((p, ci) => {
+      const k = split[ci] ?? 1;
+      const box = viewports.current[ci];
+      const ruler = rulers.current[ci];
+      if (k < 2 || !box || !ruler || needed[ci] > k || p.length === 0) return p;
+      const per = Math.ceil(p.length / k);
+      const even = p.map((_, i) => Math.floor(i / per));
+      const heights = [...ruler.children].map((el) => (el as HTMLElement).offsetHeight);
+      const tallest = Math.max(...Array.from({ length: k }, (_, c) => heights.reduce((sum, h, i) => sum + (even[i] === c ? h : 0), 0)));
+      return tallest <= box.clientHeight ? even : p;
+    });
+    setAssign(balanced);
   }, [columns, split, basis]);
 
   useLayoutEffect(() => {

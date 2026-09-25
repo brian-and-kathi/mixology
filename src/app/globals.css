@@ -22,8 +22,8 @@ h1, h2, p { margin: 0; }
 .quiet { color: var(--quiet); }
 .small { font-size: 0.85rem; }
 
-/* Decorative frame with scalloped corners */
-/* Absolute (not fixed): spans the whole page and scrolls with it, so the bottom edge never cuts across content. */
+/* Decorative frame with scalloped corners. .frame is the TV's (absolute on a fixed, non-scrolling page);
+   guest phone pages use .g-frame below, which is fixed so the border is always visible. */
 .frame { position: absolute; inset: 12px; border: 1px solid rgba(255, 255, 255, 0.28); pointer-events: none; z-index: 10; }
 .frame-corner { position: absolute; width: 13px; height: 13px; overflow: hidden; }
 .frame-corner::before { content: ""; position: absolute; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.28); background: var(--bg); }
@@ -55,6 +55,18 @@ h1, h2, p { margin: 0; }
 .tv-ruler { position: absolute; inset: 0 0 auto 0; visibility: hidden; pointer-events: none; }
 .tv-row { display: flex; align-items: center; gap: 0.7vw; padding: 1.05vh 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 2.75vh; line-height: 1.25; }
 .tv-row .glass { width: 3.6vh; height: 3.6vh; color: rgba(255, 255, 255, 0.85); }
+/* Subtext under every name (ingredients, region · ABV, region · style): one muted line, ellipsis.
+   The glass stays on the name row. Hidden on all columns together when a cast would force paging. */
+.tv-row { align-items: flex-start; }
+.tv-row .glass { margin-top: calc((2.75vh * 1.25 - 3.6vh) / 2); }
+.tv-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.tv-name { overflow-wrap: anywhere; }
+.tv-detail { font-size: 0.85em; line-height: 1.2; margin-top: 0.05vh; color: rgba(255, 255, 255, 0.6); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv-no-detail .tv-detail { display: none; }
+/* Two-line rows get tighter padding so the idle board (15 pours in 8/7) still fits on one screen. */
+.tv-columns:not(.tv-no-detail) .tv-row:has(.tv-detail) { padding: 0.62vh 0; }
+.tv-casting .tv-columns:not(.tv-no-detail) .tv-row:has(.tv-detail) { padding: 0.45vh 0 0.45vh 0.42vw; }
+.tv-row.on .tv-detail { color: rgba(243, 234, 211, 0.72); }
 
 /* ---------- TV cast band (DESIGN §10) ---------- */
 /* Sizes follow the 1920x1080 mockup (px / 10.8 = vh). The menu shrinks to fit above the band. */
@@ -68,7 +80,7 @@ h1, h2, p { margin: 0; }
 .tv-casting .tv-heading { font-size: 3.33vh; }
 .tv-casting .tv-viewport { margin-top: 0.5vh; }
 .tv-casting .tv-row { font-size: 2.18vh; padding: 0.83vh 0 0.83vh 0.42vw; }
-.tv-casting .tv-row .glass { width: 2.6vh; height: 2.6vh; }
+.tv-casting .tv-row .glass { width: 2.6vh; height: 2.6vh; margin-top: calc((2.18vh * 1.25 - 2.6vh) / 2); }
 .tv-row { position: relative; }
 .tv-row.on { color: var(--cream); font-weight: 600; background: linear-gradient(90deg, rgba(243, 234, 211, 0.2), rgba(243, 234, 211, 0.04) 90%); }
 .tv-row.on .glass { color: var(--cream); }
@@ -104,9 +116,44 @@ h1, h2, p { margin: 0; }
 }
 
 /* ---------- Phone ---------- */
-.phone { max-width: 28rem; margin: 0 auto; min-height: 100dvh; padding: max(2.5rem, env(safe-area-inset-top)) 1.4rem max(2.5rem, env(safe-area-inset-bottom)); }
+/* The page keeps its native scroll (momentum, collapsing address bar, pull-to-refresh, scroll restore).
+   The frame, its outside mask and the fades are fixed overlays; content is padded to sit inside the frame
+   and clear the bottom fade. Insets include the safe areas, so it also fits the installed app. */
+.phone {
+  --ft: calc(env(safe-area-inset-top, 0px) + 12px);
+  --fb: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  --fl: calc(env(safe-area-inset-left, 0px) + 12px);
+  --fr: calc(env(safe-area-inset-right, 0px) + 12px);
+  --fade: 28px;
+  max-width: 28rem; margin: 0 auto; min-height: 100dvh;
+  padding: calc(var(--ft) + 10px) calc(var(--fr) + 1.1rem) calc(var(--fb) + var(--fade) + 2rem) calc(var(--fl) + 1.1rem);
+}
+.g-frame { position: fixed; top: var(--ft); left: var(--fl); right: var(--fr); bottom: var(--fb); border: 1px solid rgba(255, 255, 255, 0.28); box-shadow: 0 0 0 100vmax var(--bg); pointer-events: none; z-index: 30; }
+.g-fade { position: fixed; left: calc(var(--fl) + 1px); right: calc(var(--fr) + 1px); height: var(--fade); pointer-events: none; z-index: 29; opacity: 0; transition: opacity 180ms ease; }
+.g-fade.on { opacity: 1; }
+.g-fade-top { top: calc(var(--ft) + 1px); background: linear-gradient(to bottom, #000, rgba(0, 0, 0, 0)); }
+.g-fade-bottom { bottom: calc(var(--fb) + 1px); background: linear-gradient(to top, #000, rgba(0, 0, 0, 0)); }
+@supports (height: 100dvh) {
+  .g-frame { bottom: auto; height: calc(100dvh - var(--ft) - var(--fb)); }
+  .g-fade-bottom { bottom: auto; top: calc(100dvh - var(--fb) - 1px - var(--fade)); }
+}
+@media (prefers-reduced-motion: reduce) { .g-fade { transition: none; } }
+/* Floating menu button: inside the frame's top-right corner, above the fades. */
+.g-menu { position: fixed; top: calc(var(--ft) + 10px); right: calc(var(--fr) + 10px); z-index: 40; }
+.g-menu-btn { display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 10px; background: #000; color: var(--text); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.g-menu-btn:active, .g-menu-btn[aria-expanded="true"] { background: var(--muted); }
+.g-menu-btn:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
+.g-menu-panel { position: absolute; top: calc(100% + 8px); right: 0; min-width: 12.5rem; padding: 6px; background: #141414; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 12px; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.7); }
+.g-menu-panel[hidden] { display: none; }
+.g-menu-panel nav { display: flex; flex-direction: column; }
+.g-menu-panel a { display: flex; align-items: center; min-height: 48px; padding: 0 0.9rem; border-radius: 8px; font-size: 1.05rem; }
+.g-menu-panel a:active, .g-menu-panel a:hover { background: var(--muted); }
+.g-menu-panel a:focus-visible { outline: 2px solid var(--cream); outline-offset: -2px; }
+.g-menu-panel hr { border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 6px 4px; }
 .phone-header { margin-bottom: 1.4rem; display: flex; flex-direction: column; gap: 1rem; }
-.phone-wordmark { font-size: 1.9rem; }
+.phone-top { display: flex; align-items: center; min-height: 48px; padding-right: 60px; }
+/* Sized to stay on one line beside the menu button (the script face is ~11 font-sizes wide). */
+.phone-wordmark { font-size: min(1.9rem, calc((100vw - 2 * (12px + 1.1rem) - 64px) / 11.2)); white-space: nowrap; }
 .phone-title { display: flex; align-items: center; gap: 1rem; }
 .phone-title h1 { font-size: 1.6rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1.2; }
 .back { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 1rem; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; font-size: 1rem; }
@@ -122,10 +169,24 @@ h1, h2, p { margin: 0; }
 a.card:active { background: #202020; }
 /* Cellar: information only, so a flat row with no card or tap affordance. */
 .row-flat { display: flex; align-items: center; gap: 1rem; min-height: 56px; padding: 0.5rem 0.2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 1.05rem; color: rgba(255, 255, 255, 0.85); cursor: default; }
+/* Two-line rows: name, then a muted detail line (0.85 of the name size, ~60% opacity, max 2 lines).
+   The glass stays centred on the name row; single-line rows stay centred as before. */
+.item-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.item-name { line-height: 1.3; }
+.item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: rgba(255, 255, 255, 0.6); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.card.two-line, .row-flat.two-line { align-items: flex-start; }
+.two-line > .glass { margin-top: calc((1.05rem * 1.3 - 2.5rem) / 2); }
+.row-flat.two-line { padding-top: 0.75rem; padding-bottom: 0.75rem; }
 .serve p { font-size: 1.15rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .serve p + p { margin-top: 0.35rem; font-size: 1rem; }
 .ingredients { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .ingredients li { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.8rem; padding: 0.6rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 1.1rem; }
+/* One shared measure column sized to the longest amount ("1 barspoon"), so amounts never wrap. */
+@supports (grid-template-columns: subgrid) {
+  .ingredients { display: grid; grid-template-columns: minmax(4.5rem, max-content) 1fr; column-gap: 0.8rem; }
+  .ingredients li { grid-column: 1 / -1; grid-template-columns: subgrid; }
+}
+.measure { white-space: nowrap; }
 .measure { font-variant-numeric: tabular-nums; color: var(--quiet); }
 .ingredient .note { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
 .out { color: var(--quiet); }

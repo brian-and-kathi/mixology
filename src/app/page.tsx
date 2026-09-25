@@ -1,4 +1,5 @@
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { Frame } from "@/components/Frame";
 import { MenuQr } from "@/components/MenuQr";
 import { TvBoard } from "@/components/TvBoard";
 import { TvCastLayer } from "@/components/TvCast";
@@ -17,6 +18,7 @@ export default async function TvPage() {
     : [];
 
   return (
+    <>
     <TvCastLayer>
       <style>{"html, body { overflow: hidden; }"}</style>
       <AutoRefresh seconds={60} />
@@ -33,5 +35,7 @@ export default async function TvPage() {
         <TvBoard columns={columns} />
       )}
     </TvCastLayer>
+    <Frame />
+    </>
   );
 }

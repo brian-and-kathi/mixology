@@ -38,18 +38,23 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
       </nav>
       <ul className="cards">
         {menu[current].map((item) => {
+          // Every section has a muted second line (ingredients, region · ABV, region · style) when there is data for it.
           const body = (
             <>
               <GlassIcon glass={item.glass} />
-              <span>{item.name}</span>
+              <span className="item-text">
+                <span className="item-name">{item.name}</span>
+                {item.detail ? <span className="item-detail">{item.detail}</span> : null}
+              </span>
             </>
           );
+          const two = item.detail ? " two-line" : "";
           return (
             <li key={item.id}>
               {item.href ? (
-                <Link href={item.href} className="card">{body}</Link>
+                <Link href={item.href} className={`card${two}`}>{body}</Link>
               ) : (
-                <div className="row-flat">{body}</div>
+                <div className={`row-flat${two}`}>{body}</div>
               )}
             </li>
           );

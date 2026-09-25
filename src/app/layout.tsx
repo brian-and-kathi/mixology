@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Geist, Geist_Mono, Rock_Salt } from "next/font/google";
-import { Frame } from "@/components/Frame";
 import { RegisterSW } from "@/components/RegisterSW";
 import { BAR_NAME } from "@/lib/brand";
 import "./globals.css";
@@ -37,7 +36,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${sans.variable} ${mono.variable} ${display.variable} ${script.variable}`}>
       <body>
         {children}
-        <Frame />
         <RegisterSW />
       </body>
     </html>

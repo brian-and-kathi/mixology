@@ -54,14 +54,15 @@ let canvas: HTMLCanvasElement | null = null;
 /** Width a column needs so its longest name stays on one line (text + icon + gaps + padding). */
 function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): number {
   const row = ruler.firstElementChild as HTMLElement | null;
-  const span = row?.querySelector("span");
+  const span = row?.querySelector(".tv-name");
   if (!row || !span) return 0;
   canvas ??= document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) return 0;
   const rs = getComputedStyle(row);
   ctx.font = `${rs.fontWeight} ${rs.fontSize} ${rs.fontFamily}`;
-  const text = Math.max(...[...ruler.querySelectorAll("span")].map((el) => ctx.measureText(el.textContent ?? "").width));
+  // Only names set the width; the detail line under a name truncates with an ellipsis instead.
+  const text = Math.max(...[...ruler.querySelectorAll(".tv-name")].map((el) => ctx.measureText(el.textContent ?? "").width));
   const icon = (row.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0;
   const perRow = Math.ceil(text + icon + parseFloat(rs.columnGap || "0") + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight)) + 2;
   const cs = getComputedStyle(section);
@@ -73,7 +74,10 @@ function Row({ item, on = false }: { item: MenuItem; on?: boolean }) {
   return (
     <li className={on ? "tv-row on" : "tv-row"}>
       <GlassIcon glass={item.glass} />
-      <span>{item.name}</span>
+      <span className="tv-text">
+        <span className="tv-name">{item.name}</span>
+        {item.detail ? <span className="tv-detail">{item.detail}</span> : null}
+      </span>
     </li>
   );
 }
@@ -94,11 +98,15 @@ export function TvBoard({ columns }: { columns: Column[] }) {
   const [page, setPage] = useState(0);
   const [visible, setVisible] = useState(true);
   const cast = useCastHighlight();
+  // Subtext lines show everywhere, except while a cast is up and the shrunk board would have to
+  // page with them: then every subtext line (all columns) is hidden until the cast ends.
+  const [hideDetail, setHideDetail] = useState(false);
   // The cast band shrinks the board, so re-plan the layout from scratch when it comes and goes.
   const key = (cast ? "cast|" : "") + columns.map((c) => c.id + ":" + c.items.map((i) => i.id).join(",")).join("|");
 
   // New data (or the cast band came or went): start over from one sub-column per section.
   useEffect(() => {
+    setHideDetail(false);
     setSplit(columns.map(() => 1));
     // Once more after the band's 400 ms slide, in case mid-animation sizes over-split a section.
     const t = window.setTimeout(() => setSplit(columns.map(() => 1)), 450);
@@ -149,7 +157,14 @@ export function TvBoard({ columns }: { columns: Column[] }) {
       return tallest <= box.clientHeight ? even : p;
     });
     setAssign(balanced);
-  }, [columns, split, basis]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columns, split, basis, hideDetail]);
+
+  // Hiding the subtext makes rows shorter, so start the plan over from one sub-column per section.
+  useEffect(() => {
+    if (hideDetail) setSplit(columns.map(() => 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hideDetail]);
 
   useLayoutEffect(() => {
     measure();
@@ -163,6 +178,18 @@ export function TvBoard({ columns }: { columns: Column[] }) {
   const needed = assign.map((a) => (a.length ? Math.max(...a) + 1 : 1));
   const colPages = needed.map((n, i) => Math.ceil(n / (split[i] ?? 1)));
   const pageCount = Math.max(1, ...colPages);
+
+  // During a cast, check once the band has finished sliding and the plan has settled.
+  const pagesRef = useRef(pageCount);
+  pagesRef.current = pageCount;
+  const casting = !!cast; // the highlight object is new on every tick; only presence matters here
+  useEffect(() => {
+    if (!casting || hideDetail || pageCount <= 1) return;
+    const t = window.setTimeout(() => {
+      if (pagesRef.current > 1) setHideDetail(true);
+    }, 900);
+    return () => window.clearTimeout(t);
+  }, [casting, hideDetail, pageCount]);
 
   useEffect(() => {
     if (pageCount <= 1) {
@@ -186,7 +213,7 @@ export function TvBoard({ columns }: { columns: Column[] }) {
   const current = page % pageCount;
 
   return (
-    <div className="tv-columns" ref={boardRef} data-pages={pageCount} data-page={current + 1}>
+    <div className={hideDetail ? "tv-columns tv-no-detail" : "tv-columns"} ref={boardRef} data-pages={pageCount} data-page={current + 1}>
       {columns.map((col, ci) => {
         const n = split[ci] ?? 1;
         const shownPage = Math.min(current, colPages[ci] - 1);

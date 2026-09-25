@@ -43,6 +43,7 @@ On the TV, empty sections are omitted. The board first tries to fit the whole me
 - Put the **`dev`** branch connection string in `.env`, **never `main`'s**. Get it from the Neon console (project `mixology`, branch `dev`, database `mixology`).
 - To reset `dev` to a fresh copy of production data, use Neon's **reset from parent** on the `dev` branch (console, or `neon branches reset dev --parent`).
 - **Test schema changes on `dev` first**, then apply them to `main`.
+- Neon ids: project `green-snow-21814330`; `main` = `br-still-math-b553fohk`; `dev` = `br-damp-lab-b54is1bd`.
 
 ## Local development
 

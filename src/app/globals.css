@@ -7,7 +7,7 @@
   --quiet: rgba(255, 255, 255, 0.55);
   --rule: rgba(255, 255, 255, 0.22);
   --cream: #f3ead3;
-  /* Gold accent (TV only for now): text, and a dimmer tone for lines. Deeper and more saturated than cream. */
+  /* Gold accent, shared by the TV and the guest phone (admin never uses it): text, and a dimmer tone for lines. */
   --gold: #cfa453;
   --gold-line: #95753d;
   --radius: 14px;
@@ -59,7 +59,8 @@ h1, h2, p { margin: 0; }
 .tv-col:last-child { padding-right: 0; }
 .tv-col + .tv-col { border-left: 1px solid var(--gold-line); }
 .tv-heading { font-family: var(--font-display), Palatino, serif; font-style: italic; font-weight: 500; font-size: 5.2vh; text-align: center; color: rgba(255, 255, 255, 0.92); line-height: 1.1; }
-.tv-pageno { text-align: center; font: 1.1vh/1.6 ui-monospace, monospace; letter-spacing: 0.3em; color: rgba(255, 255, 255, 0.4); }
+/* Same row height as before (1.76vh), so the board fit is unchanged; only on a column that has a second page. */
+.tv-pageno { text-align: center; font: 1.6vh/1.1 ui-monospace, monospace; letter-spacing: 0.2em; margin-right: -0.2em; color: var(--gold); }
 .tv-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; margin-top: 1vh; }
 .tv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; min-width: 0; }
 .tv-subcols { display: flex; gap: 1vw; height: 100%; transition: opacity 400ms ease; }
@@ -87,11 +88,13 @@ h1, h2, p { margin: 0; }
 /* Sizes follow the 1920x1080 mockup (px / 10.8 = vh). The menu shrinks to fit above the band. */
 .tv, .tv-wordmark, .tv-qr-code, .tv-heading, .tv-row, .tv-row .glass, .tv-columns { transition: padding 400ms ease, font-size 400ms ease, width 400ms ease, height 400ms ease, margin 400ms ease; }
 /* During a cast the header shrinks; the side inset stays, the top closes up (there is no spare height above the band). */
-.tv.tv-casting { padding-bottom: calc(41.85vh + 12px + 1.6vh); padding-top: calc(13px + 1vh); }
+/* Cast top inset is half the idle one (1.5vw from the frame); the room comes from a smaller QR block. */
+.tv.tv-casting { padding-bottom: calc(41.85vh + 12px + 1.6vh); padding-top: calc(13px + var(--tv-in) / 2); }
 .tv-casting .tv-wordmark { font-size: 5.93vh; }
-.tv-casting .tv-qr { gap: 0.6vh; }
-.tv-casting .tv-qr-code { width: 6.85vh; height: 6.85vh; }
-.tv-casting .tv-qr p { font-size: 1vh; }
+.tv-casting .tv-qr { gap: 0.4vh; }
+.tv-casting .tv-qr-code { width: 5.8vh; height: 5.8vh; }
+.tv-casting .tv-qr p { font-size: 0.85vh; }
+.tv-casting .tv-hash { font-size: 1.2vh; }
 .tv-casting .tv-columns { margin-top: 0.4vh; }
 .tv-casting .tv-heading { font-size: 3.33vh; }
 .tv-casting .tv-viewport { margin-top: 0.5vh; }
@@ -157,8 +160,8 @@ h1, h2, p { margin: 0; }
 .g-frame::before, .g-frame::after { content: ""; position: absolute; z-index: 0; left: -2px; right: -2px; height: calc(3px + var(--solid)); background: var(--bg); }
 .g-frame::before { top: -2px; }
 .g-frame::after { bottom: -2px; }
-.g-line { position: absolute; inset: 0; z-index: 2; border: 1px solid #474747; }
-.g-line .frame-corner::before { border-color: #474747; }
+.g-line { position: absolute; inset: 0; z-index: 2; border: 1px solid var(--gold-line); }
+.g-line .frame-corner::before { border-color: var(--gold-line); }
 .g-fade { position: absolute; z-index: 1; left: 0; right: 0; opacity: 0; transition: opacity 180ms ease; }
 .g-fade.on { opacity: 1; }
 /* Once scrolled, the top band is solid black through the whole menu-button row (frame edge + 10px +
@@ -208,7 +211,7 @@ a.card:active { background: #202020; }
    The glass stays centred on the name row; single-line rows stay centred as before. */
 .item-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .item-name { line-height: 1.3; }
-.item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: rgba(255, 255, 255, 0.6); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: var(--gold); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .item-detail .nobr { white-space: nowrap; }
 .card.two-line { align-items: flex-start; }
 .two-line > .glass { margin-top: calc((1.05rem * 1.3 - 2.5rem) / 2); }
@@ -225,7 +228,7 @@ a.card:active { background: #202020; }
 .measure { font-variant-numeric: tabular-nums; color: var(--quiet); }
 .ingredient .note { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
 /* In-stock bottles behind the ingredient (loadRecipe / spec_supply), under the name column. */
-.ingredient .bottles { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
+.ingredient .bottles { display: block; font-size: 0.9rem; margin-top: 0.15rem; color: var(--gold); }
 .out { color: var(--quiet); }
 .tag-out { margin-left: 0.4rem; font-size: 0.75rem; letter-spacing: 0.04em; color: var(--quiet); }
 .method { font-size: 1.05rem; line-height: 1.55; }

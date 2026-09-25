@@ -254,7 +254,8 @@ export function TvBoard({ columns }: { columns: Column[] }) {
         return (
           <section key={col.id} className="tv-col" data-section={col.id} style={{ flex: `1 1 ${basis[ci] || 0}px` }}>
             <h2 className="tv-heading">{col.label}</h2>
-            <p className="tv-pageno">{pageCount > 1 ? `${current + 1} / ${pageCount}` : "\u00a0"}</p>
+            {/* Only a column that has its own second page says so (all columns turn together; a shorter one holds its last page). */}
+            <p className="tv-pageno">{colPages[ci] > 1 ? `${shownPage + 1} / ${colPages[ci]}` : "\u00a0"}</p>
             <div className="tv-viewport" ref={(el) => { viewports.current[ci] = el; }}>
               {/* Invisible full list at sub-column width, used only to measure row heights. */}
               <ul className="tv-list tv-ruler" aria-hidden style={{ width: `${100 / n}%` }} ref={(el) => { rulers.current[ci] = el; }}>

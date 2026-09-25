@@ -72,6 +72,15 @@ h1, h2, p { margin: 0; }
 .tv-subcols > .tv-list { flex: 1 1 0; }
 .tv-fading { opacity: 0; }
 .tv-ruler { position: absolute; inset: 0 0 auto 0; visibility: hidden; pointer-events: none; }
+/* Pours are grouped by spirit family (lib/spirit-family.ts): a small gap above each family's first row, except at
+   the top of a sub-column. The measuring list (.tv-ruler) shows every gap; TvBoard's packing counts a gap only when
+   its row isn't first in its column, so pages and balancing account for it. 0.6vh is the most that keeps the
+   idle board's pages and 8/7 balance at 1080, 720 and 576 with room to spare (it tips at 0.8vh at 1024x576). */
+.tv-columns { --tv-fam-gap: 0.6vh; }
+.tv-list > .tv-row.fam-start { margin-top: var(--tv-fam-gap); }
+.tv-subcols .tv-list > .tv-row.fam-start:first-child { margin-top: 0; }
+/* While a cast hides the subtext to fit the shrunk board, the family gaps go too, so cast layouts page exactly as before. */
+.tv-no-detail .tv-list > .tv-row.fam-start { margin-top: 0; }
 .tv-row { display: flex; align-items: center; gap: 0.7vw; padding: 1.05vh 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 2.75vh; line-height: 1.25; }
 .tv-row .glass { width: 3.6vh; height: 3.6vh; color: rgba(255, 255, 255, 0.85); }
 /* Subtext under every name (ingredients, region · ABV, region · style): one muted line, truncated by
@@ -81,7 +90,8 @@ h1, h2, p { margin: 0; }
 .tv-row .glass { margin-top: calc((2.75vh * 1.25 - 3.6vh) / 2); }
 .tv-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .tv-name { overflow-wrap: anywhere; }
-/* Spec badge after a Pours name ("Bowright Recurve [Rye]"), phone, TV and the pour page title: gold text at
+/* Spec badge after a Pours name on the TV ("Bowright Recurve [Rye]"), and the base for the phone corner badge and the
+   pour page title badge: gold text at
    72% of the name size, weight 500, 1px gold-line border, 4px radius, 1px 6px padding. It rides in one
    no-wrap run with the name's last word (.badged), so it never wraps on its own.
    Vertically centered on the name's cap height (Geist: cap 0.71, ascent 1.005, descent 0.295 of the em):
@@ -92,11 +102,9 @@ h1, h2, p { margin: 0; }
 .badged { white-space: nowrap; }
 .spec-badge { display: inline-block; margin-left: 0.45em; padding: 1px 6px; border: 1px solid var(--gold-line); border-radius: 4px; font-size: 0.72em; font-weight: 500; line-height: 1; letter-spacing: 0.01em; color: var(--gold); vertical-align: 0.14em; white-space: nowrap; }
 .spec-badge.is-off { display: none; }
-/* Fallback: the badge at the start of the subtext line (it didn't fit after the name; see useBadgePlace).
-   Same size as on the name line (72% of the name; the phone subtext is 85% of the name, the TV's 72%), centered
-   on the subtext's cap height the same way ((0.71 / 2) / size ratio - 0.355 badge ems). Negative vertical margins
-   take its padding and border out of the line box, so the subtext line (and card / row) is exactly as tall as before. */
-.item-detail > .spec-badge { font-size: calc(0.72em / 0.85); vertical-align: 0.064em; margin: -2px 0.45em -2px 0; }
+/* TV fallback: the badge at the start of the subtext line (it didn't fit after the name; see useBadgePlace).
+   Same size as on the name line (72% of the name; the TV subtext is 72% too), centered on the subtext's cap height.
+   Negative vertical margins take its padding and border out of the line box, so the row is exactly as tall as before. */
 .tv-detail > .spec-badge { font-size: 1em; vertical-align: 0; margin: -2px 0.45em -2px 0; }
 /* The TV subtext clips at its box (it is measured to fit); give the badge's border 2px of room above and below
    without moving anything (padding and margin cancel out). */
@@ -276,6 +284,27 @@ a.card:active { background: #202020; }
 .item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: var(--gold); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .item-detail .nobr { white-space: nowrap; }
 .card.two-line { align-items: flex-start; }
+/* Phone Pours: the type badge in the card's top-right corner, out of flow (same look as the TV badge: 72% of the
+   name size, gold text, gold-line border). Two variants for review (only one ships): A, an inset pill 7px clear of
+   the card's 1px ring (8px from its edge); B, a flush corner tab. --corner-inset is the badge's distance from the
+   card's right edge.
+   The room it takes is kept free on the name's line by .badge-reserve: an invisible, zero-height copy of the badge
+   floated at the right of the name. Its margins put the name's right limit exactly 8px left of the corner badge
+   (8px on the left; on the right, the badge's inset minus the card's 1.1rem padding). Being 1px tall it narrows only
+   the name's first line, the one beside the badge; the subtext starts below the badge (it ends 21-24px from the
+   card's top, the subtext ~37px) and keeps the full width, so cards stay at their main height. No badge, no reserve. */
+.card.has-badge { position: relative; }
+.corner-badge { position: absolute; margin: 0; }
+.corner-a { --corner-inset: 8px; }
+.corner-b { --corner-inset: 0px; }
+.badge-reserve { float: right; visibility: hidden; height: 1px; overflow: hidden; padding-block: 0; border-block-width: 0; margin: 0 calc(var(--corner-inset) - 1.1rem) 0 8px; vertical-align: top; }
+.corner-a .corner-badge { top: var(--corner-inset); right: var(--corner-inset); }
+/* B: top and right edges on the card's edge, top-right radius = the card's, 6px bottom-left radius, gold-line
+   border on the left and bottom only. A little more padding than the pill so the text clears the rounded corner. */
+.corner-b .corner-badge, .corner-b .badge-reserve { padding-inline: 8px 10px; border-width: 0 0 1px 1px; border-radius: 0 var(--radius) 0 6px; }
+.corner-b .corner-badge { top: 0; right: 0; padding-block: 4px; }
+/* Pours are grouped by spirit family (lib/spirit-family.ts): 0.5em extra space above each family's first card. */
+.cards > li.fam-start { margin-top: 0.5em; }
 .two-line > .card-lead { margin-top: calc((1.05rem * 1.3 - 2.5rem) / 2); }
 /* Guest rating under the glass ("4.2 ★", TV board styling): 70% white, weight 500, 90% of the subtext size,
    gold star at 0.92 of the number, centered under the glass. With a subtext line the box has the subtext's

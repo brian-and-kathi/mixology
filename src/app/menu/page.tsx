@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
-import { CardText } from "@/components/SpecBadge";
 import { loadMenu, SECTIONS, type SectionId } from "@/lib/menu";
 import { ratingKey } from "@/lib/rating-key";
 import { loadAllRatings } from "@/lib/ratings";
@@ -11,8 +10,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Menu" };
 
 /** Phone guest menu: same sections and order as the TV, one tab per non-empty section. */
-export default async function MenuPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const { tab } = await searchParams;
+export default async function MenuPage({ searchParams }: { searchParams: Promise<{ tab?: string; badge?: string }> }) {
+  const { tab, badge } = await searchParams;
+  // Pours corner badge, two variants for review (A: inset pill, default; B: flush corner tab, ?badge=b). Only one ships.
+  const corner = badge === "b" ? "corner-b" : "corner-a";
   // Guest ratings, the TV board's single query and rounding; a failure just shows no ratings.
   const [menu, ratings] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch((): Record<string, number> => ({}))]);
   if (!menu) {
@@ -41,7 +42,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
           </Link>
         ))}
       </nav>
-      <ul className="cards">
+      <ul className={`cards ${corner}`}>
         {menu[current].map((item) => {
           // Every section has a muted second line (ingredients, region · ABV, region · style) when there is data for it.
           const rating = ratings[ratingKey(current, item.id)];
@@ -59,20 +60,23 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
                   </span>
                 ) : null}
               </span>
-              {item.spec ? (
-                // Pours: short name, then the type badge after it, or at the start of the subtext when it doesn't fit (CardText).
-                <CardText name={item.name} spec={item.spec} detail={item.detail ? keepHyphens(item.detail) : null} />
-              ) : (
-                <span className="item-text">
-                  <span className="item-name">{item.name}</span>
-                  {item.detail ? <span className="item-detail">{keepHyphens(item.detail)}</span> : null}
+              <span className="item-text">
+                <span className="item-name">
+                  {/* Pours: an invisible copy of the badge floated at the right of the name's first line keeps the room
+                      the corner badge takes, plus 8px, so the name wraps before it and never runs under it. */}
+                  {item.spec ? <span className="spec-badge badge-reserve" aria-hidden>{item.spec}</span> : null}
+                  {item.name}
                 </span>
-              )}
+                {item.detail ? <span className="item-detail">{keepHyphens(item.detail)}</span> : null}
+              </span>
+              {/* Pours: the type badge in the card's top-right corner, out of flow. */}
+              {item.spec ? <span className="spec-badge corner-badge">{item.spec}</span> : null}
             </>
           );
-          const two = item.detail ? " two-line" : "";
+          const two = (item.detail ? " two-line" : "") + (item.spec ? " has-badge" : "");
           return (
-            <li key={item.id}>
+            // Pours: a little extra space above the first bottle of each spirit family (lib/spirit-family.ts).
+            <li key={item.id} className={item.famStart ? "fam-start" : undefined}>
               {item.href ? (
                 <Link href={item.href} className={`card${two}`}>{body}</Link>
               ) : (

@@ -1,9 +1,10 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 /**
- * A bottle's name with its spec badge right after it ("Bowright Recurve [Rye]"), on Pours (phone and TV).
+ * A bottle's name with its spec badge right after it ("Bowright Recurve [Rye]"), on the TV's Pours rows
+ * (the phone puts the badge in the card's corner instead).
  * The badge rides with the name's last word in one no-wrap run, so it never starts a line on its own.
  * `off`: the badge is kept in the DOM but hidden (display: none), because useBadgePlace moved it to the
  * subtext line; it stays so the hook can measure the inline case again when the width changes.
@@ -24,7 +25,7 @@ export function BadgedName({ name, spec, off = false }: { name: string; spec?: s
 }
 
 /**
- * Where a row's badge goes, decided per row from measured layout (phone cards and TV rows).
+ * Where a TV row's badge goes, decided per row from measured layout.
  * The badge stays after the name unless showing it there would make the name take more lines than it does
  * alone, or push past the row's edge; then it moves to the start of the subtext line ("[Orange liqueur]
  * France · 40% ABV"). So the badge never splits a name ("Grand / Marnier") and never makes a name that
@@ -65,20 +66,4 @@ export function useBadgePlace(spec: string | null | undefined, canMove: boolean)
     return () => ro.disconnect();
   }, [spec, canMove]);
   return { ref, sub };
-}
-
-/** Phone Pours card text: name (+ badge), then the subtext, which takes the badge when it doesn't fit after the name. */
-export function CardText({ name, spec, detail }: { name: string; spec: string | null; detail: ReactNode }) {
-  const { ref, sub } = useBadgePlace(spec, detail != null);
-  return (
-    <span className="item-text">
-      <span className="item-name" ref={ref}><BadgedName name={name} spec={spec} off={sub} /></span>
-      {detail != null ? (
-        <span className="item-detail">
-          {sub && spec ? <span className="spec-badge">{spec}</span> : null}
-          {detail}
-        </span>
-      ) : null}
-    </span>
-  );
 }

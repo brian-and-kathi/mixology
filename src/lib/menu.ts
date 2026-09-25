@@ -1,4 +1,5 @@
 import { isUuid, query } from "@/lib/db";
+import { spiritFamily } from "@/lib/spirit-family";
 import { badgeFor, specLabel } from "@/lib/spec-label";
 
 // Section order is fixed everywhere (TV and phone): Pours, Cocktails, Cellar.
@@ -18,13 +19,25 @@ export type Sub = { detail: string; fit: string[] };
 /**
  * `spec`: the badge after a Pours name ("Rye", see lib/spec-label; none when the name already says it);
  * other sections have none. `measure`: the text the TV sizes the column by (the full name, so column
- * widths are exactly what they were before short names and badges).
+ * widths are exactly what they were before short names and badges). `famStart` (Pours): the first bottle of a
+ * spirit family after another family (lib/spirit-family.ts); the phone and TV add a small gap above it.
  */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; measure?: string };
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; measure?: string; famStart?: boolean };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
   a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+
+const cmp = (a: string, b: string) => a.localeCompare(b, "en", { sensitivity: "base" });
+
+/**
+ * Pours in spirit-family order (Whiskey … Liqueurs, lib/spirit-family.ts), then by badge text (the would-be
+ * badge when it's hidden because the name already says it), then by the shown name. Marks each family's first row.
+ */
+function byFamily(rows: (MenuItem & { family: number; sortBadge: string })[]): MenuItem[] {
+  const sorted = [...rows].sort((a, b) => a.family - b.family || cmp(a.sortBadge, b.sortBadge) || cmp(a.name, b.name));
+  return sorted.map(({ family, sortBadge: _badge, ...item }, i) => ({ ...item, famStart: i > 0 && family !== sorted[i - 1].family }));
+}
 
 /**
  * The three guest sections come straight from the existing database views:
@@ -32,11 +45,14 @@ const byName = (a: MenuItem, b: MenuItem) =>
  */
 export async function loadMenu(): Promise<Menu> {
   const [pours, cocktails, cellar, lines] = await Promise.all([
-    query<{ id: string; name: string; full: string; origin: string | null; abv: string | null; type: string | null; label: string | null }>(
+    query<{ id: string; name: string; full: string; origin: string | null; abv: string | null; type: string | null; label: string | null; family: string | null }>(
       // Pours show the bottle's short name (migration 023; NULL = the full name) with a badge: its own badge
       // label, or else its type (spec_label is display only; the subtext's type fallback stays the ingredient).
       `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full, n.origin, n.abv::text AS abv, n.primary_spec_name AS type,
-              p.spec_label AS label
+              p.spec_label AS label,
+              -- The primary ingredient's family, for grouping (lib/spirit-family.ts). Ingredient names are unique.
+              (SELECT f.slug FROM specs s JOIN spec_families sf ON sf.spec_id = s.id AND sf.is_primary
+                 JOIN families f ON f.id = sf.family_id WHERE s.canonical_name = n.primary_spec_name) AS family
          FROM menu_neat n JOIN products p ON p.id = n.id`,
     ),
     query<{ id: string; name: string; glass: string | null }>(
@@ -55,7 +71,11 @@ export async function loadMenu(): Promise<Menu> {
   ]);
   return {
     // Pours have no glass_id in the schema; they are shown with a rocks glass.
-    pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, specLabel(p.type, p.label)), measure: p.full, ...pourLine(p) })).sort(byName),
+    pours: byFamily(pours.map((p) => {
+      const badge = specLabel(p.type, p.label);
+      return { id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, badge), measure: p.full, ...pourLine(p),
+        family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" };
+    })),
     cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
     cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, ...wineLine(w) })).sort(byName),
   };

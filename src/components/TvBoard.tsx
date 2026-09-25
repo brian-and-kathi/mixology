@@ -15,17 +15,22 @@ const FADE_MS = 400;
 // Narrowest sub-column we allow before paging instead (keeps names readable across a room).
 const MIN_SUBCOL_PX = 420;
 
-/** Assign each row to a "virtual column" so no column is taller than `available` px. */
-function pack(heights: number[], available: number): number[] {
+/**
+ * Assign each row to a "virtual column" so no column is taller than `available` px. `gaps[i]`: the extra space
+ * above row i when it starts a new spirit family (Pours), which only counts when the row isn't first in its column.
+ */
+function pack(heights: number[], gaps: number[], available: number): number[] {
   const out: number[] = [];
   let col = 0;
   let used = 0;
   heights.forEach((h, i) => {
-    if (used > 0 && used + h > available) {
+    const gap = used > 0 ? gaps[i] ?? 0 : 0;
+    if (used > 0 && used + gap + h > available) {
       col += 1;
-      used = 0;
+      used = h;
+    } else {
+      used += gap + h;
     }
-    used += h;
     out[i] = col;
   });
   return out;
@@ -34,6 +39,11 @@ function pack(heights: number[], available: number): number[] {
 /** Unrounded row heights (offsetHeight rounds, and 8 x 0.5px can cost a row at 1024x576). */
 function rowHeights(ruler: HTMLElement): number[] {
   return [...ruler.children].map((el) => el.getBoundingClientRect().height);
+}
+
+/** Family gap above each row, as the measuring list shows it (every family start has it there; see .fam-start). */
+function rowGaps(ruler: HTMLElement): number[] {
+  return [...ruler.children].map((el) => parseFloat(getComputedStyle(el).marginTop) || 0);
 }
 
 /** Hand out a sub-column budget: every section gets 1, extra goes where it is needed most. */
@@ -141,10 +151,12 @@ function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
 }
 
 function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on?: boolean }) {
+  // Pours are grouped by spirit family: the first bottle of a family gets a small gap above it (.fam-start).
+  const cls = "tv-row" + (on ? " on" : "") + (item.famStart ? " fam-start" : "");
   // Pours badge: after the name, or at the start of the subtext line when it doesn't fit there (useBadgePlace).
   const { ref, sub } = useBadgePlace(item.spec, !!item.fit?.length);
   return (
-    <li className={on ? "tv-row on" : "tv-row"}>
+    <li className={cls}>
       <Lead glass={item.glass} rating={rating} />
       <span className="tv-text">
         <span className="tv-name" ref={ref} data-measure={item.measure}><BadgedName name={item.name} spec={item.spec} off={sub} /></span>
@@ -198,7 +210,7 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
       const box = viewports.current[ci];
       const ruler = rulers.current[ci];
       if (!box || !ruler || box.clientHeight < 40) return c.items.map(() => 0);
-      return pack(rowHeights(ruler), box.getBoundingClientRect().height);
+      return pack(rowHeights(ruler), rowGaps(ruler), box.getBoundingClientRect().height);
     });
     const needed = packed.map((p) => (p.length ? Math.max(...p) + 1 : 1));
     const next = allocate(needed, budget);
@@ -231,7 +243,9 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
       const long = (p.length % slots) * (base + 1); // rows in the sub-columns that take an extra one
       const even = p.map((_, i) => (i < long ? Math.floor(i / (base + 1)) : long / (base + 1) + Math.floor((i - long) / base)));
       const heights = rowHeights(ruler);
-      const tallest = Math.max(...Array.from({ length: slots }, (_, c) => heights.reduce((sum, h, i) => sum + (even[i] === c ? h : 0), 0)));
+      const gaps = rowGaps(ruler);
+      // A family gap counts unless its row is first in its sub-column.
+      const tallest = Math.max(...Array.from({ length: slots }, (_, c) => heights.reduce((sum, h, i) => sum + (even[i] === c ? h + (i > 0 && even[i - 1] === c ? gaps[i] : 0) : 0), 0)));
       return tallest <= box.getBoundingClientRect().height ? even : p;
     });
     setAssign(balanced);

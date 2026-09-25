@@ -54,7 +54,8 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
               {item.href ? (
                 <Link href={item.href} className={`card${two}`}>{body}</Link>
               ) : (
-                <div className={`row-flat${two}`}>{body}</div>
+                // Cellar is information only: same card look as the other sections, but not a link.
+                <div className={`card card-static${two}`}>{body}</div>
               )}
             </li>
           );

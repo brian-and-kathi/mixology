@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
 import type { Family, Glass, RecipeRow, SpecOption } from "@/lib/admin-data";
-import { altGlassLine, cap, glassLine, lineText, methodParts, METHOD_STYLES, NO_AMOUNT_UNITS } from "@/lib/format";
+import { altGlassLine, cap, glassLine, lineText, methodParts, METHOD_STYLES, NO_AMOUNT_UNITS, glassName } from "@/lib/format";
 import { api } from "./api";
 import { BackLink, SaveBar, useUnsavedGuard } from "./SaveBar";
 import { SpecPicker } from "./SpecPicker";
@@ -128,7 +128,7 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
           <button type="button" role="radio" aria-checked={!f.glass_id} className={!f.glass_id ? "a-glass on" : "a-glass"} onClick={() => set("glass_id", "")}><span className="a-glass-none">—</span><span>None</span></button>
           {glassware.map((g) => (
             <button key={g.id} type="button" role="radio" aria-checked={f.glass_id === String(g.id)} className={f.glass_id === String(g.id) ? "a-glass on" : "a-glass"} onClick={() => set("glass_id", String(g.id))}>
-              <GlassIcon glass={g.name} /><span>{cap(g.name)}</span>
+              <GlassIcon glass={g.name} /><span>{glassName(g.name)}</span>
             </button>
           ))}
         </div>
@@ -143,7 +143,7 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
         <label className="a-field"><span className="a-label">Other glass that works</span>
           <select value={f.alt_glass_id} onChange={(e) => set("alt_glass_id", e.target.value)}>
             <option value="">—</option>
-            {glassware.map((g) => <option key={g.id} value={g.id}>{cap(g.name)}</option>)}
+            {glassware.map((g) => <option key={g.id} value={g.id}>{glassName(g.name)}</option>)}
           </select>
         </label>
         <label className="a-field"><span className="a-label">Served in that glass</span>

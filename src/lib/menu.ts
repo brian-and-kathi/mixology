@@ -8,8 +8,13 @@ export const SECTIONS = [
 ] as const;
 export type SectionId = (typeof SECTIONS)[number]["id"];
 
-/** `detail` is the cocktail ingredient line ("Rye · sweet vermouth · cherry liqueur"); other sections have none. */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null };
+/**
+ * Subtext under a name. `detail` is the phone line (items joined with a no-break space before each
+ * " · ", so a wrapped line never starts with a dot). `fit` is the TV's candidates, longest first:
+ * the TV measures and shows the first one that fits on one line (see TvBoard FitLine).
+ */
+export type Sub = { detail: string; fit: string[] };
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[] };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -40,9 +45,9 @@ export async function loadMenu(): Promise<Menu> {
   ]);
   return {
     // Pours have no glass_id in the schema; they are shown with a rocks glass.
-    pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, detail: pourLine(p) })).sort(byName),
-    cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, detail: lines.get(c.id) ?? null })).sort(byName),
-    cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: "wine glass", href: null, detail: wineLine(w) })).sort(byName),
+    pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, ...pourLine(p) })).sort(byName),
+    cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
+    cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: "wine glass", href: null, ...wineLine(w) })).sort(byName),
   };
 }
 
@@ -52,7 +57,7 @@ export async function loadMenu(): Promise<Menu> {
  * A line that is out tonight names its stocked stand-in, with the same shelf rule as the recipe
  * page (loadRecipe): a stand-in only counts when a bottle of it is on the shelf.
  */
-async function loadCocktailLines(): Promise<Map<string, string>> {
+async function loadCocktailLines(): Promise<Map<string, Sub>> {
   const rows = await query<{ recipe_id: string; names: string[] }>(
     `WITH shelf AS (
        SELECT sp.id FROM specs sp
@@ -80,24 +85,49 @@ async function loadCocktailLines(): Promise<Map<string, string>> {
         AND s.spec_id NOT IN (SELECT spec_id FROM staple)
       GROUP BY s.recipe_id`,
   );
-  return new Map(rows.map((r) => [r.recipe_id, ingredientLine(r.names)]));
-}
-
-/** "Rye · sweet vermouth · cherry liqueur": de-duplicated, only the first word capitalized. */
-export function ingredientLine(names: string[]): string {
-  const text = [...new Set(names)].join(" · ");
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  return new Map(rows.flatMap((r) => { const sub = ingredientLine(r.names); return sub ? [[r.recipe_id, sub] as [string, Sub]] : []; }));
 }
 
 const first = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const clean = (t: string | null) => (t ?? "").trim();
+const DOT = "\u00a0· ";
 
-/** Pours: "London · 40% ABV". One of the two if the other is missing; else the type ("Rye"); else nothing. */
-export function pourLine(p: { origin: string | null; abv: string | null; type: string | null }): string | null {
+/**
+ * A list line ("Rye · sweet vermouth · cherry liqueur"), only the first word capitalized.
+ * TV candidates cut at whole items with a trailing "· …" ("Rye · sweet vermouth · …"); as a last
+ * resort the first item loses whole words ("Grand …"). Never mid-word.
+ */
+function listSub(items: string[]): { detail: string; fit: string[] } | null {
+  const list = [...new Set(items.map((i) => i.trim()).filter(Boolean))];
+  if (!list.length) return null;
+  const fit = [first(list.join(" · "))];
+  for (let k = list.length - 1; k >= 1; k--) fit.push(first(`${list.slice(0, k).join(" · ")} · …`));
+  const words = list[0].split(/\s+/);
+  for (let k = words.length - 1; k >= 1; k--) fit.push(first(`${words.slice(0, k).join(" ")} …`));
+  return { detail: first(list.join(DOT)), fit };
+}
+
+/** Cocktails: ingredients in recipe order, no amounts. */
+export function ingredientLine(names: string[]) {
+  return listSub(names);
+}
+
+/**
+ * Pours. Phone: "Lake City, Michigan · 45% ABV" (one if the other is missing; neither, the type).
+ * TV: the ABV always stays whole; the region shortens to its state or country ("Michigan · 45% ABV")
+ * and is dropped entirely if that still doesn't fit.
+ */
+export function pourLine(p: { origin: string | null; abv: string | null; type: string | null }): Partial<Sub> {
   const abv = p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% ABV` : "";
-  const parts = [clean(p.origin), abv].filter(Boolean);
-  if (parts.length) return first(parts.join(" · "));
-  return clean(p.type) ? first(clean(p.type)) : null;
+  const region = clean(p.origin);
+  const short = region.split(",").map((x) => x.trim()).filter(Boolean).pop() ?? "";
+  if (!region && !abv) {
+    const type = clean(p.type);
+    return type ? { detail: first(type), fit: [first(type)] } : {};
+  }
+  const detail = first([region, abv].filter(Boolean).join(DOT));
+  const fit = abv ? [short ? `${short} · ${abv}` : abv, abv] : [short];
+  return { detail, fit: [...new Set(fit.map(first))] };
 }
 
 /**
@@ -105,12 +135,12 @@ export function pourLine(p: { origin: string | null; abv: string | null; type: s
  * says it ("Hakutsuru Sake" → just "Japan"). No region: the style alone ("Sake"). Nothing: no line.
  * Regions come only from the bottle's origin field; nothing is guessed.
  */
-export function wineLine(w: { name: string; origin: string | null; type: string | null }): string | null {
+export function wineLine(w: { name: string; origin: string | null; type: string | null }): Partial<Sub> {
   const region = clean(w.origin);
   const type = clean(w.type);
   const redundant = !!type && w.name.toLowerCase().includes(type.toLowerCase());
-  if (region) return first(type && !redundant ? `${region} · ${type}` : region);
-  return type ? first(type) : null;
+  const items = region ? (type && !redundant ? [region, type] : [region]) : type ? [type] : [];
+  return listSub(items) ?? {};
 }
 
 export type RecipeLine = {

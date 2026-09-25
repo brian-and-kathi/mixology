@@ -48,7 +48,8 @@
 /* Buttons, links, fields */
 .a-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 1.1rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.22); background: transparent; cursor: pointer; font-weight: 500; }
 .a-btn:disabled { opacity: 0.45; cursor: default; }
-.a-btn-primary { background: var(--cream); color: #111; border-color: var(--cream); }
+/* .admin-root prefix: `.admin-root button { color: inherit }` would otherwise win and turn the label white on cream. */
+.admin-root .a-btn-primary { background: var(--cream); color: #111; border-color: var(--cream); }
 .a-wide { width: 100%; }
 .a-link { background: none; border: 0; padding: 0.5rem 0.25rem; min-height: 44px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
 .a-back { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 48px; padding: 0 0.2rem; color: var(--quiet); }
@@ -66,6 +67,7 @@
 .a-toggles { display: flex; gap: 1.2rem; flex-wrap: wrap; }
 .a-grid2 { display: grid; gap: 0.8rem; grid-template-columns: 1fr; }
 @media (min-width: 520px) { .a-grid2 { grid-template-columns: 1fr 1fr; } }
+.a-grid2-tight { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .a-inline { display: flex; gap: 0.5rem; }
 .a-inline input { flex: 1; }
 .a-error { color: var(--a-red); font-size: 0.9rem; margin: 0; }
@@ -85,7 +87,7 @@
 .a-savebar .a-error { max-width: 688px; margin: 0 auto 0.4rem; }
 .a-savebar .a-btn-primary { min-width: 8rem; }
 /* "Saved": quiet confirmation after a save with nothing pending (disabled, not a call to action). */
-.a-btn-primary.is-saved:disabled { color: var(--a-accent); border-color: rgba(95,179,165,0.45); }
+.admin-root .a-btn-primary.is-saved:disabled { color: var(--a-accent); border-color: rgba(95,179,165,0.45); }
 
 /* Search + chips */
 .a-searchbar { position: sticky; top: var(--a-head-h); z-index: 20; background: var(--bg); padding: 0.4rem 0 0.6rem; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -213,4 +215,6 @@
 .a-tvbar { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; padding: 0.3rem 0 0.2rem; }
 .a-tvbar-text { font-size: 0.95rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .a-tvbar-btn { min-height: 44px; flex-shrink: 0; }
-.a-btn-primary:disabled { background: transparent; color: var(--quiet); border-color: var(--a-line); opacity: 1; }
+.admin-root .a-btn-primary:disabled { background: transparent; color: var(--quiet); border-color: var(--a-line); opacity: 1; }
+/* Sign in: gray until a password is typed (the field is required, so an empty submit is blocked anyway; works without JS). */
+.a-login-form:has(input[type=password]:invalid) .a-btn-primary { background: #1a1a1a; color: var(--quiet); border-color: var(--a-line); cursor: default; }

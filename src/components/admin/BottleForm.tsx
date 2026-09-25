@@ -84,6 +84,12 @@ export function BottleForm({ product, specs: initialSpecs, families, shared }: {
       <SpecPicker label="What is it?" specs={specs} families={families} value={f.spec_id} onChange={(id) => pickSpec(id)} onCreate={(s) => { const next = [...specs, s].sort((a, b) => a.name.localeCompare(b.name)); setSpecs(next); pickSpec(s.id, next); }} />
       {spec?.ingredient_only ? <p className="a-hint">{spec.name.replace(/^./, (c) => c.toUpperCase())} is drinks-only: it won&apos;t appear on Pours or Cellar, but recipes can use it.</p> : null}
 
+      {/* Region and ABV sit with the type: guests see them under the name on Pours and Cellar. */}
+      <div className="a-grid2 a-grid2-tight">
+        <label className="a-field"><span className="a-label">Region</span><input value={f.origin} onChange={(e) => set("origin", e.target.value)} maxLength={120} placeholder="e.g. Kentucky" /></label>
+        <label className="a-field"><span className="a-label">ABV %</span><input value={f.abv} onChange={(e) => set("abv", e.target.value)} inputMode="decimal" placeholder="e.g. 40" /></label>
+      </div>
+
       {spec && familyName ? <p className="a-hint">Filed under {familyName.replace(/^./, (c) => c.toUpperCase())} (from the type).</p> : null}
       {spec && !familyName ? (
         <label className="a-field">
@@ -124,8 +130,6 @@ export function BottleForm({ product, specs: initialSpecs, families, shared }: {
       <details className="a-more">
         <summary>More details</summary>
         <label className="a-field"><span className="a-label">Brand</span><input value={f.brand} onChange={(e) => set("brand", e.target.value)} maxLength={120} /></label>
-        <label className="a-field"><span className="a-label">Where it&apos;s from</span><input value={f.origin} onChange={(e) => set("origin", e.target.value)} maxLength={120} /></label>
-        <label className="a-field"><span className="a-label">ABV %</span><input value={f.abv} onChange={(e) => set("abv", e.target.value)} inputMode="decimal" /></label>
         <label className="a-field"><span className="a-label">Serving note</span><input value={f.serve_note} onChange={(e) => set("serve_note", e.target.value)} maxLength={200} placeholder="e.g. Best with a single large cube" /></label>
         <label className="a-field"><span className="a-label">Barcode</span><input value={f.upc} onChange={(e) => set("upc", e.target.value)} inputMode="numeric" /></label>
         {isWine ? (

@@ -55,13 +55,14 @@ h1, h2, p { margin: 0; }
 .tv-ruler { position: absolute; inset: 0 0 auto 0; visibility: hidden; pointer-events: none; }
 .tv-row { display: flex; align-items: center; gap: 0.7vw; padding: 1.05vh 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 2.75vh; line-height: 1.25; }
 .tv-row .glass { width: 3.6vh; height: 3.6vh; color: rgba(255, 255, 255, 0.85); }
-/* Subtext under every name (ingredients, region · ABV, region · style): one muted line, ellipsis.
+/* Subtext under every name (ingredients, region · ABV, region · style): one muted line, truncated by
+   measurement at whole items (FitLine), not CSS text-overflow.
    The glass stays on the name row. Hidden on all columns together when a cast would force paging. */
 .tv-row { align-items: flex-start; }
 .tv-row .glass { margin-top: calc((2.75vh * 1.25 - 3.6vh) / 2); }
 .tv-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .tv-name { overflow-wrap: anywhere; }
-.tv-detail { font-size: 0.85em; line-height: 1.2; margin-top: 0.05vh; color: rgba(255, 255, 255, 0.6); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv-detail { font-size: 0.85em; line-height: 1.2; margin-top: 0.05vh; color: rgba(255, 255, 255, 0.6); font-weight: 400; white-space: nowrap; overflow: hidden; }
 .tv-no-detail .tv-detail { display: none; }
 /* Two-line rows get tighter padding so the idle board (15 pours in 8/7) still fits on one screen. */
 .tv-columns:not(.tv-no-detail) .tv-row:has(.tv-detail) { padding: 0.62vh 0; }
@@ -131,7 +132,10 @@ h1, h2, p { margin: 0; }
 .g-frame { position: fixed; top: var(--ft); left: var(--fl); right: var(--fr); bottom: var(--fb); border: 1px solid rgba(255, 255, 255, 0.28); box-shadow: 0 0 0 100vmax var(--bg); pointer-events: none; z-index: 30; }
 .g-fade { position: fixed; left: calc(var(--fl) + 1px); right: calc(var(--fr) + 1px); height: var(--fade); pointer-events: none; z-index: 29; opacity: 0; transition: opacity 180ms ease; }
 .g-fade.on { opacity: 1; }
-.g-fade-top { top: calc(var(--ft) + 1px); background: linear-gradient(to bottom, #000, rgba(0, 0, 0, 0)); }
+/* Once scrolled, the top band is solid black through the whole menu-button row (frame edge + 10px +
+   48px button + 6px, ~72px from the screen top without insets), then fades over --fade, so cards fade
+   out before they reach the button. At rest (scrollY = 0) it's hidden, so nothing changes there. */
+.g-fade-top { --band: 64px; top: calc(var(--ft) + 1px); height: calc(var(--band) + var(--fade)); background: linear-gradient(to bottom, #000 0, #000 var(--band), rgba(0, 0, 0, 0) 100%); }
 .g-fade-bottom { bottom: calc(var(--fb) + 1px); background: linear-gradient(to top, #000, rgba(0, 0, 0, 0)); }
 @supports (height: 100dvh) {
   .g-frame { bottom: auto; height: calc(100dvh - var(--ft) - var(--fb)); }
@@ -167,16 +171,14 @@ h1, h2, p { margin: 0; }
 .cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
 .card { display: flex; align-items: center; gap: 1rem; min-height: 64px; padding: 0.8rem 1.1rem; background: var(--card); border-radius: var(--radius); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); font-size: 1.05rem; }
 a.card:active { background: #202020; }
-/* Cellar: information only, so a flat row with no card or tap affordance. */
-.row-flat { display: flex; align-items: center; gap: 1rem; min-height: 56px; padding: 0.5rem 0.2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 1.05rem; color: rgba(255, 255, 255, 0.85); cursor: default; }
+.card-static { cursor: default; }
 /* Two-line rows: name, then a muted detail line (0.85 of the name size, ~60% opacity, max 2 lines).
    The glass stays centred on the name row; single-line rows stay centred as before. */
 .item-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .item-name { line-height: 1.3; }
 .item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: rgba(255, 255, 255, 0.6); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-.card.two-line, .row-flat.two-line { align-items: flex-start; }
+.card.two-line { align-items: flex-start; }
 .two-line > .glass { margin-top: calc((1.05rem * 1.3 - 2.5rem) / 2); }
-.row-flat.two-line { padding-top: 0.75rem; padding-bottom: 0.75rem; }
 .serve p { font-size: 1.15rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .serve p + p { margin-top: 0.35rem; font-size: 1rem; }
 .ingredients { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }

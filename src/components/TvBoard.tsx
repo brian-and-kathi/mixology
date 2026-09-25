@@ -70,13 +70,46 @@ function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): 
   return n * perRow + (n - 1) * subGap + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 1;
 }
 
+let fitCanvas: HTMLCanvasElement | null = null;
+/**
+ * One-line subtext with measured truncation: shows the first candidate (longest first, cut only at
+ * whole items or words, e.g. "Rye · sweet vermouth · …") that fits the row. Re-measures when the
+ * row or the text size changes (column widths, cast shrink, web fonts).
+ */
+function FitLine({ fit }: { fit: string[] }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [text, setText] = useState(fit[0]);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const box = el?.parentElement;
+    if (!el || !box) return;
+    const run = () => {
+      const width = box.clientWidth;
+      if (!width) return;
+      fitCanvas ??= document.createElement("canvas");
+      const ctx = fitCanvas.getContext("2d");
+      if (!ctx) return;
+      const cs = getComputedStyle(el);
+      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      setText(fit.find((t) => ctx.measureText(t).width <= width - 1) ?? fit[fit.length - 1]);
+    };
+    run();
+    const ro = new ResizeObserver(run);
+    ro.observe(box);
+    ro.observe(el);
+    void document.fonts?.ready.then(run);
+    return () => ro.disconnect();
+  }, [fit]);
+  return <span ref={ref} className="tv-detail">{text}</span>;
+}
+
 function Row({ item, on = false }: { item: MenuItem; on?: boolean }) {
   return (
     <li className={on ? "tv-row on" : "tv-row"}>
       <GlassIcon glass={item.glass} />
       <span className="tv-text">
         <span className="tv-name">{item.name}</span>
-        {item.detail ? <span className="tv-detail">{item.detail}</span> : null}
+        {item.fit?.length ? <FitLine fit={item.fit} /> : null}
       </span>
     </li>
   );

@@ -36,15 +36,23 @@ const SERVICE: Record<string, string> = {
 const glassNoun = (g: string) => GLASS_NOUN[g] ?? g;
 const article = (w: string) => (/^[aeiou]/i.test(w) ? "an" : "a");
 
-/** "Coupe, served up (chilled, no ice)"; "Double rocks glass, over one large cube". */
+/** Separator for guest phone lines: a no-break space before the dot keeps it with the item before it, so a wrapped line never starts with "·". */
+export const DOT = "\u00a0· ";
+
+/** "Coupe · served up (chilled, no ice)"; "Double rocks glass · over one large cube". Same " · " form as the TV band. */
 export function glassLine(glass: string, service: string | null, note: string | null): string {
-  let text = cap(glassNoun(glass));
   const ice = service === "on the rocks" && note && /cube|ice/i.test(note);
-  if (ice) text += `, over ${note}`;
-  else if (service) text += `, ${SERVICE[service] ?? service}`;
-  if (note && !ice) text += `, ${note}`;
-  return text;
+  const parts = [cap(glassNoun(glass))];
+  if (ice) parts.push(`over ${note}`);
+  else if (service) parts.push(SERVICE[service] ?? service);
+  if (note && !ice) parts.push(note);
+  return parts.join(DOT);
 }
+
+// Glass names are stored lowercase (they are also icon keys); proper nouns keep their capitals.
+const GLASS_NAME: Record<string, string> = { "nick & nora": "Nick & Nora", collins: "Collins", "irish coffee glass": "Irish coffee glass" };
+/** Display name for a glass in pickers: "Nick & Nora", "Double rocks". */
+export const glassName = (g: string) => GLASS_NAME[g] ?? cap(g);
 
 /** "A Nick & Nora glass works too"; "Or over ice in a double rocks glass". */
 export function altGlassLine(alt: string, altService: string | null, service: string | null): string {

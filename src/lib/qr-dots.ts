@@ -5,10 +5,14 @@ import QRCode from "qrcode";
 // - data (and timing/format) modules are round dots, 85% of a module, centered in their cell;
 // - the three finder patterns and any alignment patterns stay solid, with ~20-25% corner radii
 //   on their outer ring and inner square, and no dots inside them;
-// - error correction Q, since dots cover less area than squares;
-// - a full 4-module quiet zone inside the SVG, so nothing next to the code (hash, caption) sits in it.
-export const QR_ECL = "Q" as const;
-export const QR_QUIET = 4;
+// - error correction Q (version 4 for the production URL). M (version 3, 4.47px modules at 1080 vs 3.93px)
+//   was tried with the page quiet zone too, but read worse in one cell of the decode matrix (1024x576 idle,
+//   full frame, jsQR), so Q stays;
+// - no quiet zone inside the SVG: the code fills its box and the black page is the quiet zone. The TV CSS
+//   keeps a 4-module clear gap around the code (hash above, caption below; see .tv-qr in globals.css).
+export type QrEcl = "L" | "M" | "Q" | "H";
+export const QR_ECL: QrEcl = "Q";
+export const QR_QUIET = 0;
 const DOT = 0.85;
 
 /** Centers of the alignment patterns for a version (same rule as ISO 18004 / qrcode's own table). */
@@ -47,13 +51,16 @@ function eye(x: number, y: number, size: number, core: number): string {
   return rrect(x, y, size, size, ring) + rrect(x + 1, y + 1, size - 2, size - 2, hole) + rrect(x + c, y + c, core, core, core * 0.22);
 }
 
-export type DottedQr = { svg: string; version: number; modules: number; quiet: number; ecl: typeof QR_ECL };
+export type DottedQr = { svg: string; version: number; modules: number; quiet: number; ecl: QrEcl };
 
 /** SVG markup for `text` as a dotted QR code. `dark` draws the code, `light` fills the square behind it. */
-export function dottedQrSvg(text: string, { dark = "#ffffff", light = "#000000" }: { dark?: string; light?: string } = {}): DottedQr {
-  const qr = QRCode.create(text, { errorCorrectionLevel: QR_ECL });
+export function dottedQrSvg(
+  text: string,
+  { dark = "#ffffff", light = "#000000", ecl = QR_ECL, quiet = QR_QUIET }: { dark?: string; light?: string; ecl?: QrEcl; quiet?: number } = {},
+): DottedQr {
+  const qr = QRCode.create(text, { errorCorrectionLevel: ecl });
   const { size } = qr.modules;
-  const q = QR_QUIET;
+  const q = quiet;
   const total = size + 2 * q;
 
   // Areas drawn as solid eyes: 7x7 finders and 5x5 alignment patterns. Nothing else is drawn there.
@@ -77,10 +84,10 @@ export function dottedQrSvg(text: string, { dark = "#ffffff", light = "#000000" 
   const solid = eyes.map((e) => eye(e.c + q, e.r + q, e.s, e.core)).join("");
 
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" data-version="${qr.version}" data-ecl="${QR_ECL}" data-modules="${size}" data-quiet="${q}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" data-version="${qr.version}" data-ecl="${ecl}" data-modules="${size}" data-quiet="${q}">` +
     `<rect width="${total}" height="${total}" fill="${light}"/>` +
     `<path fill="${dark}" fill-rule="evenodd" d="${solid}"/>` +
     `<path fill="${dark}" d="${dots}"/>` +
     `</svg>`;
-  return { svg, version: qr.version, modules: size, quiet: q, ecl: QR_ECL };
+  return { svg, version: qr.version, modules: size, quiet: q, ecl };
 }

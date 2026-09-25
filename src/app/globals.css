@@ -41,15 +41,20 @@ h1, h2, p { margin: 0; }
    Pours and Cellar column contents share the same left/right edges. */
 .tv { --tv-in: 3vw; --tv-edge: calc(13px + var(--tv-in)); position: fixed; inset: 0; display: flex; flex-direction: column; padding: var(--tv-edge) var(--tv-edge) 3vh; user-select: none; }
 /* Build hash: centered over the QR (the negative margin cancels the trailing letter-spacing, so the ink is centered). */
-.tv-hash { display: block; font: 1.5vh/1 ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; color: rgba(255, 255, 255, 0.5); text-transform: lowercase; }
+.tv-hash { display: block; font: var(--qr-hash)/1 ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; color: rgba(255, 255, 255, 0.5); text-transform: lowercase; }
 /* Title centered vertically on the whole QR block (hash, code, caption). */
 .tv-header { display: flex; align-items: center; justify-content: space-between; gap: 2vw; flex-shrink: 0; }
 .tv-wordmark { font-size: 7vh; }
-/* Same gap above and below the code. */
-.tv-qr { display: flex; flex-direction: column; align-items: center; gap: 0.8vh; }
-.tv-qr-code { width: 12vh; height: 12vh; background: #000; }
+/* QR block. The code fills its box (--qr) and the black page is its quiet zone: nothing comes within 4 modules
+   (--qz; --qr-n = modules across, set by MenuQr) of it. The hash's box ends 4 modules above the code. Its ink
+   stops at the baseline, about 0.22em higher (hex has no descenders), while the caption's capitals start about
+   0.05em below its box top; the caption's margin makes up the difference so the visible gaps match. */
+.tv-qr { --qr: 12vh; --qr-hash: 1.5vh; --qr-cap: 1.15vh; --qz: calc(var(--qr) * 4 / var(--qr-n, 33)); --qr-even: calc(var(--qr-hash) * 0.22 - var(--qr-cap) * 0.05);
+  display: flex; flex-direction: column; align-items: center; }
+.tv-qr .tv-hash { margin-bottom: var(--qz); }
+.tv-qr-code { width: var(--qr); height: var(--qr); background: #000; }
 .tv-qr-code svg { width: 100%; height: 100%; display: block; }
-.tv-qr p { font: 1.15vh/1 ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.tv-qr p { font: var(--qr-cap)/1 ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); margin-top: calc(var(--qz) + var(--qr-even)); }
 .tv-empty { margin: auto; font-size: 4vh; color: var(--quiet); }
 .tv-columns { flex: 1; min-height: 0; display: flex; margin-top: 1.5vh; }
 /* Outer columns have no outside padding (the page inset lines them up with the header). Inner padding
@@ -100,18 +105,19 @@ h1, h2, p { margin: 0; }
 /* Sizes follow the 1920x1080 mockup (px / 10.8 = vh). The menu shrinks to fit above the band. */
 .tv, .tv-wordmark, .tv-qr-code, .tv-heading, .tv-row, .tv-row .glass, .tv-columns { transition: padding 400ms ease, font-size 400ms ease, width 400ms ease, height 400ms ease, margin 400ms ease; }
 /* During a cast the header shrinks; the side inset stays, the top closes up (there is no spare height above the band). */
-/* Cast top inset is half the idle one (1.5vw from the frame). The QR code itself keeps its idle size (a
-   smaller dotted code doesn't scan from the couch); the hash, caption and gaps shrink as before. The room
-   comes from the gap under the title: the 14.85vh block hangs 6.2vh below the header, so the header stays
-   8.65vh (the title sits where it did), and the columns start 0.48vh lower so the first rows clear the
-   caption by 0.6vh. The block never reaches the Cellar heading, which is centered in its column. */
+/* Cast top inset is half the idle one (1.5vw from the frame). The QR code keeps its idle size (a smaller
+   dotted code doesn't scan from the couch) and its 4-module gaps; the hash and caption shrink as before. The
+   room comes from the gap under the title: the header stays 8.65vh (title where it was) and the block hangs
+   below it (negative margin = block height - 8.65vh), so the headings and rows sit exactly where they do with
+   the small QR and the board fits the same. The block's lower part sits beside the Cellar heading and first
+   row; no ink of theirs comes within 4 modules of the code (the heading is centered in its column, row text
+   is left-aligned, and the first row's rule runs below the caption). Wines are never cast, so no Cellar row
+   gets the cast highlight. */
 .tv.tv-casting { padding-bottom: calc(41.85vh + 12px + 1.6vh); padding-top: calc(13px + var(--tv-in) / 2); }
 .tv-casting .tv-wordmark { font-size: 5.93vh; }
 .tv-qr { transition: margin 400ms ease; }
-.tv-casting .tv-qr { gap: 0.4vh; margin-bottom: -6.2vh; }
-.tv-casting .tv-qr p { font-size: 0.85vh; }
-.tv-casting .tv-hash { font-size: 1.2vh; }
-.tv-casting .tv-columns { margin-top: 0.88vh; }
+.tv-casting .tv-qr { --qr-hash: 1.2vh; --qr-cap: 0.85vh; margin-bottom: calc(8.65vh - (var(--qr-hash) + var(--qr) + var(--qr-cap) + 2 * var(--qz) + var(--qr-even))); }
+.tv-casting .tv-columns { margin-top: 0.4vh; }
 .tv-casting .tv-heading { font-size: 3.33vh; }
 .tv-casting .tv-viewport { margin-top: 0.5vh; }
 .tv-casting .tv-row { font-size: 2.18vh; padding: 0.83vh 0 0.83vh 0.42vw; }

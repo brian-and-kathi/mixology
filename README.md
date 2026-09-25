@@ -75,9 +75,9 @@ Direct branch pages:
 ### Migrations and acceptance
 
 - `db/migrations/` holds numbered SQL files, `010_glassware.sql` through `024_bottle_name_fixes.sql`. Each runs in one transaction and records itself in the `schema_migrations` table. Migrations 001–009 were applied before this repo existed; their files aren't here, but both branches record them.
-- **Current state (checked 2026-09-25):** `main` has 001–024. `dev` stops at **022**: it is missing 023 (bottle short names and badge labels) and 024 (six name fixes). The current code queries `products.short_name` and `spec_label`, so Pours, pour pages and recipe bottle lines on previews and local runs against `dev` will error until 023 and 024 are applied there, or `dev` is reset from `main`. To check a branch: `SELECT version FROM schema_migrations ORDER BY version;`.
+- **Current state (checked 2026-09-25):** `main` and `dev` both have 001–024. `dev` fell behind once (023 and 024 went to `main` only) and was brought up to date without a reset, so it keeps its own data. Keep them in step: every migration that goes to `main` goes to `dev` too, or previews and local runs break when the code starts using the new schema. To check a branch: `SELECT version FROM schema_migrations ORDER BY version;`.
 - Apply a migration with `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0NN_name.sql`, on `dev` first, then on `main`.
-- `db/acceptance.sql` is the acceptance suite: 24 numbered checks covering buildability, substitutions, the neat/mixed/wine lists, stock toggles, the vermouth rule, recipe units and method styles, the PIN throttle, the Cellar rule, bottle supply, ratings, short names and the 024 renames. It runs inside `BEGIN … ROLLBACK`, so its fixtures never persist. Run it with `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/acceptance.sql`. Each check prints `check N passed` and the run ends with `all acceptance checks passed`. The first failure raises an error and stops. Checks 23 and 24 need migrations 023 and 024, so they fail on today's `dev`.
+- `db/acceptance.sql` is the acceptance suite: 24 numbered checks covering buildability, substitutions, the neat/mixed/wine lists, stock toggles, the vermouth rule, recipe units and method styles, the PIN throttle, the Cellar rule, bottle supply, ratings, short names and the 024 renames. It runs inside `BEGIN … ROLLBACK`, so its fixtures never persist. Run it with `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/acceptance.sql`. Each check prints `check N passed` and the run ends with `all acceptance checks passed`. The first failure raises an error and stops. It needs every migration applied, so it also catches a branch that has fallen behind.
 
 ### Getting a connection string
 
@@ -175,10 +175,11 @@ docker run --rm -p 3000:3000 --env-file .env mixology
 3. **Approval** of the preview.
 4. **Back up production:** create a Neon branch of `main` named `pre-<change>` (no compute), and optionally save a text snapshot of the affected tables.
 5. **Migrations on Neon `main`**, in number order, then any data load.
-6. **Acceptance:** run `db/acceptance.sql` on `main`. Every check must pass. If one fails, stop: don't deploy, and restore `main` from the backup if needed.
-7. **Fast-forward `main`** to the branch and push without forcing: `git checkout main && git merge --ff-only <branch> && git push origin main`. Vercel deploys production.
-8. **Verify:** wait for the deployment to be Ready, then check that the TV shows `Build <new hash>` and click through the menu, a pour page and a recipe page. Note the previous production deployment's id for rollback.
-9. **Clean up:** delete the feature branch (remote and local) and any temporary Neon branches.
+6. **Apply migrations to `dev` too** (and the same data load if `dev` has those rows), then run the acceptance suite there, so previews and local runs keep working.
+7. **Acceptance:** run `db/acceptance.sql` on `main`. Every check must pass. If one fails, stop: don't deploy, and restore `main` from the backup if needed.
+8. **Fast-forward `main`** to the branch and push without forcing: `git checkout main && git merge --ff-only <branch> && git push origin main`. Vercel deploys production.
+9. **Verify:** wait for the deployment to be Ready, then check that the TV shows `Build <new hash>` and click through the menu, a pour page and a recipe page. Note the previous production deployment's id for rollback.
+10. **Clean up:** delete the feature branch (remote and local) and any temporary Neon branches.
 
 ## Notes
 

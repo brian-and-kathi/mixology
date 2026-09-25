@@ -6,13 +6,15 @@ import { GuestChrome } from "./GuestChrome";
 /** Phone page chrome: frame and menu button, pinned wordmark (or a back button that scrolls), and a title row with an optional glass icon. */
 export function PhoneShell({
   title,
+  titleBadge,
   lead,
   back,
   editHref,
   children,
 }: {
-  /** Text, or text with a spec badge (pour page). */
-  title?: ReactNode;
+  title?: string;
+  /** Pour page: the spec badge, on its own line under the title (the title keeps the full width). */
+  titleBadge?: ReactNode;
   lead?: ReactNode;
   back?: { href: string; label: string };
   /** Only passed when this device has a valid admin session (checked server-side). */
@@ -42,7 +44,14 @@ export function PhoneShell({
           {title ? (
             <div className="phone-title">
               {lead}
-              <h1>{title}</h1>
+              {titleBadge ? (
+                <div className="phone-title-text">
+                  <h1>{title}</h1>
+                  {titleBadge}
+                </div>
+              ) : (
+                <h1>{title}</h1>
+              )}
             </div>
           ) : null}
         </header>

@@ -1,5 +1,5 @@
 import { isUuid, query } from "@/lib/db";
-import { specLabel } from "@/lib/spec-label";
+import { badgeFor, specLabel } from "@/lib/spec-label";
 
 // Section order is fixed everywhere (TV and phone): Pours, Cocktails, Cellar.
 export const SECTIONS = [
@@ -15,8 +15,12 @@ export type SectionId = (typeof SECTIONS)[number]["id"];
  * the TV measures and shows the first one that fits on one line (see TvBoard FitLine).
  */
 export type Sub = { detail: string; fit: string[] };
-/** `spec`: the badge after a Pours name ("Rye", see lib/spec-label); other sections have none. */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null };
+/**
+ * `spec`: the badge after a Pours name ("Rye", see lib/spec-label; none when the name already says it);
+ * other sections have none. `measure`: the text the TV sizes the column by (the full name, so column
+ * widths are exactly what they were before short names and badges).
+ */
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; measure?: string };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -28,10 +32,10 @@ const byName = (a: MenuItem, b: MenuItem) =>
  */
 export async function loadMenu(): Promise<Menu> {
   const [pours, cocktails, cellar, lines] = await Promise.all([
-    query<{ id: string; name: string; origin: string | null; abv: string | null; type: string | null; label: string | null }>(
+    query<{ id: string; name: string; full: string; origin: string | null; abv: string | null; type: string | null; label: string | null }>(
       // Pours show the bottle's short name (migration 023; NULL = the full name) with a badge: its own badge
       // label, or else its type (spec_label is display only; the subtext's type fallback stays the ingredient).
-      `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.origin, n.abv::text AS abv, n.primary_spec_name AS type,
+      `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full, n.origin, n.abv::text AS abv, n.primary_spec_name AS type,
               p.spec_label AS label
          FROM menu_neat n JOIN products p ON p.id = n.id`,
     ),
@@ -51,7 +55,7 @@ export async function loadMenu(): Promise<Menu> {
   ]);
   return {
     // Pours have no glass_id in the schema; they are shown with a rocks glass.
-    pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: specLabel(p.type, p.label), ...pourLine(p) })).sort(byName),
+    pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, specLabel(p.type, p.label)), measure: p.full, ...pourLine(p) })).sort(byName),
     cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
     cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, ...wineLine(w) })).sort(byName),
   };
@@ -395,5 +399,5 @@ export async function loadPour(id: string): Promise<Pour | null> {
   );
   if (!pour) return null;
   const { label, ...rest } = pour;
-  return { ...rest, spec: specLabel(pour.spec, label) };
+  return { ...rest, spec: badgeFor(pour.name, specLabel(pour.spec, label)) };
 }

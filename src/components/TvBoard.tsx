@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
-import { BadgedName } from "@/components/SpecBadge";
+import { BadgedName, useBadgePlace } from "@/components/SpecBadge";
 import { useCastHighlight } from "@/components/TvCast";
 import type { MenuItem } from "@/lib/menu";
 import { ratingKey } from "@/lib/rating-key";
@@ -69,12 +69,9 @@ function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): 
   const rs = getComputedStyle(row);
   ctx.font = `${rs.fontWeight} ${rs.fontSize} ${rs.fontFamily}`;
   // Only names set the width; the detail line under a name truncates with an ellipsis instead.
-  // A Pours name counts with its spec badge (rendered width plus its gap), which never wraps away from it.
-  const text = Math.max(...[...ruler.querySelectorAll<HTMLElement>(".tv-name")].map((el) => {
-    const badge = el.querySelector<HTMLElement>(".spec-badge");
-    const extra = badge ? badge.getBoundingClientRect().width + parseFloat(getComputedStyle(badge).marginLeft || "0") : 0;
-    return ctx.measureText(el.dataset.name ?? el.textContent ?? "").width + extra;
-  }));
+  // Pours rows are sized by the bottle's full name (data-measure), not the short name and badge, so every
+  // column keeps the width it had before badges; the badge fits in that room or moves to the subtext line.
+  const text = Math.max(...[...ruler.querySelectorAll<HTMLElement>(".tv-name")].map((el) => ctx.measureText(el.dataset.measure ?? el.textContent ?? "").width));
   const icon = (row.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0;
   const perRow = Math.ceil(text + icon + parseFloat(rs.columnGap || "0") + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight)) + 2;
   const cs = getComputedStyle(section);
@@ -88,16 +85,19 @@ let fitCanvas: HTMLCanvasElement | null = null;
  * whole items or words, e.g. "Rye · sweet vermouth · …") that fits the row. Re-measures when the
  * row or the text size changes (column widths, cast shrink, web fonts).
  */
-function FitLine({ fit }: { fit: string[] }) {
+function FitLine({ fit, badge = null }: { fit: string[]; badge?: string | null }) {
   const ref = useRef<HTMLSpanElement>(null);
+  const badgeRef = useRef<HTMLSpanElement>(null);
   const [text, setText] = useState(fit[0]);
   useLayoutEffect(() => {
     const el = ref.current;
     const box = el?.parentElement;
     if (!el || !box) return;
     const run = () => {
-      const width = box.clientWidth;
-      if (!width) return;
+      // A badge moved here from the name line comes first; the text gets the room after it.
+      const b = badgeRef.current;
+      const width = box.clientWidth - (b ? b.getBoundingClientRect().width + parseFloat(getComputedStyle(b).marginRight || "0") : 0);
+      if (!box.clientWidth) return;
       fitCanvas ??= document.createElement("canvas");
       const ctx = fitCanvas.getContext("2d");
       if (!ctx) return;
@@ -111,8 +111,13 @@ function FitLine({ fit }: { fit: string[] }) {
     ro.observe(el);
     void document.fonts?.ready.then(run);
     return () => ro.disconnect();
-  }, [fit]);
-  return <span ref={ref} className="tv-detail">{text}</span>;
+  }, [fit, badge]);
+  return (
+    <span ref={ref} className="tv-detail">
+      {badge ? <span ref={badgeRef} className="spec-badge">{badge}</span> : null}
+      {text}
+    </span>
+  );
 }
 
 /**
@@ -136,12 +141,14 @@ function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
 }
 
 function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on?: boolean }) {
+  // Pours badge: after the name, or at the start of the subtext line when it doesn't fit there (useBadgePlace).
+  const { ref, sub } = useBadgePlace(item.spec, !!item.fit?.length);
   return (
     <li className={on ? "tv-row on" : "tv-row"}>
       <Lead glass={item.glass} rating={rating} />
       <span className="tv-text">
-        <span className="tv-name" data-name={item.name}><BadgedName name={item.name} spec={item.spec} /></span>
-        {item.fit?.length ? <FitLine fit={item.fit} /> : null}
+        <span className="tv-name" ref={ref} data-measure={item.measure}><BadgedName name={item.name} spec={item.spec} off={sub} /></span>
+        {item.fit?.length ? <FitLine fit={item.fit} badge={sub ? item.spec : null} /> : null}
       </span>
     </li>
   );

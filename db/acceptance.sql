@@ -796,6 +796,39 @@ BEGIN
   RAISE NOTICE 'check 14 passed';
 END $$;
 
+-- 15. Sweet and dry vermouth never substitute for each other (DESIGN §10, migration 014).
+DO $$
+DECLARE
+  v_sweet uuid := (SELECT id FROM specs WHERE slug = 'sweet-vermouth');
+  v_dry uuid := (SELECT id FROM specs WHERE slug = 'dry-vermouth');
+  v_blocked integer := 0;
+  v_other uuid;
+BEGIN
+  IF v_sweet IS NULL OR v_dry IS NULL THEN
+    RAISE EXCEPTION 'check 15 failed: sweet-vermouth and dry-vermouth specs are required';
+  END IF;
+  BEGIN
+    PERFORM add_substitution(v_sweet, v_dry, NULL);
+  EXCEPTION WHEN check_violation THEN
+    v_blocked := v_blocked + 1;
+  END;
+  BEGIN
+    INSERT INTO spec_substitutions (source_spec_id, target_spec_id) VALUES (v_dry, v_sweet);
+  EXCEPTION WHEN check_violation THEN
+    v_blocked := v_blocked + 1;
+  END;
+  IF v_blocked <> 2 THEN
+    RAISE EXCEPTION 'check 15 failed: a sweet/dry vermouth substitution was accepted';
+  END IF;
+  -- Other substitutions still work.
+  v_other := create_spec('acc-sub-source', 'Acc sub source', 'liqueur');
+  PERFORM add_substitution(v_other, v_dry, 'fixture');
+  IF NOT EXISTS (SELECT 1 FROM spec_substitutions WHERE source_spec_id = v_other AND target_spec_id = v_dry) THEN
+    RAISE EXCEPTION 'check 15 failed: an ordinary substitution was rejected';
+  END IF;
+  RAISE NOTICE 'check 15 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

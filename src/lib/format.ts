@@ -68,6 +68,12 @@ export function serveLine(neat: boolean, rocks: boolean, chilled: boolean): stri
   return parts.filter(Boolean).join(" · ");
 }
 
+/** Cellar wines reuse the serve columns: Chilled = serves_chilled, Room temp = serves_neat, Over ice = serves_rocks. */
+export function wineServeLine(chilled: boolean, neat: boolean, rocks: boolean): string | null {
+  const ways = [chilled && "chilled", neat && "at room temperature", rocks && "over ice"].filter(Boolean);
+  return ways.length ? `Usually served ${ways.join(" or ")}` : null;
+}
+
 /** Short TV serve line: "Coupe · served up", "Double rocks glass · over one large cube". */
 export function tvGlassLine(glass: string, service: string | null, note: string | null): string {
   const ice = service === "on the rocks" && note && /cube|ice/i.test(note);

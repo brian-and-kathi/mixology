@@ -35,8 +35,8 @@ export async function loadMenu(): Promise<Menu> {
          JOIN recipes r ON r.id = m.id
          LEFT JOIN glassware g ON g.id = r.glass_id`,
     ),
-    query<{ id: string; name: string; origin: string | null; type: string | null }>(
-      `SELECT w.id, w.display_name AS name, w.origin,
+    query<{ id: string; name: string; origin: string | null; type: string | null; sparkling: boolean }>(
+      `SELECT w.id, w.display_name AS name, w.origin, (w.wine_effervescence = 'sparkling') AS sparkling,
               (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
                 WHERE ps.product_id = w.id AND ps.is_primary) AS type
          FROM menu_wines w`,
@@ -47,7 +47,7 @@ export async function loadMenu(): Promise<Menu> {
     // Pours have no glass_id in the schema; they are shown with a rocks glass.
     pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, ...pourLine(p) })).sort(byName),
     cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
-    cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: "wine glass", href: null, ...wineLine(w) })).sort(byName),
+    cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling), href: `/wine/${w.id}`, ...wineLine(w) })).sort(byName),
   };
 }
 
@@ -308,6 +308,40 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     return { ...line, ...preferFirst(names, line.note) };
   });
   return { ...recipe, lines };
+}
+
+/** Glass a Cellar wine is shown with: a flute for sparkling, otherwise a wine glass. */
+export const wineGlass = (sparkling: boolean) => (sparkling ? "flute" : "wine glass");
+
+export type Wine = {
+  id: string;
+  name: string;
+  brand: string | null;
+  origin: string | null;
+  type: string | null;
+  abv: string | null;
+  description: string | null;
+  serve_note: string | null;
+  pairing_notes: string | null;
+  sparkling: boolean;
+  serves_chilled: boolean;
+  serves_neat: boolean;
+  serves_rocks: boolean;
+};
+
+/** A Cellar wine's detail page: only while it's in the guest Cellar (menu_wines). */
+export async function loadWine(id: string): Promise<Wine | null> {
+  if (!isUuid(id)) return null;
+  const [wine] = await query<Wine>(
+    `SELECT w.id, w.display_name AS name, p.brand, w.origin, p.abv::text AS abv, w.description, w.serve_note, w.pairing_notes,
+            (w.wine_effervescence = 'sparkling') AS sparkling, p.serves_chilled, p.serves_neat, p.serves_rocks,
+            (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
+              WHERE ps.product_id = w.id ORDER BY ps.is_primary DESC LIMIT 1) AS type
+       FROM menu_wines w JOIN products p ON p.id = w.id
+      WHERE w.id = $1`,
+    [id],
+  );
+  return wine ?? null;
 }
 
 export type Pour = {

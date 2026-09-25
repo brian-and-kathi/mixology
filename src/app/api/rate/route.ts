@@ -1,0 +1,39 @@
+import { randomUUID } from "node:crypto";
+import { NextResponse, type NextRequest } from "next/server";
+import { isUuid } from "@/lib/db";
+import { GUEST_COOKIE, GUEST_COOKIE_MAX_AGE, rateDrink, voteRateLimited, type RatingKind } from "@/lib/ratings";
+
+export const dynamic = "force-dynamic";
+
+const noStore = { "cache-control": "no-store" };
+const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: noStore });
+const ip = (req: NextRequest) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
+
+/**
+ * POST {kind: "product" | "recipe", id, stars: 1-5 | null}: this device's vote for a drink on the
+ * guest menu (null clears it). Sets the anonymous guest cookie on the first vote. Answers the new
+ * average and count, and this device's vote.
+ */
+export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
+  if (origin && new URL(origin).host !== req.headers.get("host")) return json({ error: "Cross-site votes aren't accepted." }, 403);
+  if (voteRateLimited(ip(req))) return json({ error: "Too many votes. Try again in a minute." }, 429);
+  const body = (await req.json().catch(() => null)) as { kind?: unknown; id?: unknown; stars?: unknown } | null;
+  const kind: RatingKind | null = body?.kind === "product" || body?.kind === "recipe" ? body.kind : null;
+  const id = typeof body?.id === "string" && isUuid(body.id) ? body.id : null;
+  const stars = body?.stars === null ? null : Number.isInteger(body?.stars) && (body!.stars as number) >= 1 && (body!.stars as number) <= 5 ? (body!.stars as number) : undefined;
+  if (!kind || !id || stars === undefined) return json({ error: "Send {kind: 'product' | 'recipe', id, stars: 1-5 or null}." }, 400);
+
+  const existing = req.cookies.get(GUEST_COOKIE)?.value;
+  const device = existing && isUuid(existing) ? existing : randomUUID();
+  const result = await rateDrink(kind, id, device, stars).catch(() => undefined);
+  if (result === undefined) return json({ error: "Couldn't save your rating. Try again." }, 503);
+  if (result === null) return json({ error: "That drink isn't on the menu." }, 404);
+  const res = json({ ...result, mine: stars });
+  if (device !== existing) {
+    res.cookies.set(GUEST_COOKIE, device, {
+      httpOnly: true, sameSite: "lax", path: "/", maxAge: GUEST_COOKIE_MAX_AGE, secure: req.nextUrl.protocol === "https:",
+    });
+  }
+  return res;
+}

@@ -1012,6 +1012,47 @@ BEGIN
   RAISE NOTICE 'check 21 passed';
 END $$;
 
+-- 22. Guest ratings (migration 022): one changeable vote per drink per device; stars must be 1-5;
+--     votes average to one decimal; clearing removes only that device's vote; drinks that aren't on
+--     the guest menu can't be rated.
+DO $$
+DECLARE
+  v_recipe uuid := (SELECT id FROM menu_mixed ORDER BY name LIMIT 1);
+  v_pour uuid := (SELECT id FROM menu_neat ORDER BY display_name LIMIT 1);
+  v_off uuid := (SELECT id FROM recipes WHERE id NOT IN (SELECT id FROM menu_mixed) LIMIT 1);
+  d1 uuid := gen_random_uuid(); d2 uuid := gen_random_uuid();
+  r record;
+BEGIN
+  PERFORM rate_drink('recipe', v_recipe, d1, 5::smallint);
+  PERFORM rate_drink('recipe', v_recipe, d1, 3::smallint);
+  SELECT * INTO r FROM rate_drink('recipe', v_recipe, d2, 4::smallint);
+  IF (SELECT count(*) FROM drink_ratings WHERE device_id IN (d1, d2)) <> 2 OR r.votes <> (SELECT count(*) FROM drink_ratings WHERE item_id = v_recipe)
+     OR (SELECT stars FROM drink_ratings WHERE device_id = d1) <> 3 THEN
+    RAISE EXCEPTION 'check 22 failed: a changed vote did not replace the device''s old one';
+  END IF;
+  SELECT * INTO r FROM rate_drink('recipe', v_recipe, gen_random_uuid(), 5::smallint);
+  IF r.avg_stars IS DISTINCT FROM round((SELECT avg(stars) FROM drink_ratings WHERE item_id = v_recipe), 1)
+     OR r.votes <> (SELECT count(*) FROM drink_ratings WHERE item_id = v_recipe) THEN
+    RAISE EXCEPTION 'check 22 failed: the average is wrong';
+  END IF;
+  SELECT * INTO r FROM rate_drink('recipe', v_recipe, d1, NULL);
+  IF EXISTS (SELECT 1 FROM drink_ratings WHERE device_id = d1) OR NOT EXISTS (SELECT 1 FROM drink_ratings WHERE device_id = d2) THEN
+    RAISE EXCEPTION 'check 22 failed: clearing should remove only this device''s vote';
+  END IF;
+  BEGIN
+    PERFORM rate_drink('product', v_pour, d1, 6::smallint);
+    RAISE EXCEPTION 'check 22 failed: 6 stars was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  IF v_off IS NOT NULL AND EXISTS (SELECT 1 FROM rate_drink('recipe', v_off, d1, 4::smallint)) THEN
+    RAISE EXCEPTION 'check 22 failed: a drink that is off the menu was rated';
+  END IF;
+  IF EXISTS (SELECT 1 FROM rate_drink('recipe', v_pour, d1, 4::smallint)) THEN
+    RAISE EXCEPTION 'check 22 failed: a bottle id was accepted as a cocktail';
+  END IF;
+  RAISE NOTICE 'check 22 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

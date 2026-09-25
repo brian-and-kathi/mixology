@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
-import { GlassIcon } from "@/components/GlassIcon";
+import { DrinkLead } from "@/components/DrinkLead";
 import { PhoneShell } from "@/components/PhoneShell";
+import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { serveLine } from "@/lib/format";
 import { loadPour } from "@/lib/menu";
+import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +16,13 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
   const pour = await loadPour(id);
   if (!pour) notFound();
   // Only a link goes to the client, and only for a signed-in admin device.
-  const editHref = (await isAdmin()) ? `/admin/bottles/${pour.id}` : undefined;
+  const [admin, rating] = await Promise.all([isAdmin(), loadRating("product", pour.id)]);
+  const editHref = admin ? `/admin/bottles/${pour.id}` : undefined;
 
   const details = [pour.brand && pour.brand !== pour.name ? pour.brand : null, pour.origin, pour.abv ? `${Number(pour.abv)}%\u00a0ABV` : null].filter(Boolean);
 
   return (
-    <PhoneShell title={pour.name} editHref={editHref} back={{ href: "/menu?tab=pours", label: "Pours" }} lead={<GlassIcon glass="rocks" className="glass-lg" />}>
+    <PhoneShell title={pour.name} editHref={editHref} back={{ href: "/menu?tab=pours", label: "Pours" }} lead={<DrinkLead glass="rocks" kind="product" id={pour.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
       <CastButton type="pour" id={pour.id} />
       <section>
@@ -34,6 +37,7 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
           <p className="method">{pour.description}</p>
         </section>
       ) : null}
+      <RateDrink kind="product" id={pour.id} name={pour.name} initial={rating} />
       {pour.rating ? (
         <section className="rating" aria-label={`Rated ${pour.rating} of 5`}>
           {"★".repeat(pour.rating)}

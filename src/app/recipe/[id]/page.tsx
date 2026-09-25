@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
-import { GlassIcon } from "@/components/GlassIcon";
+import { DrinkLead } from "@/components/DrinkLead";
 import { PhoneShell } from "@/components/PhoneShell";
+import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { altGlassLine, cap, glassLine, lineText, methodParts } from "@/lib/format";
 import { bottleLine, loadRecipe, PHONE_DOT } from "@/lib/menu";
+import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +16,8 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const recipe = await loadRecipe(id);
   if (!recipe) notFound();
   // Only a link goes to the client, and only for a signed-in admin device.
-  const editHref = (await isAdmin()) ? `/admin/recipes/${recipe.id}` : undefined;
+  const [admin, rating] = await Promise.all([isAdmin(), loadRating("recipe", recipe.id)]);
+  const editHref = admin ? `/admin/recipes/${recipe.id}` : undefined;
 
   const { label: methodLabel, paragraphs: method } = methodParts(recipe.description, recipe.method_style);
 
@@ -23,7 +26,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
       title={recipe.name}
       editHref={editHref}
       back={{ href: "/menu?tab=cocktails", label: "Cocktails" }}
-      lead={recipe.glass ? <GlassIcon glass={recipe.glass} className="glass-lg" /> : null}
+      lead={<DrinkLead glass={recipe.glass ?? ""} kind="recipe" id={recipe.id} rating={rating} />}
     >
       {recipe.glass ? (
         <section className="serve">
@@ -65,6 +68,8 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           ))}
         </section>
       ) : null}
+
+      <RateDrink kind="recipe" id={recipe.id} name={recipe.name} initial={rating} />
 
       {recipe.rating ? (
         <section className="rating" aria-label={`Rated ${recipe.rating} of 5`}>

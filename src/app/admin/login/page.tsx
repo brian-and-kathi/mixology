@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { PinPad } from "@/components/admin/PinPad";
@@ -23,7 +24,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   }
   return (
     <div className="admin-root a-login">
-      <header className="a-header"><span className="a-brand">Admin</span></header>
+      <header className="a-header">
+        <span className="a-brand">Admin</span>
+        <Link href="/menu" className="a-guest">View guest menu</Link>
+      </header>
       <main className="a-main">
         {!configured ? (
           <div className="a-card">

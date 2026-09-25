@@ -1,5 +1,5 @@
 /**
- * Short commit shown dimly in the TV corner.
+ * Short commit shown dimly on the TV, centered over the QR code.
  * Vercel sets VERCEL_GIT_COMMIT_SHA; the container gets GIT_SHA from a build arg (see Dockerfile).
  */
 export function commitHash(): string {

@@ -33,17 +33,27 @@ h1, h2, p { margin: 0; }
 .frame-corner.br { bottom: -1px; right: -1px; } .frame-corner.br::before { bottom: -13px; right: -13px; }
 
 /* ---------- TV ---------- */
-.tv { position: fixed; inset: 0; display: flex; flex-direction: column; padding: 3.2vh 2.2vw 3vh; user-select: none; }
-.tv-hash { position: absolute; top: 2.2vh; right: 2.2vw; font: 1.5vh/1 ui-monospace, monospace; letter-spacing: 0.25em; color: rgba(255, 255, 255, 0.5); text-transform: lowercase; }
-.tv-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 2vw; flex-shrink: 0; }
-.tv-wordmark { font-size: 7vh; padding-top: 0.6vh; }
-.tv-qr { display: flex; flex-direction: column; align-items: center; gap: 0.6vh; margin-top: 1.6vh; }
+/* Header inset (mirrors the phone's title and menu button): the title's left edge, the QR block's right
+   edge and the top of the QR block all sit --tv-in inside the frame line (frame: 12px + 1px border). The
+   Pours and Cellar column contents share the same left/right edges. */
+.tv { --tv-in: 3vw; --tv-edge: calc(13px + var(--tv-in)); position: fixed; inset: 0; display: flex; flex-direction: column; padding: var(--tv-edge) var(--tv-edge) 3vh; user-select: none; }
+/* Build hash: centered over the QR (the negative margin cancels the trailing letter-spacing, so the ink is centered). */
+.tv-hash { display: block; font: 1.5vh/1 ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; color: rgba(255, 255, 255, 0.5); text-transform: lowercase; }
+/* Title centered vertically on the whole QR block (hash, code, caption). */
+.tv-header { display: flex; align-items: center; justify-content: space-between; gap: 2vw; flex-shrink: 0; }
+.tv-wordmark { font-size: 7vh; }
+/* Same gap above and below the code. */
+.tv-qr { display: flex; flex-direction: column; align-items: center; gap: 0.8vh; }
 .tv-qr-code { width: 12vh; height: 12vh; background: #000; }
 .tv-qr-code svg { width: 100%; height: 100%; display: block; }
-.tv-qr p { font: 1.15vh/1 ui-monospace, monospace; letter-spacing: 0.25em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.tv-qr p { font: 1.15vh/1 ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
 .tv-empty { margin: auto; font-size: 4vh; color: var(--quiet); }
 .tv-columns { flex: 1; min-height: 0; display: flex; margin-top: 1.5vh; }
-.tv-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; padding: 0 0.9vw; }
+/* Outer columns have no outside padding (the page inset lines them up with the header). Inner padding
+   is 0.6vw so each column is at least as wide as before the inset grew (no extra subtext cuts at 1080p). */
+.tv-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; padding: 0 0.6vw; }
+.tv-col:first-child { padding-left: 0; }
+.tv-col:last-child { padding-right: 0; }
 .tv-col + .tv-col { border-left: 1px solid var(--rule); }
 .tv-heading { font-family: var(--font-display), Palatino, serif; font-style: italic; font-weight: 500; font-size: 5.2vh; text-align: center; color: rgba(255, 255, 255, 0.92); line-height: 1.1; }
 .tv-pageno { text-align: center; font: 1.1vh/1.6 ui-monospace, monospace; letter-spacing: 0.3em; color: rgba(255, 255, 255, 0.4); }
@@ -72,9 +82,10 @@ h1, h2, p { margin: 0; }
 /* ---------- TV cast band (DESIGN §10) ---------- */
 /* Sizes follow the 1920x1080 mockup (px / 10.8 = vh). The menu shrinks to fit above the band. */
 .tv, .tv-wordmark, .tv-qr-code, .tv-heading, .tv-row, .tv-row .glass, .tv-columns { transition: padding 400ms ease, font-size 400ms ease, width 400ms ease, height 400ms ease, margin 400ms ease; }
-.tv.tv-casting { padding-bottom: calc(41.85vh + 12px + 1.6vh); padding-top: 2.4vh; }
-.tv-casting .tv-wordmark { font-size: 5.93vh; padding-top: 0.3vh; }
-.tv-casting .tv-qr { margin-top: 2.2vh; }
+/* During a cast the header shrinks; the side inset stays, the top closes up (there is no spare height above the band). */
+.tv.tv-casting { padding-bottom: calc(41.85vh + 12px + 1.6vh); padding-top: calc(13px + 1vh); }
+.tv-casting .tv-wordmark { font-size: 5.93vh; }
+.tv-casting .tv-qr { gap: 0.6vh; }
 .tv-casting .tv-qr-code { width: 6.85vh; height: 6.85vh; }
 .tv-casting .tv-qr p { font-size: 1vh; }
 .tv-casting .tv-columns { margin-top: 0.4vh; }

@@ -22,10 +22,9 @@ export default async function TvPage() {
     <TvCastLayer>
       <style>{"html, body { overflow: hidden; }"}</style>
       <AutoRefresh seconds={60} />
-      <span className="tv-hash" aria-label={`Build ${commitHash()}`}>{commitHash()}</span>
       <header className="tv-header">
         <h1 className="wordmark tv-wordmark">{BAR_NAME}</h1>
-        <MenuQr />
+        <MenuQr above={<span className="tv-hash" aria-label={`Build ${commitHash()}`}>{commitHash()}</span>} />
       </header>
       {!menu ? (
         <p className="tv-empty">Menu unavailable</p>

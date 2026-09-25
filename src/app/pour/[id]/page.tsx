@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CastButton } from "@/components/CastButton";
 import { GlassIcon } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
 import { serveLine } from "@/lib/format";
@@ -17,6 +18,7 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
   return (
     <PhoneShell title={pour.name} back={{ href: "/menu?tab=pours", label: "Pours" }} lead={<GlassIcon glass="rocks" className="glass-lg" />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
+      <CastButton type="pour" id={pour.id} />
       <section>
         <h2>How it's served</h2>
         <p className="quiet">{serveLine(pour.serves_neat, pour.serves_rocks, pour.serves_chilled)}</p>

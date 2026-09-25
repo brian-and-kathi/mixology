@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CastButton } from "@/components/CastButton";
 import { GlassIcon } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
 import { altGlassLine, cap, glassLine, measure } from "@/lib/format";
@@ -31,6 +32,8 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           ) : null}
         </section>
       ) : null}
+
+      <CastButton type="recipe" id={recipe.id} />
 
       <section>
         <h2>Ingredients</h2>

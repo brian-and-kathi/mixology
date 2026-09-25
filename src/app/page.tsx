@@ -1,6 +1,7 @@
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { MenuQr } from "@/components/MenuQr";
 import { TvBoard } from "@/components/TvBoard";
+import { TvCastLayer } from "@/components/TvCast";
 import { BAR_NAME } from "@/lib/brand";
 import { loadMenu, SECTIONS } from "@/lib/menu";
 import { commitHash } from "@/lib/version";
@@ -16,9 +17,8 @@ export default async function TvPage() {
     : [];
 
   return (
-    <div className="tv">
-      {/* The TV is a billboard: hide the mouse cursor on this route only. */}
-      <style>{"html, body { cursor: none; overflow: hidden; }"}</style>
+    <TvCastLayer>
+      <style>{"html, body { overflow: hidden; }"}</style>
       <AutoRefresh seconds={60} />
       <span className="tv-hash" aria-label={`Build ${commitHash()}`}>{commitHash()}</span>
       <header className="tv-header">
@@ -32,6 +32,6 @@ export default async function TvPage() {
       ) : (
         <TvBoard columns={columns} />
       )}
-    </div>
+    </TvCastLayer>
   );
 }

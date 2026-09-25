@@ -88,7 +88,8 @@ docker run --rm -p 3000:3000 --env-file .env mixology
 
 ## Notes
 
-- Neon schema changes live in `db/migrations/` (010 glassware, 011–012 ingredient_only: dry/sweet vermouth, absinthe verte and vanilla vodka hidden from Cellar and Pours); `db/acceptance.sql` is the canonical Neon acceptance suite (`psql "$DATABASE_URL" -f db/acceptance.sql`, rolls back; run on `dev` first).
+- Neon schema changes live in `db/migrations/` (010 glassware, 011–012 ingredient_only: dry/sweet vermouth, absinthe verte and vanilla vodka hidden from Cellar and Pours; 015 tv_cast: the single Show on TV record; 013–014 are reserved for the admin branch); `db/acceptance.sql` is the canonical Neon acceptance suite (`psql "$DATABASE_URL" -f db/acceptance.sql`, rolls back; run on `dev` first).
+- Show on TV: cocktail and pour pages POST/DELETE `/api/cast` `{type: "recipe"|"pour", id}` (item must be on the guest menu; light per-IP rate limit); the TV polls `GET /api/cast` every 2 s and shows a bottom band for 5 minutes (DESIGN §10.1).
 - The Neon HTTP driver (`@neondatabase/serverless`) is used, so `DATABASE_URL` must point at Neon.
 - Glass icon shapes follow the line-art style of the speakeasy app's glassware icons.
 - Not in this first pass: PIN admin, Open/Closed + paired devices, displays / TV assignment, PartyKit "Show on TV" overlays, themes and skins (DESIGN §4.4–4.6).

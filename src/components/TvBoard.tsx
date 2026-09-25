@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
+import { useCastHighlight } from "@/components/TvCast";
 import type { MenuItem } from "@/lib/menu";
 
 type Column = { id: string; label: string; items: MenuItem[] };
@@ -68,9 +69,9 @@ function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): 
   return n * perRow + (n - 1) * subGap + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 1;
 }
 
-function Row({ item }: { item: MenuItem }) {
+function Row({ item, on = false }: { item: MenuItem; on?: boolean }) {
   return (
-    <li className="tv-row">
+    <li className={on ? "tv-row on" : "tv-row"}>
       <GlassIcon glass={item.glass} />
       <span>{item.name}</span>
     </li>
@@ -92,11 +93,16 @@ export function TvBoard({ columns }: { columns: Column[] }) {
   const [basis, setBasis] = useState<number[]>(() => columns.map(() => 0));
   const [page, setPage] = useState(0);
   const [visible, setVisible] = useState(true);
-  const key = columns.map((c) => c.id + ":" + c.items.map((i) => i.id).join(",")).join("|");
+  const cast = useCastHighlight();
+  // The cast band shrinks the board, so re-plan the layout from scratch when it comes and goes.
+  const key = (cast ? "cast|" : "") + columns.map((c) => c.id + ":" + c.items.map((i) => i.id).join(",")).join("|");
 
-  // New data: start over from one sub-column per section.
+  // New data (or the cast band came or went): start over from one sub-column per section.
   useEffect(() => {
     setSplit(columns.map(() => 1));
+    // Once more after the band's 400 ms slide, in case mid-animation sizes over-split a section.
+    const t = window.setTimeout(() => setSplit(columns.map(() => 1)), 450);
+    return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
@@ -197,7 +203,7 @@ export function TvBoard({ columns }: { columns: Column[] }) {
               <div className={`tv-subcols ${visible ? "" : "tv-fading"}`}>
                 {subcols.map((v) => (
                   <ul key={v} className="tv-list">
-                    {col.items.map((item, i) => ((assign[ci]?.[i] ?? 0) === v ? <Row key={item.id} item={item} /> : null))}
+                    {col.items.map((item, i) => ((assign[ci]?.[i] ?? 0) === v ? <Row key={item.id} item={item} on={cast?.id === item.id} /> : null))}
                   </ul>
                 ))}
               </div>

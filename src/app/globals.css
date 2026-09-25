@@ -33,7 +33,7 @@ h1, h2, p { margin: 0; }
 .frame-corner.br { bottom: -1px; right: -1px; } .frame-corner.br::before { bottom: -13px; right: -13px; }
 
 /* ---------- TV ---------- */
-.tv { position: fixed; inset: 0; display: flex; flex-direction: column; padding: 3.2vh 2.2vw 3vh; user-select: none; cursor: none; }
+.tv { position: fixed; inset: 0; display: flex; flex-direction: column; padding: 3.2vh 2.2vw 3vh; user-select: none; }
 .tv-hash { position: absolute; top: 2.2vh; right: 2.2vw; font: 1.5vh/1 ui-monospace, monospace; letter-spacing: 0.25em; color: rgba(255, 255, 255, 0.5); text-transform: lowercase; }
 .tv-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 2vw; flex-shrink: 0; }
 .tv-wordmark { font-size: 7vh; padding-top: 0.6vh; }
@@ -55,6 +55,53 @@ h1, h2, p { margin: 0; }
 .tv-ruler { position: absolute; inset: 0 0 auto 0; visibility: hidden; pointer-events: none; }
 .tv-row { display: flex; align-items: center; gap: 0.7vw; padding: 1.05vh 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 2.75vh; line-height: 1.25; }
 .tv-row .glass { width: 3.6vh; height: 3.6vh; color: rgba(255, 255, 255, 0.85); }
+
+/* ---------- TV cast band (DESIGN §10) ---------- */
+/* Sizes follow the 1920x1080 mockup (px / 10.8 = vh). The menu shrinks to fit above the band. */
+.tv, .tv-wordmark, .tv-qr-code, .tv-heading, .tv-row, .tv-row .glass, .tv-columns { transition: padding 400ms ease, font-size 400ms ease, width 400ms ease, height 400ms ease, margin 400ms ease; }
+.tv.tv-casting { padding-bottom: calc(41.85vh + 12px + 1.6vh); padding-top: 2.4vh; }
+.tv-casting .tv-wordmark { font-size: 5.93vh; padding-top: 0.3vh; }
+.tv-casting .tv-qr { margin-top: 2.2vh; }
+.tv-casting .tv-qr-code { width: 6.85vh; height: 6.85vh; }
+.tv-casting .tv-qr p { font-size: 1vh; }
+.tv-casting .tv-columns { margin-top: 0.4vh; }
+.tv-casting .tv-heading { font-size: 3.33vh; }
+.tv-casting .tv-viewport { margin-top: 0.5vh; }
+.tv-casting .tv-row { font-size: 2.18vh; padding: 0.83vh 0 0.83vh 0.42vw; }
+.tv-casting .tv-row .glass { width: 2.6vh; height: 2.6vh; }
+.tv-row { position: relative; }
+.tv-row.on { color: var(--cream); background: linear-gradient(90deg, rgba(243, 234, 211, 0.1), rgba(243, 234, 211, 0) 85%); }
+.tv-row.on .glass { color: var(--cream); }
+.tv-row.on::before { content: ""; position: absolute; left: 0; top: 0.65vh; bottom: 0.65vh; width: 3px; border-radius: 2px; background: var(--cream); }
+
+.tv-band { position: absolute; left: 13px; right: 13px; bottom: 13px; height: 41.85vh; z-index: 5; background: #121212; border-top: 1px solid rgba(243, 234, 211, 0.4); transform: translateY(calc(100% + 14px)); transition: transform 400ms ease; }
+.tv-band.open { transform: none; }
+.tv-band-progress { position: absolute; left: 0; right: 0; top: -1px; height: 4px; }
+.tv-band-fill { height: 100%; background: var(--cream); border-radius: 0 2px 2px 0; box-shadow: 0 0 14px rgba(243, 234, 211, 0.28); transition: width 250ms linear; }
+.tv-band-clock { position: absolute; right: 1.56vw; top: 1.3vh; font: 1.57vh/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.5); font-variant-numeric: tabular-nums; }
+.tv-band-inner { --s: var(--band-scale, 1); position: absolute; inset: 0; padding: 5.2vh 2.92vw 4.1vh; display: grid; }
+.tv-band-col { min-width: 0; min-height: 0; overflow: hidden; padding: 0 2.3vw; }
+.tv-band-col:first-child { padding-left: 0; }
+.tv-band-col:last-child { padding-right: 0; }
+.tv-band-col + .tv-band-col { border-left: 1px solid rgba(255, 255, 255, 0.1); }
+.tv-band-glass { width: calc(11.1vh * var(--s)); height: calc(11.1vh * var(--s)); color: var(--cream); margin: -0.9vh 0 0.55vh -0.6vw; }
+.tv-band-name { font-family: var(--font-display), Palatino, serif; font-weight: 600; font-size: calc(5.37vh * var(--s)); line-height: 1.02; color: var(--cream); margin: 0 0 1.67vh; letter-spacing: -0.005em; }
+.tv-band-serve { font-size: calc(2.6vh * var(--s)); line-height: 1.3; color: #fff; }
+.tv-band-note { font-size: calc(2.13vh * var(--s)); line-height: 1.35; color: var(--quiet); margin-top: 0.55vh; }
+.tv-band-label { font: 500 1.57vh/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin: 0.55vh 0 2vh; }
+.tv-band-ing { display: grid; grid-template-columns: auto 1fr; column-gap: 2vw; }
+.tv-band-line { display: contents; }
+.tv-band-line .amt { font-size: calc(2.78vh * var(--s)); line-height: 1.3; color: rgba(255, 255, 255, 0.55); text-align: right; padding: 0.83vh 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tv-band-line .what { font-size: calc(3.15vh * var(--s)); line-height: 1.3; color: #fff; padding: 0.65vh 0; }
+.tv-band-line .what.out { color: rgba(255, 255, 255, 0.7); }
+.tv-band-line .what small { display: block; font-size: calc(2.04vh * var(--s)); line-height: 1.3; color: var(--quiet); margin-top: 0.2vh; }
+.tv-tag { display: inline-block; vertical-align: 0.2vh; margin-right: 1.1vh; padding: 0.37vh 1vh 0.46vh; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 999px; font: 500 calc(1.39vh * var(--s))/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.tv-band-text { font-size: calc(2.96vh * var(--s)); line-height: 1.45; color: rgba(255, 255, 255, 0.92); text-wrap: balance; }
+.tv-band-text + .tv-band-text { margin-top: 1.3vh; }
+.tv-band-text.quiet { color: var(--quiet); }
+@media (prefers-reduced-motion: reduce) {
+  .tv, .tv *, .tv-band, .tv-band-fill { transition: none !important; }
+}
 
 /* ---------- Phone ---------- */
 .phone { max-width: 28rem; margin: 0 auto; min-height: 100dvh; padding: max(2.5rem, env(safe-area-inset-top)) 1.4rem max(2.5rem, env(safe-area-inset-bottom)); }
@@ -86,3 +133,11 @@ a.card:active { background: #202020; }
 .method { font-size: 1.05rem; line-height: 1.55; }
 .method + .method { margin-top: 0.7rem; }
 .rating { font-size: 1.4rem; letter-spacing: 0.15em; color: var(--cream); }
+/* "Show on TV" button on cocktail and pour pages */
+.cast { display: flex; flex-direction: column; gap: 0.4rem; }
+.cast-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; min-height: 48px; padding: 0 1.2rem; border-radius: 12px; border: 1px solid rgba(243, 234, 211, 0.55); background: transparent; color: var(--cream); font: 500 1.05rem/1 var(--font-sans), system-ui, sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.cast-btn:active { background: rgba(243, 234, 211, 0.08); }
+.cast-btn.on { border-color: rgba(255, 255, 255, 0.18); background: var(--muted); color: var(--text); }
+.cast-btn:disabled { opacity: 0.6; }
+.cast-icon { width: 1.25rem; height: 1.25rem; }
+.cast-status { font-size: 0.9rem; text-align: center; min-height: 1.2em; }

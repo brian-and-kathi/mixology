@@ -18,7 +18,9 @@ export function adminApi<A extends unknown[]>(handler: (...args: A) => Promise<R
       return await handler(...args);
     } catch (err) {
       const message = err instanceof UserError ? err.message : dbMessage(err);
-      const status = err instanceof UserError ? 400 : 500;
+      // Known database rule violations (duplicate name, blocked pair, in use) are the user's to fix: 4xx.
+      const code = (err as { code?: string })?.code;
+      const status = err instanceof UserError ? 400 : code === "23505" || code === "23503" ? 409 : code === "23514" || code === "P0001" ? 400 : 500;
       if (status === 500) console.error("admin api error", err);
       return NextResponse.json({ error: message }, { status });
     }

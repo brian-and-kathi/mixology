@@ -253,13 +253,23 @@ function recipeInput(body: Record<string, unknown>) {
       const unit = text(l.unit, 20);
       if (amount !== null && amount <= 0) throw new UserError("Amounts must be more than zero.");
       if ((amount === null) !== (unit === null)) throw new UserError("An amount needs a unit, and a unit needs an amount.");
+      if (unit && !UNITS.includes(unit)) throw new UserError(`Unknown unit "${unit}".`);
       const role = text(l.role, 20);
       if (role && !ROLES.includes(role)) throw new UserError("Unknown role.");
       return { spec_id: String(l.spec_id), position: i + 1, required: l.required !== false, amount, unit, role, note: text(l.note, 200) };
     });
   if (lines.length === 0) throw new UserError("Add at least one ingredient.");
-  const style = (v: unknown) => (typeof v === "string" && SERVICE.includes(v) ? v : null);
-  const glass = (v: unknown) => (v === null || v === "" || v === undefined ? null : Number.isInteger(Number(v)) ? Number(v) : null);
+  // Blank means "not set"; anything else must be a known value (never silently cleared).
+  const style = (v: unknown) => {
+    if (v === null || v === undefined || v === "") return null;
+    if (typeof v === "string" && SERVICE.includes(v)) return v;
+    throw new UserError("Unknown service style.");
+  };
+  const glass = (v: unknown) => {
+    if (v === null || v === undefined || v === "") return null;
+    if (Number.isInteger(Number(v)) && Number(v) > 0) return Number(v);
+    throw new UserError("Unknown glass.");
+  };
   return {
     name,
     description: text(body.description, 4000),
@@ -281,6 +291,15 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
     const [exists] = await query<{ n: number }>("SELECT 1 AS n FROM recipes WHERE id = $1", [id]);
     if (!exists) throw new UserError("That recipe no longer exists.");
   }
+  const glassIds = [r.glass_id, r.alt_glass_id].filter((g): g is number => g !== null);
+  const specIds = [...new Set(r.lines.map((l) => l.spec_id))];
+  const [found] = await query<{ glasses: number; specs: number }>(
+    `SELECT (SELECT count(*)::int FROM glassware WHERE id = ANY($1::int[])) AS glasses,
+            (SELECT count(*)::int FROM specs WHERE id = ANY($2::uuid[])) AS specs`,
+    [[...new Set(glassIds)], specIds],
+  );
+  if (found.glasses !== new Set(glassIds).size) throw new UserError("Unknown glass.");
+  if (found.specs !== specIds.length) throw new UserError("One of the ingredients no longer exists. Pick it again.");
   const vals = [rid, r.name, r.description, r.glass_id, r.service_style, r.alt_glass_id, r.alt_service_style, r.glass_note];
   const stmts: Stmt[] = [];
   if (id) {

@@ -5,7 +5,8 @@ import { query } from "@/lib/db";
 
 export type Family = { id: string; slug: string; name: string; kind: string; allows_flavoring: boolean };
 /** `wine`: the bottle belongs in the guest Cellar (is_cellar_wine, migration 020): the admin Wines view. */
-export type StockItem = { id: string; name: string; in_stock: boolean; family: string; family_order: number; spec: string | null; wine: boolean };
+/** `label`: the bottle's own badge label (migration 023), shown instead of the type when set. */
+export type StockItem = { id: string; name: string; in_stock: boolean; family: string; family_order: number; spec: string | null; label: string | null; wine: boolean };
 export type Change = { id: number; at: string; summary: string; entity_id: string; action: string; before: { in_stock?: boolean } | null; after: { in_stock?: boolean } | null; undone: boolean };
 
 export async function loadFamilies(): Promise<Family[]> {
@@ -17,7 +18,7 @@ export async function loadStock(): Promise<StockItem[]> {
     `SELECT p.id, p.display_name AS name, p.in_stock,
             COALESCE(pf.canonical_name, sf.canonical_name, 'other') AS family,
             COALESCE(pf.sort_order, sf.sort_order, 999) AS family_order,
-            s.canonical_name AS spec,
+            s.canonical_name AS spec, p.spec_label AS label,
             is_cellar_wine(p.id) AS wine
        FROM products p
        LEFT JOIN families pf ON pf.id = p.family_id
@@ -164,7 +165,7 @@ export async function loadDefaultWineSpec(): Promise<string | null> {
 }
 
 export type ProductRow = {
-  id: string; display_name: string; short_name: string | null; packaged_name: string; brand: string | null; description: string | null;
+  id: string; display_name: string; short_name: string | null; spec_label: string | null; packaged_name: string; brand: string | null; description: string | null;
   origin: string | null; serve_note: string | null; abv: string | null; upc: string | null; family_id: string | null;
   in_stock: boolean; mix_only: boolean; serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean;
   fortified: boolean; wine_color: string; wine_effervescence: string; spec_id: string | null; other_spec_ids: string[];
@@ -172,7 +173,7 @@ export type ProductRow = {
 
 export async function loadProduct(id: string): Promise<ProductRow | null> {
   const [p] = await query<ProductRow>(
-    `SELECT p.id, p.display_name, p.short_name, p.packaged_name, p.brand, p.description, p.origin, p.serve_note, p.abv::text AS abv,
+    `SELECT p.id, p.display_name, p.short_name, p.spec_label, p.packaged_name, p.brand, p.description, p.origin, p.serve_note, p.abv::text AS abv,
             p.upc, p.family_id, p.in_stock, p.mix_only, p.serves_neat, p.serves_rocks, p.serves_chilled,
             p.fortified, p.wine_color, p.wine_effervescence,
             (SELECT ps.spec_id FROM product_specs ps WHERE ps.product_id = p.id ORDER BY ps.is_primary DESC LIMIT 1) AS spec_id,

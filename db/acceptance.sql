@@ -1053,17 +1053,21 @@ BEGIN
   RAISE NOTICE 'check 22 passed';
 END $$;
 
--- 23. Bottle short names (migration 023): short_name is optional (NULL falls back to the full name), is never
---     blank or padded when set, and setting it leaves the full name and the guest views untouched.
+-- 23. Bottle short names and badge labels (migration 023): short_name and spec_label are optional (NULL falls
+--     back to the full name / the primary ingredient), are never blank or padded when set, and setting them
+--     leaves the full name, the ingredient links, the guest views and buildable cocktails untouched.
 DO $$
 DECLARE
   v_pour uuid := (SELECT id FROM menu_neat ORDER BY display_name LIMIT 1);
   v_name text := (SELECT display_name FROM products WHERE id = (SELECT id FROM menu_neat ORDER BY display_name LIMIT 1));
   v_neat integer := (SELECT count(*) FROM menu_neat);
+  v_mixed integer := (SELECT count(*) FROM menu_mixed);
+  v_specs text := (SELECT string_agg(spec_id::text || is_primary::text, ',' ORDER BY spec_id) FROM product_specs
+                    WHERE product_id = (SELECT id FROM menu_neat ORDER BY display_name LIMIT 1));
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                  WHERE table_name = 'products' AND column_name = 'short_name' AND is_nullable = 'YES') THEN
-    RAISE EXCEPTION 'check 23 failed: products.short_name is missing or not nullable';
+  IF (SELECT count(*) FROM information_schema.columns
+       WHERE table_name = 'products' AND column_name IN ('short_name', 'spec_label') AND is_nullable = 'YES') <> 2 THEN
+    RAISE EXCEPTION 'check 23 failed: products.short_name or products.spec_label is missing or not nullable';
   END IF;
   UPDATE products SET short_name = 'Acceptance Short' WHERE id = v_pour;
   IF (SELECT display_name FROM products WHERE id = v_pour) IS DISTINCT FROM v_name
@@ -1086,6 +1090,23 @@ BEGIN
   BEGIN
     UPDATE products SET short_name = ' Padded ' WHERE id = v_pour;
     RAISE EXCEPTION 'check 23 failed: a padded short name was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  UPDATE products SET spec_label = 'Acceptance Label' WHERE id = v_pour;
+  IF (SELECT string_agg(spec_id::text || is_primary::text, ',' ORDER BY spec_id) FROM product_specs WHERE product_id = v_pour) IS DISTINCT FROM v_specs
+     OR (SELECT count(*) FROM menu_mixed) <> v_mixed OR (SELECT count(*) FROM menu_neat) <> v_neat
+     OR (SELECT display_name FROM products WHERE id = v_pour) IS DISTINCT FROM v_name THEN
+    RAISE EXCEPTION 'check 23 failed: a badge label changed the ingredient links, the guest views or the name';
+  END IF;
+  UPDATE products SET spec_label = NULL WHERE id = v_pour;
+  BEGIN
+    UPDATE products SET spec_label = '' WHERE id = v_pour;
+    RAISE EXCEPTION 'check 23 failed: a blank badge label was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE products SET spec_label = 'Gin ' WHERE id = v_pour;
+    RAISE EXCEPTION 'check 23 failed: a padded badge label was accepted';
   EXCEPTION WHEN check_violation THEN NULL;
   END;
   RAISE NOTICE 'check 23 passed';

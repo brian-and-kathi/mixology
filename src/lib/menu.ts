@@ -28,9 +28,11 @@ const byName = (a: MenuItem, b: MenuItem) =>
  */
 export async function loadMenu(): Promise<Menu> {
   const [pours, cocktails, cellar, lines] = await Promise.all([
-    query<{ id: string; name: string; origin: string | null; abv: string | null; type: string | null }>(
-      // Pours show the bottle's short name (migration 023; NULL = the full name) with its type as a badge.
-      `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.origin, n.abv::text AS abv, n.primary_spec_name AS type
+    query<{ id: string; name: string; origin: string | null; abv: string | null; type: string | null; label: string | null }>(
+      // Pours show the bottle's short name (migration 023; NULL = the full name) with a badge: its own badge
+      // label, or else its type (spec_label is display only; the subtext's type fallback stays the ingredient).
+      `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.origin, n.abv::text AS abv, n.primary_spec_name AS type,
+              p.spec_label AS label
          FROM menu_neat n JOIN products p ON p.id = n.id`,
     ),
     query<{ id: string; name: string; glass: string | null }>(
@@ -49,7 +51,7 @@ export async function loadMenu(): Promise<Menu> {
   ]);
   return {
     // Pours have no glass_id in the schema; they are shown with a rocks glass.
-    pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: specLabel(p.type), ...pourLine(p) })).sort(byName),
+    pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: specLabel(p.type, p.label), ...pourLine(p) })).sort(byName),
     cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
     cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, ...wineLine(w) })).sort(byName),
   };
@@ -369,7 +371,7 @@ export type Pour = {
   /** Short name (migration 023), or the full name when there is none. */
   name: string;
   full_name: string;
-  /** Badge after the title ("Rye"), from the primary ingredient; null: no badge. */
+  /** Badge after the title ("Rye"): the bottle's badge label, else its primary ingredient; null: no badge. */
   spec: string | null;
   brand: string | null;
   origin: string | null;
@@ -384,12 +386,14 @@ export type Pour = {
 
 export async function loadPour(id: string): Promise<Pour | null> {
   if (!isUuid(id)) return null;
-  const [pour] = await query<Pour>(
+  const [pour] = await query<Pour & { label: string | null }>(
     `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full_name, n.brand, n.origin,
             n.description, n.serve_note, n.rating, n.abv::text AS abv, n.serves_neat, n.serves_rocks, n.serves_chilled,
-            n.primary_spec_name AS spec
+            n.primary_spec_name AS spec, p.spec_label AS label
        FROM menu_neat n JOIN products p ON p.id = n.id WHERE n.id = $1`,
     [id],
   );
-  return pour ? { ...pour, spec: specLabel(pour.spec) } : null;
+  if (!pour) return null;
+  const { label, ...rest } = pour;
+  return { ...rest, spec: specLabel(pour.spec, label) };
 }

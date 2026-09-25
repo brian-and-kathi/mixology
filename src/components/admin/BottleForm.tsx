@@ -11,7 +11,7 @@ import { specLabel } from "@/lib/spec-label";
 import { Disclosure } from "./Disclosure";
 
 type Form = {
-  display_name: string; short_name: string; spec_id: string | null; family_id: string; in_stock: boolean; pourable: boolean;
+  display_name: string; short_name: string; spec_label: string; spec_id: string | null; family_id: string; in_stock: boolean; pourable: boolean;
   serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean; description: string;
   brand: string; origin: string; abv: string; serve_note: string; upc: string; fortified: boolean;
   wine_color: string; wine_effervescence: string;
@@ -19,7 +19,7 @@ type Form = {
 
 function initial(p: ProductRow | null): Form {
   return {
-    display_name: p?.display_name ?? "", short_name: p?.short_name ?? "", spec_id: p?.spec_id ?? null, family_id: p?.family_id ?? "",
+    display_name: p?.display_name ?? "", short_name: p?.short_name ?? "", spec_label: p?.spec_label ?? "", spec_id: p?.spec_id ?? null, family_id: p?.family_id ?? "",
     in_stock: p?.in_stock ?? true, pourable: p ? !p.mix_only : true, serves_neat: p?.serves_neat ?? false,
     serves_rocks: p?.serves_rocks ?? false, serves_chilled: p?.serves_chilled ?? false, description: p?.description ?? "",
     brand: p?.brand ?? "", origin: p?.origin ?? "", abv: p?.abv ? String(Number(p.abv)) : "", serve_note: p?.serve_note ?? "",
@@ -112,11 +112,18 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
         <span className="a-quiet a-small">
           {isWine && !spec?.ingredient_only
             ? "Cellar wines show their full name for now."
-            : `The name without its type, e.g. “Bowright Recurve” for Bowright Recurve Rye. Guests see it on Pours${spec ? ` next to “${specLabel(spec.name)}”` : " next to the type"} and under recipe ingredients. Leave empty to use the full name.`}
+            : `The name without its type, e.g. “Bowright Recurve” for Bowright Recurve Rye. Guests see it on Pours${spec ? ` next to “${specLabel(spec.name, f.spec_label)}”` : " next to the type"} and under recipe ingredients. Leave empty to use the full name.`}
         </span>
       </label>
 
       <SpecPicker label="What is it?" specs={specs} families={families} value={f.spec_id} onChange={(id) => pickSpec(id)} onCreate={(s) => { const next = [...specs, s].sort((a, b) => a.name.localeCompare(b.name)); setSpecs(next); pickSpec(s.id, next); }} />
+      {/* Badge (migration 023): display-only override of the type shown after the name on Pours and the pour
+          page; the placeholder is what shows when it's empty. Recipes keep matching on "What is it?". */}
+      <label className="a-field">
+        <span className="a-label">Badge</span>
+        <input value={f.spec_label} onChange={(e) => set("spec_label", e.target.value)} placeholder={specLabel(spec?.name) ?? "From the type"} maxLength={60} />
+        <span className="a-quiet a-small">Shown after the name on Pours. Leave empty to use the type{spec ? ` (“${specLabel(spec.name)}”)` : ""}. Recipes still use “What is it?”.</span>
+      </label>
       {spec?.ingredient_only ? <p className="a-hint">{spec.name.replace(/^./, (c) => c.toUpperCase())} is drinks-only: it won&apos;t appear on Pours or Cellar, but recipes can use it.</p> : null}
 
       {/* Region and ABV sit with the type: guests see them under the name on Pours and Cellar. */}

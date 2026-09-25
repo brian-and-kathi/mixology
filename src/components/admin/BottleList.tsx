@@ -30,8 +30,8 @@ export function BottleList({ items, saved }: { items: StockItem[]; saved?: strin
   const row = (i: StockItem) => (
     <li key={i.id}>
       <Link href={`/admin/bottles/${i.id}`} className={i.in_stock ? "a-list-row" : "a-list-row is-out"}>
-        {/* The type as guests see it on the Pours badge ("Rye"); no type: the family. */}
-        <span>{i.name}<span className="a-quiet a-small"> · {specLabel(i.spec) ?? i.family}</span></span>
+        {/* The badge as guests see it on Pours ("Rye", or the bottle's own label); no type: the family. */}
+        <span>{i.name}<span className="a-quiet a-small"> · {specLabel(i.spec, i.label) ?? i.family}</span></span>
         {/* Plain status text, not a pill: the whole row opens the bottle, stock is toggled on Stock. */}
         <span className={i.in_stock ? "a-state" : wines ? "a-state" : "a-state out"}>{i.in_stock ? "In" : "Out"}</span>
         <span className="a-chev" aria-hidden>›</span>

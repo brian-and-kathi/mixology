@@ -31,15 +31,25 @@ function initial(p: ProductRow | null): Form {
 export function BottleForm({ product, specs: initialSpecs, families, shared, wine = false, presetSpecId = null }: { product: ProductRow | null; specs: SpecOption[]; families: Family[]; shared: boolean | null; wine?: boolean; presetSpecId?: string | null }) {
   const router = useRouter();
   const [specs, setSpecs] = useState(initialSpecs);
+  const kindOf = (s: SpecOption | undefined) => families.find((x) => x.id === s?.family_id)?.kind;
+  // A new wine starts "Chilled", or "Room temp" when the type is red (per Rachel). Wines reuse the same
+  // columns as spirits: Room temp = serves_neat, Over ice = serves_rocks, Chilled = serves_chilled.
+  const wineServe = (s: SpecOption | undefined) => {
+    const red = /\bred\b/i.test(s?.name ?? "");
+    return { serves_neat: red, serves_rocks: false, serves_chilled: !red };
+  };
   const start = () => {
     const f0 = initial(product);
     const s0 = !product && presetSpecId ? initialSpecs.find((x) => x.id === presetSpecId) : undefined;
-    return s0 ? { ...f0, spec_id: s0.id, family_id: s0.family_id ?? "", pourable: !s0.ingredient_only } : f0;
+    if (!s0) return f0;
+    const serve = kindOf(s0) === "wine" && !s0.ingredient_only ? wineServe(s0) : {};
+    return { ...f0, spec_id: s0.id, family_id: s0.family_id ?? "", pourable: !s0.ingredient_only, ...serve };
   };
   const [f, setF] = useState<Form>(start);
   const [base] = useState(() => JSON.stringify(start()));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serveTouched, setServeTouched] = useState(false);
   const dirty = JSON.stringify(f) !== base;
   useUnsavedGuard(dirty && !saving);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((o) => ({ ...o, [k]: v }));
@@ -48,14 +58,20 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
 
   // Family follows the type ("What is it?"); only a brand-new type asks for one (in the picker).
   // A new bottle's "Can be poured on its own" starts from the type: drinks-only types start unticked.
+  // A new bottle's "Usually served" follows the type until someone ticks a box: wines get the wine default.
   function pickSpec(id: string, list = specs) {
     const s = list.find((x) => x.id === id);
+    const none = { serves_neat: false, serves_rocks: false, serves_chilled: false };
+    const serve = product ? {} : s?.ingredient_only ? none : serveTouched ? {} : kindOf(s) === "wine" ? wineServe(s) : none;
     setF((o) => ({
       ...o, spec_id: id, family_id: s?.family_id ?? o.family_id,
-      pourable: product ? o.pourable : !(s?.ingredient_only ?? false),
-      ...(product || !s?.ingredient_only ? {} : { serves_neat: false, serves_rocks: false, serves_chilled: false }),
+      pourable: product ? o.pourable : !(s?.ingredient_only ?? false), ...serve,
     }));
   }
+  const setServe = (k: "serves_neat" | "serves_rocks" | "serves_chilled", v: boolean) => { setServeTouched(true); set(k, v); };
+  const serveChoices: ["serves_neat" | "serves_rocks" | "serves_chilled", string][] = isWine
+    ? [["serves_chilled", "Chilled"], ["serves_neat", "Room temp"], ["serves_rocks", "Over ice"]]
+    : [["serves_neat", "Neat"], ["serves_rocks", "Rocks"], ["serves_chilled", "Chilled"]];
   const ready = f.display_name.trim().length > 0 && !!f.spec_id;
   const familyName = families.find((x) => x.id === f.family_id)?.name ?? spec?.family ?? null;
 
@@ -84,7 +100,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
 
       <label className="a-field">
         <span className="a-label">Name</span>
-        <input value={f.display_name} onChange={(e) => set("display_name", e.target.value)} placeholder={wine ? "Producer and wine, e.g. Woodbridge Pinot Grigio" : "Brand and expression, e.g. Buffalo Trace Bourbon"} required maxLength={120} />
+        <input value={f.display_name} onChange={(e) => set("display_name", e.target.value)} placeholder={wine ? "Producer and wine, e.g. Barefoot Moscato" : "Brand and expression, e.g. Buffalo Trace Bourbon"} required maxLength={120} />
       </label>
 
       <SpecPicker label="What is it?" specs={specs} families={families} value={f.spec_id} onChange={(id) => pickSpec(id)} onCreate={(s) => { const next = [...specs, s].sort((a, b) => a.name.localeCompare(b.name)); setSpecs(next); pickSpec(s.id, next); }} />
@@ -93,7 +109,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
       {/* Region and ABV sit with the type: guests see them under the name on Pours and Cellar. */}
       <div className="a-grid2 a-grid2-tight">
         <label className="a-field"><span className="a-label">Region</span><input value={f.origin} onChange={(e) => set("origin", e.target.value)} maxLength={120} placeholder={wine ? "e.g. California" : "e.g. Kentucky"} /></label>
-        <label className="a-field"><span className="a-label">ABV %</span><input value={f.abv} onChange={(e) => set("abv", e.target.value)} inputMode="decimal" placeholder="e.g. 40" /></label>
+        <label className="a-field"><span className="a-label">ABV %</span><input value={f.abv} onChange={(e) => set("abv", e.target.value)} inputMode="decimal" placeholder={isWine || (wine && !spec) ? "e.g. 13" : "e.g. 40"} /></label>
       </div>
 
       {spec && familyName ? <p className="a-hint">Filed under {familyName.replace(/^./, (c) => c.toUpperCase())} (from the type).</p> : null}
@@ -120,11 +136,11 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
         <fieldset className="a-fieldset">
           <legend className="a-label">Usually served</legend>
           <div className="a-toggles">
-            <label className="a-check"><input type="checkbox" checked={f.serves_neat} onChange={(e) => set("serves_neat", e.target.checked)} /><span>Neat</span></label>
-            <label className="a-check"><input type="checkbox" checked={f.serves_rocks} onChange={(e) => set("serves_rocks", e.target.checked)} /><span>Rocks</span></label>
-            <label className="a-check"><input type="checkbox" checked={f.serves_chilled} onChange={(e) => set("serves_chilled", e.target.checked)} /><span>Chilled</span></label>
+            {serveChoices.map(([k, label]) => (
+              <label key={k} className="a-check"><input type="checkbox" checked={f[k]} onChange={(e) => setServe(k, e.target.checked)} /><span>{label}</span></label>
+            ))}
           </div>
-          <p className="a-quiet a-small">Water is always offered on request.</p>
+          {isWine ? null : <p className="a-quiet a-small">Water is always offered on request.</p>}
         </fieldset>
       ) : null}
 

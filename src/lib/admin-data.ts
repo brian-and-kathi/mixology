@@ -39,12 +39,12 @@ export async function loadRecentChanges(limit = 8): Promise<Change[]> {
   );
 }
 
-export type RecipeStatus = { id: string; name: string; on_menu: boolean; missing: string[]; needs_wine: boolean };
+export type RecipeStatus = { id: string; name: string; on_menu: boolean; missing: string[]; needs_wine: boolean; missing_wines: string[] };
 
 /**
  * Every mixed recipe with its missing required ingredients (recipe_line_status + menu_mixed).
- * needs_wine: one of the missing ingredients is a Cellar wine (is_cellar_wine_spec), so buying
- * spirits can't unlock it and it stays off "To buy".
+ * needs_wine / missing_wines: which missing ingredients are Cellar wines (is_cellar_wine_spec);
+ * see WINES_IN_TO_BUY for what "To buy" does with them.
  */
 export async function loadRecipeStatus(): Promise<RecipeStatus[]> {
   return query<RecipeStatus>(
@@ -54,12 +54,23 @@ export async function loadRecipeStatus(): Promise<RecipeStatus[]> {
                         FROM recipe_line_status s
                        WHERE s.recipe_id = r.id AND s.required AND NOT s.available), '{}') AS missing,
             EXISTS (SELECT 1 FROM recipe_line_status s
-                     WHERE s.recipe_id = r.id AND s.required AND NOT s.available AND is_cellar_wine_spec(s.spec_id)) AS needs_wine
+                     WHERE s.recipe_id = r.id AND s.required AND NOT s.available AND is_cellar_wine_spec(s.spec_id)) AS needs_wine,
+            COALESCE((SELECT array_agg(DISTINCT s.spec_name) FROM recipe_line_status s
+                       WHERE s.recipe_id = r.id AND s.required AND NOT s.available AND is_cellar_wine_spec(s.spec_id)), '{}') AS missing_wines
        FROM recipes r
       WHERE r.section = 'mixed'
       ORDER BY lower(r.name)`,
   );
 }
+
+/**
+ * WINES_IN_TO_BUY: the one switch for how wine outs reach "To buy".
+ *   false (default, Brian): a wine that's out is never a shopping item. Recipes waiting on a wine
+ *         still show under "One away", just not under "To buy".
+ *   true  (Rachel): a wine shows in "To buy" only when a recipe is waiting on it, tagged "(wine)".
+ * Either way the "Out only" chip and the "N out" counts on Stock stay spirits-only.
+ */
+export const WINES_IN_TO_BUY = false;
 
 export type Glance = {
   canMake: RecipeStatus[];
@@ -87,8 +98,9 @@ export async function loadGlance(): Promise<Glance> {
   ]);
   const canMake = status.filter((r) => r.on_menu);
   const blocked = status.filter((r) => !r.on_menu && r.missing.length > 0);
-  // Wine outs are never shopping items: recipes waiting on a wine stay under "One away" but not "To buy".
-  const l = shoppingList(blocked.filter((r) => !r.needs_wine));
+  const l = shoppingList(WINES_IN_TO_BUY
+    ? blocked.map((r) => ({ ...r, missing: r.missing.map((m) => (r.missing_wines.includes(m) ? `${m} (wine)` : m)) }))
+    : blocked.filter((r) => !r.needs_wine));
   return { canMake, oneAway: blocked.filter((r) => r.missing.length === 1), buy: l.entries, buyItems: l.items, unusedOut };
 }
 
@@ -138,16 +150,15 @@ export async function loadSpecOptions(): Promise<SpecOption[]> {
   );
 }
 
-/** "Add wine" preselect: the wine type most Cellar bottles use; ties go to the most recently added bottle's type (else any wine type). */
+/**
+ * "Add wine" preselect: a general type, never a specific one like sangria. A generic "wine" type if one
+ * exists, else plain "red wine", else the first Cellar wine type alphabetically. No type is created here.
+ */
 export async function loadDefaultWineSpec(): Promise<string | null> {
   const [row] = await query<{ id: string }>(
-    `SELECT id FROM (
-       SELECT ps.spec_id AS id, count(*) AS n, max(p.created_at) AS latest, 0 AS pass
-         FROM product_specs ps JOIN products p ON p.id = ps.product_id
-        WHERE ps.is_primary AND is_cellar_wine(ps.product_id) GROUP BY ps.spec_id
-       UNION ALL
-       SELECT s.id, 0, NULL, 1 FROM specs s WHERE is_cellar_wine_spec(s.id)
-     ) c ORDER BY pass, n DESC, latest DESC NULLS LAST, id LIMIT 1`,
+    `SELECT id FROM specs s WHERE is_cellar_wine_spec(s.id)
+      ORDER BY CASE lower(s.canonical_name) WHEN 'wine' THEN 0 WHEN 'red wine' THEN 1 ELSE 2 END, lower(s.canonical_name)
+      LIMIT 1`,
   );
   return row?.id ?? null;
 }

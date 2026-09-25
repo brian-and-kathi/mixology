@@ -227,7 +227,8 @@
 .a-seg button.on { background: #000; color: var(--text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
 .a-seg button:focus-visible { outline: 2px solid var(--cream); outline-offset: -2px; }
 /* Wines: the out ones, folded into one quiet section at the bottom. */
-.a-outsec { margin-top: 1.2rem; }
+/* Sits right under the list: its top border overlaps the last row's bottom border, so one divider line. */
+.a-outsec { margin-top: -1px; position: relative; }
 .a-outsec-head { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 0.2rem; background: none; border: 0; border-top: 1px solid var(--a-line); border-bottom: 1px solid var(--a-line); color: var(--quiet); font-size: 0.9rem; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; }
 .a-outsec-head:focus-visible { outline: 2px solid var(--cream); outline-offset: -2px; }
 .a-outsec-chev { font-size: 0.8rem; }

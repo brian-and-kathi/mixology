@@ -44,7 +44,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
               <GlassIcon glass={item.glass} />
               <span className="item-text">
                 <span className="item-name">{item.name}</span>
-                {item.detail ? <span className="item-detail">{item.detail}</span> : null}
+                {item.detail ? <span className="item-detail">{keepHyphens(item.detail)}</span> : null}
               </span>
             </>
           );
@@ -63,4 +63,14 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
       </ul>
     </PhoneShell>
   );
+}
+
+/**
+ * Browsers may wrap after a hyphen ("semi-" / "dry"). Words that are kept whole with no-break spaces
+ * (see lib/menu.ts) are wrapped in a nowrap span when they contain one, so lines still only break at " · ".
+ */
+function keepHyphens(text: string) {
+  const parts = text.split(/([^ ]*-[^ ]*)/);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) => (i % 2 ? <span key={i} className="nobr">{part}</span> : part));
 }

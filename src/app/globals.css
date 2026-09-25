@@ -192,6 +192,7 @@ a.card:active { background: #202020; }
 .item-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .item-name { line-height: 1.3; }
 .item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: rgba(255, 255, 255, 0.6); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.item-detail .nobr { white-space: nowrap; }
 .card.two-line { align-items: flex-start; }
 .two-line > .glass { margin-top: calc((1.05rem * 1.3 - 2.5rem) / 2); }
 .serve p { font-size: 1.15rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }

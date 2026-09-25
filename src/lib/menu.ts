@@ -148,8 +148,11 @@ export function wineLine(w: { name: string; origin: string | null; type: string 
   const items = region ? (type && !redundant ? [region, type] : [region]) : type ? [type] : [];
   const sub = listSub(items);
   if (!sub) return {};
-  // Same TV candidates; only the phone line keeps the place name's words together.
-  return region ? { ...sub, detail: first([keepPlace(region), ...items.slice(1)].join(DOT)) } : sub;
+  // Phone line: the place name and the type each stay whole ("semi-dry white wine"), so at narrow widths
+  // it only breaks at " · ". TV candidates are unchanged.
+  const keepWords = (t: string) => t.trim().replace(/\s+/g, NBSP);
+  const parts = region ? [keepPlace(region), ...items.slice(1).map(keepWords)] : items.map(keepWords);
+  return { ...sub, detail: first(parts.join(DOT)) };
 }
 
 export type RecipeLine = {

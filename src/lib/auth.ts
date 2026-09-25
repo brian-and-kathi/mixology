@@ -1,37 +1,58 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
 /**
- * Admin auth: one shared password (ADMIN_PASSWORD) and a signed, long-lived session cookie.
- * The cookie-signing key is derived from SESSION_SECRET when set, otherwise from ADMIN_PASSWORD
- * (HMAC-SHA256 with a fixed app label), so changing the password signs everyone out.
- * Fails closed: with no ADMIN_PASSWORD nobody can sign in and every session is invalid.
+ * Admin auth: one shared 4-digit PIN, stored only as an scrypt hash (ADMIN_PIN_HASH, format
+ * scrypt:N:r:p:<salt>:<key>, base64url; see scripts/pin-hash.mjs), and a signed, long-lived session cookie.
+ * The cookie-signing key is derived from SESSION_SECRET when set, otherwise from ADMIN_PASSWORD (kept for
+ * now so sessions signed before the PIN keep working), otherwise from ADMIN_PIN_HASH, via HMAC-SHA256 with
+ * a fixed app label. Fails closed: with no valid ADMIN_PIN_HASH nobody can sign in and every session is
+ * invalid. Wrong-PIN throttling lives in the database (see pin-throttle.ts, migration 019).
  */
 export const SESSION_COOKIE = "mx_admin";
 export const SESSION_DAYS = 180;
 const LABEL = "mixology-admin-session-v1";
 
-export const adminConfigured = () => Boolean(process.env.ADMIN_PASSWORD);
+type PinHash = { N: number; r: number; p: number; salt: Buffer; key: Buffer };
+
+function parsePinHash(v: string | undefined): PinHash | null {
+  const m = /^scrypt:(\d+):(\d+):(\d+):([A-Za-z0-9_-]{16,}):([A-Za-z0-9_-]{32,})$/.exec((v ?? "").trim());
+  if (!m) return null;
+  const [N, r, p] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  // Sane scrypt cost bounds (N a power of two), so a bad value can't hang or exhaust a function.
+  if (N < 1024 || N > 1 << 20 || (N & (N - 1)) !== 0 || r < 1 || r > 32 || p < 1 || p > 4) return null;
+  return { N, r, p, salt: Buffer.from(m[4], "base64url"), key: Buffer.from(m[5], "base64url") };
+}
+
+export const adminConfigured = () => parsePinHash(process.env.ADMIN_PIN_HASH) !== null;
 
 function signingKey(): Buffer | null {
-  const password = process.env.ADMIN_PASSWORD;
-  if (!password) return null;
-  const base = process.env.SESSION_SECRET || password;
+  if (!adminConfigured()) return null;
+  const base = process.env.SESSION_SECRET || process.env.ADMIN_PASSWORD || process.env.ADMIN_PIN_HASH!;
   return createHmac("sha256", base).update(LABEL).digest();
+}
+
+const scryptAsync = (pin: string, h: PinHash) =>
+  new Promise<Buffer>((resolve, reject) =>
+    scrypt(pin, h.salt, h.key.length, { N: h.N, r: h.r, p: h.p, maxmem: 256 * h.N * h.r + 1024 * 1024 }, (err, key) => (err ? reject(err) : resolve(key))),
+  );
+
+/** Checks a PIN against ADMIN_PIN_HASH (scrypt, constant-time compare). Anything but 4 digits is wrong. */
+export async function pinMatches(candidate: unknown): Promise<boolean> {
+  const h = parsePinHash(process.env.ADMIN_PIN_HASH);
+  if (!h || typeof candidate !== "string" || !/^\d{4}$/.test(candidate)) return false;
+  const key = await scryptAsync(candidate, h);
+  return key.length === h.key.length && timingSafeEqual(key, h.key);
+}
+
+/** HMAC key for throttle digests (so stored keys can't be reversed to IPs by brute force). */
+export function throttleKey(): Buffer {
+  return createHmac("sha256", process.env.ADMIN_PIN_HASH ?? "").update("mixology-admin-throttle-v1").digest();
 }
 
 const b64url = (b: Buffer) => b.toString("base64url");
 
 function sign(payload: string, key: Buffer) {
   return b64url(createHmac("sha256", key).update(payload).digest());
-}
-
-/** Constant-time password check (compares SHA-256 digests, so lengths never leak). */
-export function passwordMatches(candidate: string): boolean {
-  const password = process.env.ADMIN_PASSWORD;
-  if (!password) return false;
-  const a = createHash("sha256").update(candidate, "utf8").digest();
-  const b = createHash("sha256").update(password, "utf8").digest();
-  return timingSafeEqual(a, b);
 }
 
 /** New session token: v1.<expires epoch seconds>.<nonce>.<signature>. */
@@ -63,27 +84,7 @@ export const sessionCookieOptions = {
   maxAge: SESSION_DAYS * 86400,
 };
 
-// Basic login throttling, per client IP, per server instance. Good enough for one home bar:
-// every failure costs a delay, and 8 failures in 15 minutes locks that IP out for 15 minutes.
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_FAILS = 8;
-const fails = new Map<string, { count: number; first: number }>();
-
-export function loginLocked(ip: string, now = Date.now()): boolean {
-  const f = fails.get(ip);
-  if (!f) return false;
-  if (now - f.first > WINDOW_MS) {
-    fails.delete(ip);
-    return false;
-  }
-  return f.count >= MAX_FAILS;
-}
-
-export function recordLoginFailure(ip: string, now = Date.now()): number {
-  const f = fails.get(ip);
-  if (!f || now - f.first > WINDOW_MS) fails.set(ip, { count: 1, first: now });
-  else f.count += 1;
-  return fails.get(ip)!.count;
-}
-
-export const clearLoginFailures = (ip: string) => fails.delete(ip);
+/** Random per-device id for the wrong-PIN throttle (counted alongside the IP). */
+export const DEVICE_COOKIE = "mx_device";
+export const newDeviceId = () => b64url(randomBytes(18));
+export const deviceCookieOptions = { ...sessionCookieOptions, maxAge: 400 * 86400 };

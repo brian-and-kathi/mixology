@@ -902,6 +902,50 @@ BEGIN
   RAISE NOTICE 'check 18 passed';
 END $$;
 
+-- 19. Admin PIN throttle (migration 019): 5 wrong tries lock for 5 min, then 15 min, then 1 h (stays at 1 h);
+--     IP and device keys are independent; only 'ip'/'device' kinds and 32-byte digests are accepted.
+DO $$
+DECLARE
+  k_ip  bytea := decode(repeat('a1', 32), 'hex');
+  k_dev bytea := decode(repeat('d4', 32), 'hex');
+  v_until timestamptz;
+  v_mins integer[] := '{}';
+  v_round integer;
+  v_try integer;
+BEGIN
+  FOR v_round IN 1..4 LOOP
+    FOR v_try IN 1..5 LOOP
+      v_until := admin_login_fail('ip', k_ip);
+      IF v_try < 5 AND v_round = 1 AND v_until IS NOT NULL THEN
+        RAISE EXCEPTION 'check 19 failed: locked after only % wrong tries', v_try;
+      END IF;
+    END LOOP;
+    v_mins := v_mins || round(extract(epoch FROM v_until - now()) / 60)::integer;
+    -- Expire the lock so the next round counts afresh (as if the wait had passed).
+    UPDATE admin_login_attempts SET locked_until = now() - interval '1 second' WHERE kind = 'ip' AND key_hash = k_ip;
+  END LOOP;
+  IF v_mins <> '{5,15,60,60}'::integer[] THEN
+    RAISE EXCEPTION 'check 19 failed: lockout ladder was % (expected {5,15,60,60} minutes)', v_mins;
+  END IF;
+  IF EXISTS (SELECT 1 FROM admin_login_attempts WHERE kind = 'device' AND key_hash = k_ip) THEN
+    RAISE EXCEPTION 'check 19 failed: an IP failure was counted against a device key';
+  END IF;
+  IF admin_login_fail('device', k_dev) IS NOT NULL THEN
+    RAISE EXCEPTION 'check 19 failed: a fresh device key started out locked';
+  END IF;
+  BEGIN
+    PERFORM admin_login_fail('cookie', k_dev);
+    RAISE EXCEPTION 'check 19 failed: an unknown key kind was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    PERFORM admin_login_fail('ip', '\x01'::bytea);
+    RAISE EXCEPTION 'check 19 failed: a key that is not a 32-byte digest was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  RAISE NOTICE 'check 19 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

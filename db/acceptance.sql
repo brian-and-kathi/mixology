@@ -1112,6 +1112,44 @@ BEGIN
   RAISE NOTICE 'check 23 passed';
 END $$;
 
+-- 24. Bottle name fixes (migration 024): once 024 is recorded, none of the six reviewed misspellings is back
+--     (matched by id), Canada Dry Club Soda still backs soda water, and the renamed creme de menthe keeps its
+--     alias and its bottle.
+DO $$
+DECLARE
+  v_bad text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = '024_bottle_name_fixes.sql') THEN
+    RAISE EXCEPTION 'check 24 failed: 024_bottle_name_fixes.sql is not recorded';
+  END IF;
+  SELECT string_agg(v.what, ', ') INTO v_bad FROM (VALUES
+    ('Reviseur VS Cognac',   EXISTS (SELECT 1 FROM products WHERE id = 'b20db2b0-eb59-415f-aa81-1fc1133888a4'
+                                       AND ('Reviseur VS Cognac' IN (display_name, packaged_name) OR brand = 'Reviseur'))),
+    ('Triple Sec',           EXISTS (SELECT 1 FROM products WHERE id = '24bd9bd9-9398-4037-838f-34208579c3aa' AND display_name = 'Triple Sec')),
+    ('creme de menth',       EXISTS (SELECT 1 FROM specs WHERE id = '38144735-6d7c-40c2-bcb7-bfcdf4f60891'
+                                       AND (canonical_name = 'creme de menth' OR slug = 'creme-de-menth'))),
+    ('Carolans Irish Crema', EXISTS (SELECT 1 FROM products WHERE id = 'ad63b5d1-e820-4800-a081-7154f08d729d'
+                                       AND 'Carolans Irish Crema' IN (display_name, packaged_name))),
+    ('Bailey''s Irish Cream', EXISTS (SELECT 1 FROM products WHERE id = '0ff3a657-c03f-4e10-ad71-992eba73be9a'
+                                       AND ('Bailey''s Irish Cream' IN (display_name, packaged_name) OR brand = 'Bailey''s'))),
+    ('Canada Dry',           EXISTS (SELECT 1 FROM products WHERE id = '59bb6956-fc04-4e96-8d4b-35076f8ced49' AND display_name = 'Canada Dry'))
+  ) AS v(what, still_there) WHERE v.still_there;
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION 'check 24 failed: old name(s) still stored: %', v_bad;
+  END IF;
+  IF EXISTS (SELECT 1 FROM products WHERE id = '59bb6956-fc04-4e96-8d4b-35076f8ced49')
+     AND NOT EXISTS (SELECT 1 FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
+                      WHERE ps.product_id = '59bb6956-fc04-4e96-8d4b-35076f8ced49' AND ps.is_primary AND s.canonical_name = 'soda water') THEN
+    RAISE EXCEPTION 'check 24 failed: Canada Dry Club Soda no longer backs soda water';
+  END IF;
+  IF EXISTS (SELECT 1 FROM specs WHERE id = '38144735-6d7c-40c2-bcb7-bfcdf4f60891')
+     AND (NOT EXISTS (SELECT 1 FROM spec_aliases WHERE spec_id = '38144735-6d7c-40c2-bcb7-bfcdf4f60891' AND alias = 'creme de mint')
+          OR NOT EXISTS (SELECT 1 FROM product_specs WHERE spec_id = '38144735-6d7c-40c2-bcb7-bfcdf4f60891')) THEN
+    RAISE EXCEPTION 'check 24 failed: creme de menthe lost its alias or its bottle';
+  END IF;
+  RAISE NOTICE 'check 24 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

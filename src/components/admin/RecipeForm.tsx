@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
 import type { Family, Glass, RecipeRow, SpecOption } from "@/lib/admin-data";
-import { altGlassLine, cap, glassLine, measure } from "@/lib/format";
+import { altGlassLine, cap, glassLine, lineText, methodParts, METHOD_STYLES, NO_AMOUNT_UNITS } from "@/lib/format";
 import { api } from "./api";
 import { BackLink, SaveBar, useUnsavedGuard } from "./SaveBar";
 import { SpecPicker } from "./SpecPicker";
 
 type Line = { key: number; spec_id: string | null; amount: string; unit: string; required: boolean; role: string; note: string };
-type Form = { name: string; description: string; glass_id: string; service_style: string; alt_glass_id: string; alt_service_style: string; glass_note: string; lines: Line[] };
+type Form = { name: string; description: string; method_style: string; glass_id: string; service_style: string; alt_glass_id: string; alt_service_style: string; glass_note: string; lines: Line[] };
 
 const SERVICES: [string, string][] = [["", "—"], ["up", "Up (chilled, no ice)"], ["on the rocks", "Rocks (over ice)"], ["neat", "Neat (no ice)"], ["hot", "Hot"]];
 const ROLE_LABELS: [string, string][] = [["", "—"], ["base", "Base"], ["modifier", "Modifier"], ["juice", "Juice"], ["sweetener", "Sweetener"], ["garnish", "Garnish"], ["other", "Other"]];
@@ -19,7 +19,7 @@ const ROLE_LABELS: [string, string][] = [["", "—"], ["base", "Base"], ["modifi
 let seq = 0;
 function initial(r: RecipeRow | null): Form {
   return {
-    name: r?.name ?? "", description: r?.description ?? "",
+    name: r?.name ?? "", description: r?.description ?? "", method_style: r?.method_style ?? "",
     glass_id: r?.glass_id ? String(r.glass_id) : "", service_style: r?.service_style ?? "",
     alt_glass_id: r?.alt_glass_id ? String(r.alt_glass_id) : "", alt_service_style: r?.alt_service_style ?? "",
     glass_note: r?.glass_note ?? "",
@@ -40,6 +40,7 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dupBusy, setDupBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
   const dirty = snapshot(f) !== base.current;
   useUnsavedGuard(dirty && !saving);
 
@@ -67,14 +68,18 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
       const body = {
         ...f,
         glass_id: f.glass_id || null, alt_glass_id: f.alt_glass_id || null,
-        service_style: f.service_style || null, alt_service_style: f.alt_service_style || null,
-        lines: f.lines.filter((l) => l.spec_id).map(({ key: _k, ...l }) => ({ ...l, amount: l.amount || null, unit: l.amount ? l.unit || null : null, role: l.role || null })),
+        service_style: f.service_style || null, alt_service_style: f.alt_service_style || null, method_style: f.method_style || null,
+        lines: f.lines.filter((l) => l.spec_id).map(({ key: _k, ...l }) => {
+          const noAmount = NO_AMOUNT_UNITS.includes(l.unit);
+          return { ...l, amount: noAmount ? null : l.amount || null, unit: noAmount ? l.unit : l.amount ? l.unit || null : null, role: l.role || null };
+        }),
       };
       const r = recipe
         ? await api<{ id: string }>(`/api/admin/recipes/${recipe.id}`, "PUT", body)
         : await api<{ id: string }>("/api/admin/recipes", "POST", body);
       base.current = snapshot(f);
       setSaving(false);
+      setSaved(true);
       if (!recipe) router.push(`/admin/recipes/${r.id}`);
       router.refresh();
     } catch (err) {
@@ -98,6 +103,7 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
   }
 
   const glass = glassName(f.glass_id);
+  const preview = methodParts(f.description || null, f.method_style || null);
   const alt = glassName(f.alt_glass_id);
 
   return (
@@ -150,30 +156,38 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
         <ol className="a-lines">
           {f.lines.map((l, i) => (
             <li key={l.key} className="a-line">
-              <div className="a-line-top">
-                <SpecPicker compact specs={specs} families={families} value={l.spec_id} onChange={(id) => setLine(l.key, { spec_id: id })} onCreate={(s) => setSpecs((x) => [...x, s].sort((a, b) => a.name.localeCompare(b.name)))} />
-                <div className="a-line-order">
-                  <button type="button" className="a-icon" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
-                  <button type="button" className="a-icon" onClick={() => move(i, 1)} disabled={i === f.lines.length - 1} aria-label="Move down">↓</button>
-                  <button type="button" className="a-icon" onClick={() => setF((o) => ({ ...o, lines: o.lines.filter((x) => x.key !== l.key) }))} aria-label="Remove ingredient">×</button>
-                </div>
-              </div>
-              <div className="a-line-fields">
-                <input value={l.amount} onChange={(e) => setLine(l.key, { amount: e.target.value })} inputMode="decimal" placeholder="Amount" aria-label="Amount" />
+              {/* Name on its own full-width row, then amount + unit, then role + optional, then actions. */}
+              <SpecPicker compact specs={specs} families={families} value={l.spec_id} onChange={(id) => setLine(l.key, { spec_id: id })} onCreate={(s) => setSpecs((x) => [...x, s].sort((a, b) => a.name.localeCompare(b.name)))} />
+              <div className="a-line-row">
+                <input value={NO_AMOUNT_UNITS.includes(l.unit) ? "" : l.amount} onChange={(e) => setLine(l.key, { amount: e.target.value })} inputMode="decimal"
+                  placeholder={NO_AMOUNT_UNITS.includes(l.unit) ? "No amount" : "Amount"} aria-label="Amount" disabled={NO_AMOUNT_UNITS.includes(l.unit)} />
                 <select value={l.unit} onChange={(e) => setLine(l.key, { unit: e.target.value })} aria-label="Unit">
                   <option value="">unit</option>
                   {units.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
+              </div>
+              <div className="a-line-row">
                 <select value={l.role} onChange={(e) => setLine(l.key, { role: e.target.value })} aria-label="Role">{ROLE_LABELS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select>
-                <label className="a-check a-small"><input type="checkbox" checked={!l.required} onChange={(e) => setLine(l.key, { required: !e.target.checked })} /><span>Optional</span></label>
+                <label className="a-check a-line-opt"><input type="checkbox" checked={!l.required} onChange={(e) => setLine(l.key, { required: !e.target.checked })} /><span>Optional</span></label>
               </div>
               <input className="a-line-note" value={l.note} onChange={(e) => setLine(l.key, { note: e.target.value })} placeholder="Note (optional)" aria-label="Note" maxLength={200} />
+              <div className="a-line-actions">
+                <button type="button" className="a-icon" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+                <button type="button" className="a-icon" onClick={() => move(i, 1)} disabled={i === f.lines.length - 1} aria-label="Move down">↓</button>
+                <button type="button" className="a-icon a-icon-remove" onClick={() => setF((o) => ({ ...o, lines: o.lines.filter((x) => x.key !== l.key) }))} aria-label="Remove ingredient">Remove</button>
+              </div>
             </li>
           ))}
         </ol>
         <button type="button" className="a-btn" onClick={() => setF((o) => ({ ...o, lines: [...o.lines, { key: ++seq, spec_id: null, amount: "", unit: "oz", required: true, role: "", note: "" }] }))}>+ Add ingredient</button>
       </fieldset>
 
+      <label className="a-field"><span className="a-label">Style</span>
+        <select value={f.method_style} onChange={(e) => set("method_style", e.target.value)}>
+          <option value="">—</option>
+          {METHOD_STYLES.map((m) => <option key={m} value={m}>{cap(m)}</option>)}
+        </select>
+      </label>
       <label className="a-field"><span className="a-label">Method</span>
         <textarea value={f.description} onChange={(e) => set("description", e.target.value)} rows={5} maxLength={4000} placeholder="How to make it. A blank line starts a new paragraph." />
       </label>
@@ -187,19 +201,26 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
           <ul className="a-preview-lines">
             {chosen.filter((l) => l.required || byId.get(l.spec_id!)?.available).map((l) => {
               const s = byId.get(l.spec_id!)!;
+              const t = lineText(NO_AMOUNT_UNITS.includes(l.unit) ? null : l.amount || null, NO_AMOUNT_UNITS.includes(l.unit) || l.amount ? l.unit || null : null, s.name);
               return (
                 <li key={l.key}>
-                  <span className="a-quiet">{measure(l.amount || null, l.amount ? l.unit || null : null)}</span>
-                  <span>{cap(s.name)}{!s.in_stock ? <span className="tag-out">out tonight</span> : null}{!l.required ? <span className="a-quiet"> · optional</span> : null}</span>
+                  <span className="a-quiet">{t.amount}</span>
+                  <span>{t.name}{!s.in_stock ? <span className="tag-out">out tonight</span> : null}{!l.required ? <span className="a-quiet"> (optional)</span> : null}</span>
                 </li>
               );
             })}
           </ul>
+          {preview.paragraphs.length ? (
+            <div className="a-preview-method">
+              <p className="a-label">{preview.label}</p>
+              {preview.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+            </div>
+          ) : null}
           {!onMenu && chosen.length ? <p className="a-quiet a-small">Guests won&apos;t see this recipe until it can be made.</p> : null}
         </div>
       </section>
 
-      <SaveBar dirty={dirty} saving={saving} error={error} label={recipe ? "Save" : "Add recipe"}>
+      <SaveBar isNew={!recipe} dirty={dirty} ready={f.name.trim().length > 0 && chosen.length > 0} saving={saving} saved={saved} error={error} newLabel="Add recipe">
         {recipe ? <button type="button" className="a-btn" onClick={duplicate} disabled={dupBusy}>{dupBusy ? "Duplicating…" : "Duplicate"}</button> : null}
       </SaveBar>
     </form>

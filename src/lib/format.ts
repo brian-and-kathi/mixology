@@ -1,5 +1,5 @@
 const FRACTIONS: Record<string, string> = { "0.25": "¼", "0.5": "½", "0.75": "¾" };
-const PLURALS: Record<string, string> = { dash: "dashes", part: "parts", rind: "rinds", tbsp: "tbsp" };
+const PLURALS: Record<string, string> = { dash: "dashes", part: "parts", rind: "rinds", tbsp: "tbsp", barspoon: "barspoons" };
 
 /** "2.500" + "oz" -> "2½ oz"; "3.000" + "dash" -> "3 dashes". */
 export function measure(amount: string | null, unit: string | null): string {
@@ -88,4 +88,27 @@ export function splitMethod(description: string | null): { style: string | null;
   if (!m) return { style: null, paragraphs };
   const rest = paragraphs[0].slice(m[0].length).trim();
   return { style: cap(m[1].trim()), paragraphs: rest ? [cap(rest), ...paragraphs.slice(1)] : paragraphs.slice(1) };
+}
+
+/** Units whose lines carry no amount: "Top with soda", "Absinthe rinse". */
+export const NO_AMOUNT_UNITS = ["top", "rinse"];
+
+/** How one recipe line reads to a guest: the amount column and the ingredient words. */
+export function lineText(amount: string | null, unit: string | null, name: string): { amount: string; name: string } {
+  if (unit === "top") return { amount: "", name: `Top with ${name.toLowerCase()}` };
+  if (unit === "rinse") return { amount: "", name: `${cap(name)} rinse` };
+  return { amount: measure(amount, unit), name: cap(name) };
+}
+
+export const METHOD_STYLES = ["stirred", "shaken", "built", "blended", "rolled", "thrown", "swizzled", "warm", "warm, in a mug", "warm, batch"];
+
+/**
+ * Method label and paragraphs. recipes.method_style (migration 017) wins; until that column exists
+ * (or when it is empty) the style is read from a leading "Stirred." in the text, as before.
+ * A leading style word is always taken out of the text so it never reads twice.
+ */
+export function methodParts(description: string | null, style: string | null | undefined): { label: string; paragraphs: string[] } {
+  const parsed = splitMethod(description);
+  const st = style ? cap(style) : parsed.style;
+  return { label: st ? `Method · ${st}` : "Method", paragraphs: parsed.paragraphs };
 }

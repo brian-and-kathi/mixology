@@ -3,12 +3,12 @@ import { query } from "@/lib/db";
 // Read models for the admin pages. Buildability always comes from the existing views
 // (menu_mixed, recipe_line_status, spec_availability) so admin and guest menu agree.
 
-export type Family = { id: string; name: string; kind: string; allows_flavoring: boolean };
+export type Family = { id: string; slug: string; name: string; kind: string; allows_flavoring: boolean };
 export type StockItem = { id: string; name: string; in_stock: boolean; family: string; family_order: number; spec: string | null };
 export type Change = { id: number; at: string; summary: string; entity_id: string; action: string; before: { in_stock?: boolean } | null; after: { in_stock?: boolean } | null; undone: boolean };
 
 export async function loadFamilies(): Promise<Family[]> {
-  return query<Family>("SELECT id, canonical_name AS name, kind, allows_flavoring FROM families ORDER BY sort_order, canonical_name");
+  return query<Family>("SELECT id, slug, canonical_name AS name, kind, allows_flavoring FROM families ORDER BY sort_order, canonical_name");
 }
 
 export async function loadStock(): Promise<StockItem[]> {
@@ -56,7 +56,8 @@ export async function loadRecipeStatus(): Promise<RecipeStatus[]> {
 export type Glance = {
   canMake: RecipeStatus[];
   oneAway: RecipeStatus[];
-  buy: { specs: string[]; recipes: string[] }[];
+  buy: BuyEntry[];
+  buyItems: number;
   unusedOut: { id: string; name: string }[];
 };
 
@@ -77,28 +78,34 @@ export async function loadGlance(): Promise<Glance> {
   ]);
   const canMake = status.filter((r) => r.on_menu);
   const blocked = status.filter((r) => !r.on_menu && r.missing.length > 0);
-  return { canMake, oneAway: blocked.filter((r) => r.missing.length === 1), buy: shoppingList(blocked), unusedOut };
+  return { canMake, oneAway: blocked.filter((r) => r.missing.length === 1), ...(() => { const l = shoppingList(blocked); return { buy: l.entries, buyItems: l.items }; })(), unusedOut };
 }
 
 /**
- * Buy to unlock: candidate purchases are the exact missing sets of blocked recipes (up to 3
- * items). Each candidate unlocks every recipe whose missing set it covers. Ranked by recipes
- * unlocked, then fewest items. Multi-item entries are things that only work together.
+ * To buy: candidate purchases are the exact missing sets of blocked recipes (up to 3 items).
+ * Singles come first, ranked by recipes unlocked. Then combos, listing only the items that are not
+ * already on the list as singles ("Maple syrup (with aromatic bitters)"), and only the recipes the
+ * singles don't already unlock. So no item is listed twice, and `items` counts distinct things to buy.
  */
-export function shoppingList(blocked: { name: string; missing: string[] }[]) {
-  const seen = new Map<string, string[]>();
-  for (const r of blocked) if (r.missing.length <= 3) seen.set(r.missing.join("|"), r.missing);
-  const out = [...seen.values()].map((specs) => ({
-    specs,
-    recipes: blocked.filter((r) => r.missing.every((m) => specs.includes(m))).map((r) => r.name),
-  }));
-  out.sort((a, b) => b.recipes.length - a.recipes.length || a.specs.length - b.specs.length || a.specs[0].localeCompare(b.specs[0]));
-  // Drop a combo that unlocks nothing beyond what its single items already unlock.
-  return out.filter((c) => {
-    if (c.specs.length === 1) return true;
-    const singles = new Set(out.filter((o) => o.specs.length === 1 && c.specs.includes(o.specs[0])).flatMap((o) => o.recipes));
-    return c.recipes.some((r) => !singles.has(r));
-  });
+export type BuyEntry = { specs: string[]; with: string[]; recipes: string[] };
+export function shoppingList(blocked: { name: string; missing: string[] }[]): { entries: BuyEntry[]; items: number } {
+  const sets = new Map<string, string[]>();
+  for (const r of blocked) if (r.missing.length <= 3) sets.set(r.missing.join("|"), r.missing);
+  const unlocks = (specs: string[]) => blocked.filter((r) => r.missing.every((m) => specs.includes(m))).map((r) => r.name);
+  const byName = (a: BuyEntry, b: BuyEntry) => b.recipes.length - a.recipes.length || a.specs.length - b.specs.length || a.specs[0].localeCompare(b.specs[0]);
+  const singles: BuyEntry[] = [...sets.values()].filter((x) => x.length === 1).map((x) => ({ specs: x, with: [], recipes: unlocks(x) })).sort(byName);
+  const singleSet = new Set(singles.map((x) => x.specs[0]));
+  const covered = new Set(singles.flatMap((x) => x.recipes));
+  const combos: BuyEntry[] = [];
+  for (const x of [...sets.values()].filter((x) => x.length > 1)) {
+    const recipes = unlocks(x).filter((r) => !covered.has(r));
+    if (!recipes.length) continue;
+    const fresh = x.filter((m) => !singleSet.has(m));
+    combos.push(fresh.length ? { specs: fresh, with: x.filter((m) => singleSet.has(m)), recipes } : { specs: x, with: [], recipes });
+  }
+  combos.sort(byName);
+  const items = new Set([...singles, ...combos].flatMap((e) => e.specs)).size;
+  return { entries: [...singles, ...combos], items };
 }
 
 export type SpecOption = { id: string; name: string; family: string | null; family_id: string | null; available: boolean; in_stock: boolean; ingredient_only: boolean; aliases: string[] };
@@ -146,12 +153,12 @@ export const loadGlassware = () => query<Glass>("SELECT id, name FROM glassware 
 export type RecipeLineRow = { spec_id: string; position: number; required: boolean; amount: string | null; unit: string | null; role: string | null; note: string | null };
 export type RecipeRow = {
   id: string; name: string; description: string | null; section: string; glass_id: number | null; service_style: string | null;
-  alt_glass_id: number | null; alt_service_style: string | null; glass_note: string | null; lines: RecipeLineRow[];
+  alt_glass_id: number | null; alt_service_style: string | null; glass_note: string | null; method_style: string | null; lines: RecipeLineRow[];
 };
 
 export async function loadRecipeRow(id: string): Promise<RecipeRow | null> {
   const [r] = await query<Omit<RecipeRow, "lines">>(
-    `SELECT id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note
+    `SELECT id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style
        FROM recipes WHERE id = $1`,
     [id],
   );

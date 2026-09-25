@@ -3,12 +3,10 @@ import {
   SESSION_COOKIE, adminConfigured, clearLoginFailures, loginLocked, newSessionToken, passwordMatches,
   recordLoginFailure, sessionCookieOptions,
 } from "@/lib/auth";
+import { safeAdminNext } from "@/lib/safe-next";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const safeNext = (v: FormDataEntryValue | null) => {
-  const s = typeof v === "string" ? v : "";
-  return s.startsWith("/admin") && !s.startsWith("//") && !s.startsWith("/admin/login") ? s : "/admin";
-};
+const safeNext = (v: FormDataEntryValue | null) => safeAdminNext(v);
 
 /** Sign-in form POST. Plain form + 303 redirect, so it works without client JS. */
 export async function POST(req: NextRequest) {

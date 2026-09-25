@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
 import { GlassIcon } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
-import { altGlassLine, cap, glassLine, measure, splitMethod } from "@/lib/format";
+import { isAdmin } from "@/lib/admin-guard";
+import { altGlassLine, cap, glassLine, lineText, methodParts } from "@/lib/format";
 import { loadRecipe } from "@/lib/menu";
 
 export const dynamic = "force-dynamic";
@@ -12,12 +13,15 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const recipe = await loadRecipe(id);
   if (!recipe) notFound();
+  // Only a link goes to the client, and only for a signed-in admin device.
+  const editHref = (await isAdmin()) ? `/admin/recipes/${recipe.id}` : undefined;
 
-  const { style, paragraphs: method } = splitMethod(recipe.description);
+  const { label: methodLabel, paragraphs: method } = methodParts(recipe.description, recipe.method_style);
 
   return (
     <PhoneShell
       title={recipe.name}
+      editHref={editHref}
       back={{ href: "/menu?tab=cocktails", label: "Cocktails" }}
       lead={recipe.glass ? <GlassIcon glass={recipe.glass} className="glass-lg" /> : null}
     >
@@ -38,12 +42,12 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           {/* An optional ingredient that is out tonight (with no stand-in) is simply left off. */}
           {recipe.lines.filter((line) => line.required || line.available || line.use_instead).map((line) => (
             <li key={line.position}>
-              <span className="measure">{measure(line.amount, line.unit)}</span>
+              <span className="measure">{lineText(line.amount, line.unit, line.name).amount}</span>
               <span className="ingredient">
-                <span className={line.available ? "" : "out"}>{cap(line.name)}</span>
+                <span className={line.available ? "" : "out"}>{lineText(line.amount, line.unit, line.name).name}</span>
                 {!line.available ? <span className="tag-out">out tonight</span> : null}
                 {line.use_instead ? <strong> (use {cap(line.use_instead)})</strong> : null}
-                {!line.required ? <span className="quiet"> · optional</span> : null}
+                {!line.required ? <span className="quiet"> (optional)</span> : null}
                 {line.note ? <span className="quiet note">{line.note}</span> : null}
               </span>
             </li>
@@ -51,9 +55,9 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         </ul>
       </section>
 
-      {method.length > 0 || style ? (
+      {method.length > 0 ? (
         <section>
-          <h2>{style ? `Method · ${style}` : "Method"}</h2>
+          <h2>{methodLabel}</h2>
           {method.map((p, i) => (
             <p key={i} className="method">{p}</p>
           ))}

@@ -18,7 +18,9 @@ export function IngredientsPanel({ specs: initialSpecs, families, subs }: { spec
   const [q, setQ] = useState("");
   const [source, setSource] = useState<string | null>(null);
   const [target, setTarget] = useState<string | null>(null);
-  const [both, setBoth] = useState(true);
+  const [both, setBoth] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [outOnly, setOutOnly] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ error?: string; ok?: string } | null>(null);
@@ -34,7 +36,7 @@ export function IngredientsPanel({ specs: initialSpecs, families, subs }: { spec
     try {
       await api("/api/admin/substitutions", "POST", { source_id: source, target_id: target, both_ways: both, note });
       setMsg({ ok: `${cap(name(source))} can stand in for ${name(target)}${both ? " (both ways)" : ""}.` });
-      setSource(null); setTarget(null); setNote("");
+      setSource(null); setTarget(null); setNote(""); setBoth(false); setAdding(false);
       router.refresh();
     } catch (err) {
       setMsg({ error: err instanceof Error ? err.message : "Couldn't add it." });
@@ -54,18 +56,71 @@ export function IngredientsPanel({ specs: initialSpecs, families, subs }: { spec
   }
 
   const needle = fold(q.trim());
-  const shown = specs.filter((s) => !needle || fold(s.name).includes(needle) || s.aliases.some((a) => fold(a).includes(needle)));
+  const outTotal = specs.filter((s) => !s.available).length;
+  const shown = specs.filter((s) => (!outOnly || !s.available) && (!needle || fold(s.name).includes(needle) || s.aliases.some((a) => fold(a).includes(needle))));
+  // Bartender groupings rather than raw families.
+  const famById = new Map(families.map((f) => [f.id, f]));
+  const bucket = (s: SpecOption) => {
+    const f = s.family_id ? famById.get(s.family_id) : undefined;
+    if (!f) return "Other";
+    if (f.kind === "spirit") return "Spirits";
+    if (f.slug === "liqueur") return "Liqueurs";
+    if (f.slug === "bitter") return "Bitters";
+    if (f.kind === "wine") return "Wine & fortified";
+    if (f.slug === "sweetener") return "Syrups & sweeteners";
+    if (f.slug === "citrus") return "Citrus & juice";
+    if (f.slug === "garnish") return "Garnish";
+    if (f.kind === "mixer" || f.kind === "staple") return "Mixers";
+    return "Other";
+  };
+  const ORDER = ["Spirits", "Liqueurs", "Wine & fortified", "Mixers", "Syrups & sweeteners", "Citrus & juice", "Bitters", "Garnish", "Other"];
   const groups = new Map<string, SpecOption[]>();
-  for (const s of shown) {
-    const k = s.family ?? "other";
-    groups.set(k, [...(groups.get(k) ?? []), s]);
-  }
-  const order = [...families.map((f) => f.name), "other"];
+  for (const s of shown) groups.set(bucket(s), [...(groups.get(bucket(s)) ?? []), s]);
 
   return (
     <div className="a-ingredients">
-      <section className="a-card">
-        <h2 className="a-h2">Stand-ins</h2>
+      <div className="a-searchbar">
+        <div className="a-search">
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ingredients" aria-label="Search ingredients" enterKeyHint="search" />
+          {q ? <button type="button" className="a-clear" onClick={() => setQ("")} aria-label="Clear search">×</button> : null}
+        </div>
+        <div className="a-chips" role="group" aria-label="Filter">
+          <button type="button" className={outOnly ? "a-chip" : "a-chip on"} onClick={() => setOutOnly(false)} aria-pressed={!outOnly}>All</button>
+          <button type="button" className={outOnly ? "a-chip on" : "a-chip"} onClick={() => setOutOnly(true)} aria-pressed={outOnly}>Out only · {outTotal}</button>
+        </div>
+      </div>
+
+      {ORDER.filter((k) => groups.has(k)).map((k) => {
+        const list = groups.get(k)!;
+        const out = list.filter((s) => !s.available).length;
+        return (
+          <section key={k} className="a-group">
+            <h2 className="a-group-head a-sticky">{k}<span className="a-quiet"> · {list.length}{out && !outOnly ? ` · ${out} out` : ""}</span></h2>
+            <ul className="a-list">
+              {list.map((s) => (
+                <li key={s.id}>
+                  <Link href={`/admin/ingredients/${s.id}`} className="a-list-row">
+                    <span className={s.available ? "a-dot on" : "a-dot"} aria-hidden />
+                    <span>{cap(s.name)}{s.aliases.length ? <span className="a-quiet a-small"> · {s.aliases.join(", ")}</span> : null}</span>
+                    <span className="a-quiet a-small">{s.ingredient_only ? "drinks only" : s.available ? "" : "out"}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+      {groups.size === 0 ? <p className="a-quiet a-empty">{outOnly ? "Nothing is out." : "No ingredients match."}</p> : null}
+
+      <details className="a-more">
+        <summary>Add an ingredient</summary>
+        <SpecPicker label="Type a new name, then add it" specs={specs} families={families} value={null}
+          onChange={(id) => router.push(`/admin/ingredients/${id}`)}
+          onCreate={(s) => setSpecs((l) => [...l, s].sort((a, b) => a.name.localeCompare(b.name)))} />
+      </details>
+
+      <details className="a-more a-standins">
+        <summary>Stand-ins <span className="a-quiet">· {subs.length}</span></summary>
         {subs.length === 0 ? <p className="a-quiet">No stand-ins yet.</p> : (
           <ul className="a-subs">
             {subs.map((s) => (
@@ -76,47 +131,24 @@ export function IngredientsPanel({ specs: initialSpecs, families, subs }: { spec
             ))}
           </ul>
         )}
-        <form className="a-subform" onSubmit={add}>
-          <SpecPicker label="This ingredient…" specs={specs} families={families} value={source} onChange={setSource} allowCreate={false} />
-          <SpecPicker label="…can stand in for" specs={specs} families={families} value={target} onChange={setTarget} allowCreate={false} />
-          <label className="a-check"><input type="checkbox" checked={both} onChange={(e) => setBoth(e.target.checked)} /><span>Both ways</span></label>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional), e.g. use slightly less" aria-label="Note" maxLength={200} />
-          {vermouthBlocked ? <p className="a-error">Sweet and dry vermouth can&apos;t stand in for each other: they taste completely different, so a recipe would come out wrong.</p> : null}
-          {msg?.error ? <p className="a-error" role="alert">{msg.error}</p> : null}
-          {msg?.ok ? <p className="a-ok" role="status">{msg.ok}</p> : null}
-          <button type="submit" className="a-btn a-btn-primary" disabled={!source || !target || busy || vermouthBlocked}>{busy ? "Adding…" : "Add stand-in"}</button>
-        </form>
-      </section>
-
-      <section>
-        <h2 className="a-h2">All ingredients</h2>
-        <div className="a-search">
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ingredients" aria-label="Search ingredients" />
-          {q ? <button type="button" className="a-clear" onClick={() => setQ("")} aria-label="Clear search">×</button> : null}
-        </div>
-        <details className="a-more">
-          <summary>+ Add an ingredient</summary>
-          <SpecPicker label="Type a new name, then add it" specs={specs} families={families} value={null}
-            onChange={(id) => router.push(`/admin/ingredients/${id}`)}
-            onCreate={(s) => setSpecs((l) => [...l, s].sort((a, b) => a.name.localeCompare(b.name)))} />
-        </details>
-        {order.filter((k) => groups.has(k)).map((k) => (
-          <div key={k} className="a-group">
-            <h3 className="a-group-head">{cap(k)}<span className="a-quiet"> · {groups.get(k)!.length}</span></h3>
-            <ul className="a-list">
-              {groups.get(k)!.map((s) => (
-                <li key={s.id}>
-                  <Link href={`/admin/ingredients/${s.id}`} className="a-list-row">
-                    <span className={s.available ? "a-dot on" : "a-dot"} aria-hidden />
-                    <span>{cap(s.name)}{s.aliases.length ? <span className="a-quiet a-small"> · {s.aliases.join(", ")}</span> : null}</span>
-                    <span className="a-quiet a-small">{s.ingredient_only ? "drinks only" : ""}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </section>
+        {msg?.ok ? <p className="a-ok" role="status">{msg.ok}</p> : null}
+        {!adding ? (
+          <button type="button" className="a-btn" onClick={() => { setAdding(true); setMsg(null); }}>Add stand-in</button>
+        ) : (
+          <form className="a-subform" onSubmit={add}>
+            <SpecPicker label="This ingredient…" specs={specs} families={families} value={source} onChange={setSource} allowCreate={false} />
+            <SpecPicker label="…can stand in for" specs={specs} families={families} value={target} onChange={setTarget} allowCreate={false} />
+            <label className="a-check"><input type="checkbox" checked={both} onChange={(e) => setBoth(e.target.checked)} /><span>Both ways</span></label>
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional), e.g. use slightly less" aria-label="Note" maxLength={200} />
+            {vermouthBlocked ? <p className="a-error">Sweet and dry vermouth can&apos;t stand in for each other: they taste completely different, so a recipe would come out wrong.</p> : null}
+            {msg?.error ? <p className="a-error" role="alert">{msg.error}</p> : null}
+            <div className="a-row-btns">
+              <button type="button" className="a-btn" onClick={() => setAdding(false)}>Cancel</button>
+              <button type="submit" className="a-btn a-btn-primary" disabled={!source || !target || busy || vermouthBlocked}>{busy ? "Adding…" : "Add stand-in"}</button>
+            </div>
+          </form>
+        )}
+      </details>
     </div>
   );
 }

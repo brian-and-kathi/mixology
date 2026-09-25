@@ -8,9 +8,9 @@ import { cap } from "@/lib/format";
 /** "At a glance": one compact card at the top of Stock that expands in place. */
 export function Glance({ data }: { data: GlanceData }) {
   const [copied, setCopied] = useState(false);
-  const list = data.buy
-    .map((b) => `- ${b.specs.map(cap).join(" + ")} (unlocks ${b.recipes.join(", ")})`)
-    .join("\n");
+  const label = (b: GlanceData["buy"][number]) =>
+    `${cap(b.specs.join(" + "))}${b.with.length ? ` (with ${b.with.join(", ")})` : b.specs.length > 1 ? " (together)" : ""}`;
+  const list = data.buy.map((b) => `- ${label(b)}: unlocks ${b.recipes.join(", ")}`).join("\n");
   const shareText = `Bar shopping list\n${list}`;
   async function share() {
     try {
@@ -28,7 +28,7 @@ export function Glance({ data }: { data: GlanceData }) {
   const summary = [
     `${data.canMake.length} on the menu`,
     data.oneAway.length ? `${data.oneAway.length} one away` : null,
-    data.buy.length ? `${data.buy.length} to buy` : null,
+    data.buyItems ? `${data.buyItems} to buy` : null,
   ].filter(Boolean).join(" · ");
 
   return (
@@ -39,20 +39,20 @@ export function Glance({ data }: { data: GlanceData }) {
       </summary>
       <div className="a-glance-body">
         <details open>
-          <summary>Can make now <span className="a-count">{data.canMake.length}</span></summary>
+          <summary>On the menu <span className="a-count">{data.canMake.length}</span></summary>
           <ul className="a-plain">
             {data.canMake.map((r) => <li key={r.id}><Link href={`/admin/recipes/${r.id}`}>{r.name}</Link></li>)}
           </ul>
         </details>
         <details open>
-          <summary>Buy to unlock <span className="a-count">{data.buy.length}</span></summary>
+          <summary>To buy <span className="a-count">{data.buyItems}</span></summary>
           {data.buy.length === 0 ? <p className="a-quiet">Nothing to buy. Every recipe can be made.</p> : (
             <>
               <ul className="a-plain">
                 {data.buy.map((b) => (
                   <li key={b.specs.join("|")}>
-                    <strong>{b.specs.map(cap).join(" + ")}</strong>
-                    {b.specs.length > 1 ? <span className="a-quiet"> (together)</span> : null}
+                    <strong>{cap(b.specs.join(" + "))}</strong>
+                    {b.with.length ? <span className="a-quiet"> (with {b.with.join(", ")})</span> : b.specs.length > 1 ? <span className="a-quiet"> (together)</span> : null}
                     <span className="a-quiet"> unlocks {b.recipes.length === 1 ? b.recipes[0] : `${b.recipes.length}: ${b.recipes.join(", ")}`}</span>
                   </li>
                 ))}

@@ -133,7 +133,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
                   {l.out || l.use_instead || l.optional || l.note ? (
                     <small>
                       {l.out ? <span className="tv-tag">out tonight</span> : null}
-                      {[l.use_instead ? `use ${l.use_instead}` : null, l.optional ? "optional" : null, l.note].filter(Boolean).join(" · ")}
+                      {[l.use_instead ? `use ${l.use_instead}` : null, l.optional ? "(optional)" : null, l.note].filter(Boolean).join(" · ")}
                     </small>
                   ) : null}
                 </span>
@@ -143,10 +143,10 @@ function BandBody({ payload }: { payload: CastPayload }) {
         </>
       ),
     });
-    if (payload.method.length || payload.method_style) cols.push({
+    if (payload.method.length) cols.push({
       key: "method", weight: 35, body: (
         <>
-          <p className="tv-band-label">{payload.method_style ? `Method · ${payload.method_style}` : "Method"}</p>
+          <p className="tv-band-label">{payload.method_label}</p>
           {payload.method.map((p, i) => <p key={i} className="tv-band-text">{p}</p>)}
         </>
       ),

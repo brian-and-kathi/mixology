@@ -40,10 +40,18 @@ export function BottleForm({ product, specs: initialSpecs, families, shared }: {
   const spec = specs.find((s) => s.id === f.spec_id) ?? null;
   const isWine = families.find((x) => x.id === (f.family_id || spec?.family_id))?.kind === "wine";
 
-  function pickSpec(id: string) {
-    const s = specs.find((x) => x.id === id);
-    setF((o) => ({ ...o, spec_id: id, family_id: o.family_id || s?.family_id || "" }));
+  // Family follows the type ("What is it?"); only a brand-new type asks for one (in the picker).
+  // A new bottle's "Can be poured on its own" starts from the type: drinks-only types start unticked.
+  function pickSpec(id: string, list = specs) {
+    const s = list.find((x) => x.id === id);
+    setF((o) => ({
+      ...o, spec_id: id, family_id: s?.family_id ?? o.family_id,
+      pourable: product ? o.pourable : !(s?.ingredient_only ?? false),
+      ...(product || !s?.ingredient_only ? {} : { serves_neat: false, serves_rocks: false, serves_chilled: false }),
+    }));
   }
+  const ready = f.display_name.trim().length > 0 && !!f.spec_id;
+  const familyName = families.find((x) => x.id === f.family_id)?.name ?? spec?.family ?? null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,16 +81,20 @@ export function BottleForm({ product, specs: initialSpecs, families, shared }: {
         <input value={f.display_name} onChange={(e) => set("display_name", e.target.value)} placeholder="Brand and expression, e.g. Buffalo Trace Bourbon" required maxLength={120} />
       </label>
 
-      <SpecPicker label="What is it?" specs={specs} families={families} value={f.spec_id} onChange={pickSpec} onCreate={(s) => setSpecs((l) => [...l, s].sort((a, b) => a.name.localeCompare(b.name)))} />
+      <SpecPicker label="What is it?" specs={specs} families={families} value={f.spec_id} onChange={(id) => pickSpec(id)} onCreate={(s) => { const next = [...specs, s].sort((a, b) => a.name.localeCompare(b.name)); setSpecs(next); pickSpec(s.id, next); }} />
       {spec?.ingredient_only ? <p className="a-hint">{spec.name.replace(/^./, (c) => c.toUpperCase())} is drinks-only: it won&apos;t appear on Pours or Cellar, but recipes can use it.</p> : null}
 
-      <label className="a-field">
-        <span className="a-label">Family</span>
-        <select value={f.family_id} onChange={(e) => set("family_id", e.target.value)}>
-          <option value="">{spec?.family ? `Same as ingredient (${spec.family})` : "Choose…"}</option>
-          {families.map((x) => <option key={x.id} value={x.id}>{x.name.replace(/^./, (c) => c.toUpperCase())}</option>)}
-        </select>
-      </label>
+      {spec && familyName ? <p className="a-hint">Filed under {familyName.replace(/^./, (c) => c.toUpperCase())} (from the type).</p> : null}
+      {spec && !familyName ? (
+        <label className="a-field">
+          <span className="a-label">Family</span>
+          <select className="a-select" value={f.family_id} onChange={(e) => set("family_id", e.target.value)}>
+            <option value="">Choose…</option>
+            {families.map((x) => <option key={x.id} value={x.id}>{x.name.replace(/^./, (c) => c.toUpperCase())}</option>)}
+          </select>
+          <span className="a-quiet a-small">This type has no family yet; pick where the bottle is filed on Stock.</span>
+        </label>
+      ) : null}
 
       <label className="a-check">
         <input type="checkbox" checked={f.in_stock} onChange={(e) => set("in_stock", e.target.checked)} />
@@ -133,7 +145,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared }: {
         ) : null}
       </details>
 
-      <SaveBar dirty={dirty} saving={saving} error={error} label={product ? "Save" : "Add bottle"} />
+      <SaveBar isNew={!product} dirty={dirty} ready={ready} saving={saving} error={error} newLabel="Add bottle" />
     </form>
   );
 }

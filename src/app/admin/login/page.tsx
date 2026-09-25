@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/admin-guard";
 import { adminConfigured } from "@/lib/auth";
+import { safeAdminNext } from "@/lib/safe-next";
 import "../admin.css";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ const ERRORS: Record<string, string> = {
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; signedout?: string }> }) {
   const { next, error, signedout } = await searchParams;
-  const target = next && next.startsWith("/admin") && !next.startsWith("//") ? next : "/admin";
+  const target = safeAdminNext(next);
   if (await isAdmin()) redirect(target);
   const configured = adminConfigured();
   return (

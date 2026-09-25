@@ -18,6 +18,7 @@ export function SpecForm({ spec, families }: { spec: SpecRow; families: Family[]
   const [alias, setAlias] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const dirty = JSON.stringify(f) !== base.current;
   useUnsavedGuard(dirty && !saving);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((o) => ({ ...o, [k]: v }));
@@ -36,6 +37,7 @@ export function SpecForm({ spec, families }: { spec: SpecRow; families: Family[]
       await api(`/api/admin/specs/${spec.id}`, "PUT", f);
       base.current = JSON.stringify(f);
       setSaving(false);
+      setSaved(true);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save.");
@@ -81,7 +83,7 @@ export function SpecForm({ spec, families }: { spec: SpecRow; families: Family[]
       </label>
       <p className="a-quiet a-small">Bottles: {spec.bottles.length ? spec.bottles.join(", ") : "none yet"}.</p>
       <p className="a-quiet a-small">Used in: {spec.recipes.length ? spec.recipes.join(", ") : "no recipes"}.</p>
-      <SaveBar dirty={dirty} saving={saving} error={error} />
+      <SaveBar dirty={dirty} ready={f.name.trim().length > 0} saving={saving} saved={saved} error={error} />
     </form>
   );
 }

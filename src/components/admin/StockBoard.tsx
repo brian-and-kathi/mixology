@@ -11,10 +11,25 @@ type Toast = { text: string; undo?: { id: string; to: boolean; logId: number | n
 const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+const list = (names: string[]) => (names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
+
+/** Menu impact as a sentence. Up to three drinks are named; more than that becomes a count. */
 function impact(r: Result): string {
-  if (r.blocked.length) return r.blocked.length === 1 ? `${r.blocked[0]} is now off the menu` : `${plural(r.blocked.length, "cocktail", "cocktails")} now off the menu`;
-  if (r.unlocked.length) return r.unlocked.length === 1 ? `${r.unlocked[0]} is back on the menu` : `${plural(r.unlocked.length, "cocktail", "cocktails")} back on the menu`;
+  const say = (names: string[], where: string) =>
+    names.length <= 3 ? `${list(names)} ${names.length === 1 ? "is" : "are"} ${where}.` : `${names.length} cocktails are ${where}.`;
+  if (r.blocked.length) return say(r.blocked, "off the menu");
+  if (r.unlocked.length) return say(r.unlocked, "back on the menu");
   return "";
+}
+
+/** "just now", "4 min ago", "2 hr ago", "yesterday", then a date. */
+function ago(iso: string, now: number): string {
+  const s = Math.max(0, (now - Date.parse(iso)) / 1000);
+  if (s < 45) return "just now";
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} hr ago`;
+  if (s < 172800) return "yesterday";
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 /** Stock: one tap flips a bottle In/Out (optimistic), with an undo toast that shows the menu impact. */
@@ -27,6 +42,11 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
   const [rowError, setRowError] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<Toast | null>(null);
   const timer = useRef<number | undefined>(undefined);
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setClock(Date.now()), 30000);
+    return () => window.clearInterval(t);
+  }, []);
 
   const stockOf = (it: StockItem) => override[it.id] ?? it.in_stock;
 
@@ -44,9 +64,11 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
     navigator.vibrate?.(10);
     try {
       const r = await api<Result>("/api/admin/stock", "POST", { id: it.id, in_stock: to, undo_of: undoOf ?? undefined });
-      const what = `${r.name} marked ${to ? "in" : "out"}`;
+      const what = `${r.name} ${to ? "in stock" : "out"}.`;
       const extra = impact(r);
-      show(undoOf ? { text: `Undone · ${what}${extra ? ` · ${extra}` : ""}` } : { text: `${what}${extra ? ` · ${extra}` : ""}`, undo: { id: it.id, to: !to, logId: r.log_id } });
+      const text = `${undoOf ? "Undone: " : ""}${what}${extra ? ` ${extra}` : ""}`;
+      show(undoOf ? { text } : { text, undo: { id: it.id, to: !to, logId: r.log_id } });
+      setClock(Date.now());
       router.refresh();
     } catch (e) {
       setOverride((o) => ({ ...o, [it.id]: !to }));
@@ -78,7 +100,7 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
       seen.add(c.entity_id);
       return c.action === "stock" && !c.undone && byId.has(c.entity_id);
     })
-    .slice(0, 4);
+    .slice(0, 5);
 
   return (
     <div className="a-stock">
@@ -93,7 +115,8 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
         </div>
       </div>
 
-      {undoable.length > 0 && !needle ? (
+      {/* Hidden while the toast is up, so the same Undo never shows twice at once. */}
+      {undoable.length > 0 && !needle && !toast ? (
         <section className="a-recent" aria-label="Recently changed">
           <h2>Recently changed</h2>
           <ul>
@@ -103,7 +126,7 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
               const canUndo = c.after?.in_stock === now;
               return (
                 <li key={c.id}>
-                  <span>{c.summary}</span>
+                  <span>{c.summary} <span className="a-quiet a-small" suppressHydrationWarning>· {ago(new Date(c.at).toISOString(), clock)}</span></span>
                   {canUndo ? <button type="button" className="a-link" onClick={() => flip(it, !now, c.id)}>Undo</button> : null}
                 </li>
               );
@@ -117,7 +140,7 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
         const out = g.items.filter((i) => !stockOf(i)).length;
         return (
           <section key={g.family} className="a-group">
-            <h2 className="a-group-head">{g.family.replace(/^./, (c) => c.toUpperCase())}<span className="a-quiet"> · {out ? `${out} out` : `${g.items.length}`}</span></h2>
+            <h2 className="a-group-head">{g.family.replace(/^./, (c) => c.toUpperCase())}<span className="a-quiet"> · {g.items.length}{out ? ` · ${out} out` : ""}</span></h2>
             <ul className="a-rows">
               {g.items.map((it) => {
                 const inStock = stockOf(it);

@@ -10,7 +10,12 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
   const [items, recent, glance] = await Promise.all([loadStock(), loadRecentChanges(), loadGlance()]);
   return (
     <>
-      <ClearTv />
+      <div className="a-stock-head">
+        <ClearTv />
+        <form method="post" action="/api/admin/logout" className="a-signout">
+          <button type="submit" className="a-link a-quiet a-small">Sign out</button>
+        </form>
+      </div>
       <Glance data={glance} />
       <StockBoard items={items} recent={recent} initialQuery={q ?? ""} />
     </>

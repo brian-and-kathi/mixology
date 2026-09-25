@@ -236,11 +236,19 @@ export async function deleteSubstitution(body: Record<string, unknown>) {
 
 // ---------- Recipes ----------
 
-const UNITS = ["oz", "dash", "part", "rind", "twist", "tsp", "tbsp", "barspoon", "ml", "cup", "slice", "wedge", "leaf", "sprig", "drop", "pinch", "each"];
+const UNITS = ["oz", "dash", "barspoon", "tsp", "tbsp", "part", "ml", "cup", "drop", "pinch", "rind", "twist", "slice", "wedge", "leaf", "sprig", "each", "rinse", "top"];
+const NO_AMOUNT = ["top", "rinse"]; // "Top with soda", "Absinthe rinse" (migration 016)
 const ROLES = ["base", "modifier", "juice", "sweetener", "garnish", "other"];
 const SERVICE = ["up", "on the rocks", "neat", "hot"];
 export const RECIPE_UNITS = UNITS;
 export const RECIPE_ROLES = ROLES;
+
+const METHOD_STYLES = ["stirred", "shaken", "built", "blended", "rolled", "thrown", "swizzled", "warm", "warm, in a mug", "warm, batch"];
+function methodStyle(v: unknown): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "string" && METHOD_STYLES.includes(v)) return v;
+  throw new UserError("Unknown method style.");
+}
 
 function recipeInput(body: Record<string, unknown>) {
   const name = text(body.name, 120);
@@ -249,10 +257,13 @@ function recipeInput(body: Record<string, unknown>) {
   const lines = rawLines
     .filter((l) => uuidOrNull(l.spec_id))
     .map((l, i) => {
-      const amount = num(l.amount, "Amount");
+      let amount = num(l.amount, "Amount");
       const unit = text(l.unit, 20);
-      if (amount !== null && amount <= 0) throw new UserError("Amounts must be more than zero.");
-      if ((amount === null) !== (unit === null)) throw new UserError("An amount needs a unit, and a unit needs an amount.");
+      if (unit && NO_AMOUNT.includes(unit)) amount = null; // top / rinse never take an amount
+      else {
+        if (amount !== null && amount <= 0) throw new UserError("Amounts must be more than zero.");
+        if ((amount === null) !== (unit === null)) throw new UserError("An amount needs a unit, and a unit needs an amount.");
+      }
       if (unit && !UNITS.includes(unit)) throw new UserError(`Unknown unit "${unit}".`);
       const role = text(l.role, 20);
       if (role && !ROLES.includes(role)) throw new UserError("Unknown role.");
@@ -278,6 +289,7 @@ function recipeInput(body: Record<string, unknown>) {
     alt_glass_id: glass(body.alt_glass_id),
     alt_service_style: style(body.alt_service_style),
     glass_note: text(body.glass_note, 120),
+    method_style: methodStyle(body.method_style),
     lines,
   };
 }
@@ -300,7 +312,7 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
   );
   if (found.glasses !== new Set(glassIds).size) throw new UserError("Unknown glass.");
   if (found.specs !== specIds.length) throw new UserError("One of the ingredients no longer exists. Pick it again.");
-  const vals = [rid, r.name, r.description, r.glass_id, r.service_style, r.alt_glass_id, r.alt_service_style, r.glass_note];
+  const vals = [rid, r.name, r.description, r.glass_id, r.service_style, r.alt_glass_id, r.alt_service_style, r.glass_note, r.method_style];
   const stmts: Stmt[] = [];
   if (id) {
     stmts.push([
@@ -310,14 +322,14 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
     ]);
     stmts.push([
       `UPDATE recipes SET name = $2, description = $3, glass_id = $4, service_style = $5, alt_glass_id = $6,
-              alt_service_style = $7, glass_note = $8 WHERE id = $1`,
+              alt_service_style = $7, glass_note = $8, method_style = $9 WHERE id = $1`,
       vals,
     ]);
     stmts.push(["DELETE FROM recipe_lines WHERE recipe_id = $1", [rid]]);
   } else {
     stmts.push([
-      `INSERT INTO recipes (id, name, description, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, section)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'mixed')`,
+      `INSERT INTO recipes (id, name, description, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, section)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'mixed')`,
       vals,
     ]);
   }
@@ -354,8 +366,8 @@ export async function duplicateRecipe(id: string) {
   const nid = randomUUID();
   await tx([
     [
-      `INSERT INTO recipes (id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note)
-       SELECT $2, $3, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note FROM recipes WHERE id = $1`,
+      `INSERT INTO recipes (id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style)
+       SELECT $2, $3, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style FROM recipes WHERE id = $1`,
       [id, nid, name],
     ],
     [

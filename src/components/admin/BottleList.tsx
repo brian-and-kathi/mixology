@@ -21,7 +21,9 @@ export function BottleList({ items }: { items: StockItem[] }) {
           <li key={i.id}>
             <Link href={`/admin/bottles/${i.id}`} className={i.in_stock ? "a-list-row" : "a-list-row is-out"}>
               <span>{i.name}<span className="a-quiet a-small"> · {i.spec ?? i.family}</span></span>
-              <span className={i.in_stock ? "a-pill in small" : "a-pill out small"}>{i.in_stock ? "In" : "Out"}</span>
+              {/* Plain status text, not a pill: the whole row opens the bottle, stock is toggled on Stock. */}
+              <span className={i.in_stock ? "a-state" : "a-state out"}>{i.in_stock ? "In" : "Out"}</span>
+              <span className="a-chev" aria-hidden>›</span>
             </Link>
           </li>
         ))}

@@ -284,25 +284,19 @@ a.card:active { background: #202020; }
 .item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: var(--gold); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .item-detail .nobr { white-space: nowrap; }
 .card.two-line { align-items: flex-start; }
-/* Phone Pours: the type badge in the card's top-right corner, out of flow (same look as the TV badge: 72% of the
-   name size, gold text, gold-line border). Two variants for review (only one ships): A, an inset pill 7px clear of
-   the card's 1px ring (8px from its edge); B, a flush corner tab. --corner-inset is the badge's distance from the
-   card's right edge.
+/* Phone Pours: the type badge as a flush tab in the card's top-right corner, out of flow. Same text as the TV
+   badge (72% of the name size, gold, weight 500). Its top and right edges sit on the card's edge; its top-right
+   radius is the card's and its bottom-left radius 6px; a gold-line border on the left and bottom only; a little more
+   padding than the TV pill so the text clears the rounded corner.
    The room it takes is kept free on the name's line by .badge-reserve: an invisible, zero-height copy of the badge
-   floated at the right of the name. Its margins put the name's right limit exactly 8px left of the corner badge
-   (8px on the left; on the right, the badge's inset minus the card's 1.1rem padding). Being 1px tall it narrows only
-   the name's first line, the one beside the badge; the subtext starts below the badge (it ends 21-24px from the
-   card's top, the subtext ~37px) and keeps the full width, so cards stay at their main height. No badge, no reserve. */
+   floated at the right of the name. Its margins put the name's right limit exactly 8px left of the tab (8px on the
+   left; -1.1rem on the right, into the card's padding, since the tab sits on the card's edge). Being 1px tall it
+   narrows only the name's first line, the one beside the tab; the subtext starts below the tab (it ends ~21px from
+   the card's top, the subtext ~37px) and keeps the full width, so cards stay at their main height. No badge, no reserve. */
 .card.has-badge { position: relative; }
-.corner-badge { position: absolute; margin: 0; }
-.corner-a { --corner-inset: 8px; }
-.corner-b { --corner-inset: 0px; }
-.badge-reserve { float: right; visibility: hidden; height: 1px; overflow: hidden; padding-block: 0; border-block-width: 0; margin: 0 calc(var(--corner-inset) - 1.1rem) 0 8px; vertical-align: top; }
-.corner-a .corner-badge { top: var(--corner-inset); right: var(--corner-inset); }
-/* B: top and right edges on the card's edge, top-right radius = the card's, 6px bottom-left radius, gold-line
-   border on the left and bottom only. A little more padding than the pill so the text clears the rounded corner. */
-.corner-b .corner-badge, .corner-b .badge-reserve { padding-inline: 8px 10px; border-width: 0 0 1px 1px; border-radius: 0 var(--radius) 0 6px; }
-.corner-b .corner-badge { top: 0; right: 0; padding-block: 4px; }
+.corner-badge, .badge-reserve { padding-inline: 8px 10px; border-width: 0 0 1px 1px; border-radius: 0 var(--radius) 0 6px; }
+.corner-badge { position: absolute; top: 0; right: 0; margin: 0; padding-block: 4px; }
+.badge-reserve { float: right; visibility: hidden; height: 1px; overflow: hidden; padding-block: 0; border-block-width: 0; margin: 0 -1.1rem 0 8px; vertical-align: top; }
 /* Pours are grouped by spirit family (lib/spirit-family.ts): 0.5em extra space above each family's first card. */
 .cards > li.fam-start { margin-top: 0.5em; }
 .two-line > .card-lead { margin-top: calc((1.05rem * 1.3 - 2.5rem) / 2); }

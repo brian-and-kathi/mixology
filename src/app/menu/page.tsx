@@ -10,10 +10,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Menu" };
 
 /** Phone guest menu: same sections and order as the TV, one tab per non-empty section. */
-export default async function MenuPage({ searchParams }: { searchParams: Promise<{ tab?: string; badge?: string }> }) {
-  const { tab, badge } = await searchParams;
-  // Pours corner badge, two variants for review (A: inset pill, default; B: flush corner tab, ?badge=b). Only one ships.
-  const corner = badge === "b" ? "corner-b" : "corner-a";
+export default async function MenuPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab } = await searchParams;
   // Guest ratings, the TV board's single query and rounding; a failure just shows no ratings.
   const [menu, ratings] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch((): Record<string, number> => ({}))]);
   if (!menu) {
@@ -42,7 +40,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
           </Link>
         ))}
       </nav>
-      <ul className={`cards ${corner}`}>
+      <ul className="cards">
         {menu[current].map((item) => {
           // Every section has a muted second line (ingredients, region · ABV, region · style) when there is data for it.
           const rating = ratings[ratingKey(current, item.id)];
@@ -69,7 +67,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
                 </span>
                 {item.detail ? <span className="item-detail">{keepHyphens(item.detail)}</span> : null}
               </span>
-              {/* Pours: the type badge in the card's top-right corner, out of flow. */}
+              {/* Pours: the type badge as a tab in the card's top-right corner, out of flow. */}
               {item.spec ? <span className="spec-badge corner-badge">{item.spec}</span> : null}
             </>
           );

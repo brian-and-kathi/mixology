@@ -1,5 +1,5 @@
 import { query } from "@/lib/db";
-import { altGlassLine, cap, measure, serveParts, tvGlassLine } from "@/lib/format";
+import { altGlassLine, cap, measure, serveParts, splitMethod, tvGlassLine } from "@/lib/format";
 import { loadPour, loadRecipe } from "@/lib/menu";
 
 // "Show on TV": one cast record (tv_cast, migration 015). A cast lasts 5 minutes, a new cast
@@ -9,7 +9,7 @@ export type CastType = "recipe" | "pour";
 
 export type CastLine = { amount: string; name: string; out: boolean; use_instead: string | null; optional: boolean; note: string | null };
 export type CastPayload =
-  | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; lines: CastLine[]; method: string[] }
+  | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; lines: CastLine[]; method_style: string | null; method: string[] }
   | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null };
 export type Cast = { type: CastType; id: string; started_at: string; expires_at: string; payload: CastPayload };
 
@@ -27,7 +27,8 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
         amount: measure(l.amount, l.unit), name: cap(l.name), out: !l.available,
         use_instead: l.use_instead ? cap(l.use_instead) : null, optional: !l.required, note: l.note,
       })),
-      method: (r.description ?? "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+      method_style: splitMethod(r.description).style,
+      method: splitMethod(r.description).paragraphs,
     };
   }
   const p = await loadPour(id);

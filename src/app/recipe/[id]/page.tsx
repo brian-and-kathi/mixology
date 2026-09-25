@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
 import { GlassIcon } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
-import { altGlassLine, cap, glassLine, measure } from "@/lib/format";
+import { altGlassLine, cap, glassLine, measure, splitMethod } from "@/lib/format";
 import { loadRecipe } from "@/lib/menu";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +13,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const recipe = await loadRecipe(id);
   if (!recipe) notFound();
 
-  const method = (recipe.description ?? "")
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  const { style, paragraphs: method } = splitMethod(recipe.description);
 
   return (
     <PhoneShell
@@ -54,9 +51,9 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         </ul>
       </section>
 
-      {method.length > 0 ? (
+      {method.length > 0 || style ? (
         <section>
-          <h2>Method</h2>
+          <h2>{style ? `Method · ${style}` : "Method"}</h2>
           {method.map((p, i) => (
             <p key={i} className="method">{p}</p>
           ))}

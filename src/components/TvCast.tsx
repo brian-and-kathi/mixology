@@ -143,10 +143,10 @@ function BandBody({ payload }: { payload: CastPayload }) {
         </>
       ),
     });
-    if (payload.method.length) cols.push({
+    if (payload.method.length || payload.method_style) cols.push({
       key: "method", weight: 35, body: (
         <>
-          <p className="tv-band-label">Method</p>
+          <p className="tv-band-label">{payload.method_style ? `Method · ${payload.method_style}` : "Method"}</p>
           {payload.method.map((p, i) => <p key={i} className="tv-band-text">{p}</p>)}
         </>
       ),

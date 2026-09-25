@@ -70,7 +70,7 @@ h1, h2, p { margin: 0; }
 .tv-casting .tv-row { font-size: 2.18vh; padding: 0.83vh 0 0.83vh 0.42vw; }
 .tv-casting .tv-row .glass { width: 2.6vh; height: 2.6vh; }
 .tv-row { position: relative; }
-.tv-row.on { color: var(--cream); background: linear-gradient(90deg, rgba(243, 234, 211, 0.1), rgba(243, 234, 211, 0) 85%); }
+.tv-row.on { color: var(--cream); font-weight: 600; background: linear-gradient(90deg, rgba(243, 234, 211, 0.2), rgba(243, 234, 211, 0.04) 90%); }
 .tv-row.on .glass { color: var(--cream); }
 .tv-row.on::before { content: ""; position: absolute; left: 0; top: 0.65vh; bottom: 0.65vh; width: 3px; border-radius: 2px; background: var(--cream); }
 
@@ -78,7 +78,7 @@ h1, h2, p { margin: 0; }
 .tv-band.open { transform: none; }
 .tv-band-progress { position: absolute; left: 0; right: 0; top: -1px; height: 4px; }
 .tv-band-fill { height: 100%; background: var(--cream); border-radius: 0 2px 2px 0; box-shadow: 0 0 14px rgba(243, 234, 211, 0.28); transition: width 250ms linear; }
-.tv-band-clock { position: absolute; right: 1.56vw; top: 1.3vh; font: 1.57vh/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.5); font-variant-numeric: tabular-nums; }
+.tv-band-clock { position: absolute; right: 1.56vw; top: 1.2vh; font: 500 1.9vh/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.78); font-variant-numeric: tabular-nums; }
 .tv-band-inner { --s: var(--band-scale, 1); position: absolute; inset: 0; padding: 5.2vh 2.92vw 4.1vh; display: grid; }
 .tv-band-col { min-width: 0; min-height: 0; overflow: hidden; padding: 0 2.3vw; }
 .tv-band-col:first-child { padding-left: 0; }

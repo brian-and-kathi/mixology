@@ -76,3 +76,16 @@ export function serveParts(neat: boolean, rocks: boolean, chilled: boolean): { m
   const ways = [neat && "neat", rocks && "on the rocks"].filter(Boolean).join(" or ");
   return { main: ways ? cap(ways) : "Neat or on the rocks", quiet: [chilled ? "Best chilled" : null, "Water on request"].filter((x): x is string => !!x) };
 }
+
+// A method often opens with its style ("Stirred.", "Shaken.", "Warm, in a mug.") and then says it
+// again ("Stir with ice…"). The style moves into the Method label; the text keeps the rest.
+const METHOD_STYLE = /^(stirred|shaken|built|blended|rolled|thrown|swizzled|warm(?:,\s*[^.]{1,24})?)\.\s+/i;
+
+/** Split a recipe description into an optional method style and its paragraphs. */
+export function splitMethod(description: string | null): { style: string | null; paragraphs: string[] } {
+  const paragraphs = (description ?? "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const m = paragraphs[0]?.match(METHOD_STYLE);
+  if (!m) return { style: null, paragraphs };
+  const rest = paragraphs[0].slice(m[0].length).trim();
+  return { style: cap(m[1].trim()), paragraphs: rest ? [cap(rest), ...paragraphs.slice(1)] : paragraphs.slice(1) };
+}

@@ -946,6 +946,30 @@ BEGIN
   RAISE NOTICE 'check 19 passed';
 END $$;
 
+-- 20. One Cellar rule (migration 020): the guest Cellar is exactly the in-stock bottles is_cellar_wine()
+--     accepts, an out-of-stock wine is still a wine (admin files it under Wines), and drinks-only
+--     vermouth is not (it stays with the spirits).
+DO $$
+DECLARE
+  v_out_wine uuid;
+BEGIN
+  IF EXISTS (SELECT 1 FROM products p WHERE (p.id IN (SELECT id FROM menu_wines)) <> (p.in_stock AND is_cellar_wine(p.id))) THEN
+    RAISE EXCEPTION 'check 20 failed: menu_wines and is_cellar_wine() disagree';
+  END IF;
+  v_out_wine := create_product_from_lookup(
+    p_title => 'Acc out red', p_source => 'acceptance', p_raw => '{}'::jsonb, p_in_stock => false,
+    p_upc => '999000000120', p_family_id => (SELECT id FROM families WHERE slug = 'still-wine'));
+  IF NOT is_cellar_wine(v_out_wine) OR EXISTS (SELECT 1 FROM menu_wines WHERE id = v_out_wine) THEN
+    RAISE EXCEPTION 'check 20 failed: an out-of-stock wine should be a wine but not on the Cellar';
+  END IF;
+  IF EXISTS (SELECT 1 FROM products p JOIN product_specs ps ON ps.product_id = p.id JOIN specs s ON s.id = ps.spec_id
+              WHERE s.canonical_name IN ('dry vermouth', 'sweet vermouth') AND ps.is_primary AND is_cellar_wine(p.id))
+     OR is_cellar_wine_spec((SELECT id FROM specs WHERE canonical_name = 'sweet vermouth')) THEN
+    RAISE EXCEPTION 'check 20 failed: drinks-only vermouth was treated as a Cellar wine';
+  END IF;
+  RAISE NOTICE 'check 20 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

@@ -226,6 +226,9 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
     measure();
     const ro = new ResizeObserver(() => measure());
     if (boardRef.current) ro.observe(boardRef.current);
+    // Also watch the hidden measuring lists: when a cast hides the subtext, the rows keep resizing (padding
+    // and font transitions) after the board has stopped changing size, so re-plan once they settle.
+    for (const ruler of rulers.current) if (ruler) ro.observe(ruler);
     // Web fonts change row heights after first paint; measure again once they are ready.
     void document.fonts?.ready.then(() => measure());
     return () => ro.disconnect();

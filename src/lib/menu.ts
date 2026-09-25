@@ -76,15 +76,25 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     [id],
   );
   if (!recipe) return null;
-  // recipe_line_status says whether each line is in stock; a stocked substitute is offered for out lines.
+  // A line is "in" when a bottle of that ingredient is on the shelf (or it is always on hand).
+  // When it isn't, a stocked stand-in is named: spec_substitutions(source → target) means the
+  // source can stand in for the target (the same direction available_spec_ids() uses).
   const lines = await query<RecipeLine>(
-    `SELECT s.position, s.spec_name AS name, s.required, s.available,
+    `WITH shelf AS (
+       SELECT sp.id FROM specs sp
+        WHERE sp.always_available
+           OR EXISTS (SELECT 1 FROM product_specs ps JOIN products p ON p.id = ps.product_id
+                       WHERE ps.spec_id = sp.id AND p.in_stock))
+     SELECT s.position, s.spec_name AS name, s.required,
+            (s.spec_id IN (SELECT id FROM shelf)) AS available,
             rl.amount::text AS amount, rl.unit, rl.note,
-            (SELECT t.canonical_name
+            (SELECT src.canonical_name
                FROM spec_substitutions ss
-               JOIN spec_availability sa ON sa.id = ss.target_spec_id AND sa.available
-               JOIN specs t ON t.id = ss.target_spec_id
-              WHERE ss.source_spec_id = s.spec_id AND NOT s.available
+               JOIN specs src ON src.id = ss.source_spec_id
+              WHERE ss.target_spec_id = s.spec_id
+                AND ss.source_spec_id IN (SELECT id FROM shelf)
+                AND s.spec_id NOT IN (SELECT id FROM shelf)
+              ORDER BY src.canonical_name
               LIMIT 1) AS use_instead
        FROM recipe_line_status s
        JOIN recipe_lines rl ON rl.recipe_id = s.recipe_id AND rl.position = s.position

@@ -48,8 +48,9 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
                 {!line.available ? <span className="tag-out">out tonight</span> : null}
                 {line.use_instead ? <strong> (use {cap(line.use_instead)})</strong> : null}
                 {!line.required ? <span className="quiet"> (optional)</span> : null}
-                {line.bottles ? <span className="quiet bottles">{bottleLine(line.bottles, PHONE_DOT)}</span> : null}
-                {line.note ? <span className="quiet note">{line.note}</span> : null}
+                {line.bottles ? <span className="quiet bottles">{bottleLine(line.bottles, PHONE_DOT, line.preferred)}</span> : null}
+                {/* A "Grand Marnier preferred" note is already in the bottle line as "Grand Marnier (preferred)". */}
+                {line.note && !line.preferred ? <span className="quiet note">{line.note}</span> : null}
               </span>
             </li>
           ))}

@@ -166,6 +166,8 @@ export type RecipeLine = {
   use_instead: string | null;
   /** The in-stock bottles behind this line, ordered like Pours, or null when a line would add nothing (see bottleNames). */
   bottles: string[] | null;
+  /** The note names a preferred bottle that is in the list: it is listed first as "(preferred)" and the phone drops the note. */
+  preferred: boolean;
 };
 
 export type Recipe = {
@@ -208,14 +210,33 @@ export function bottleNames(spec: string, f: BottleFacts): string[] | null {
   return names;
 }
 
+/** "Grand Marnier preferred", "Grand Marnier (preferred)", "preferably Grand Marnier", "ideally Grand Marnier". */
+const PREFERRED = [/^(.+?)\s*\(?(?:is\s+)?preferred\)?\.?$/i, /^(?:preferably|ideally)\s+(.+?)\.?$/i];
+
 /**
- * "Bowright Recurve Rye · Willett Rye"; at most three, then "+N more". Empty list: "None in stock".
- * `sep` is the phone's no-break space before " · " (a wrapped line never starts with a dot).
+ * A recipe note that names a preferred bottle ("Grand Marnier preferred") folds into the bottle line
+ * when that bottle is one of those listed: it moves to the front and is marked "(preferred)", and the
+ * note isn't repeated. A preferred bottle that isn't in stock leaves the note as it is.
  */
-export function bottleLine(names: string[], sep = " · ", max = 3): string {
+export function preferFirst(names: string[] | null, note: string | null): { bottles: string[] | null; preferred: boolean } {
+  const want = note ? PREFERRED.map((re) => re.exec(note.trim())?.[1]).find(Boolean) : undefined;
+  const w = want ? norm(want) : "";
+  const hit = names && w ? names.findIndex((n) => norm(n) === w) : -1;
+  const at = hit >= 0 ? hit : names && w ? names.findIndex((n) => norm(n).includes(w)) : -1;
+  if (!names || at < 0) return { bottles: names, preferred: false };
+  return { bottles: [names[at], ...names.filter((_, i) => i !== at)], preferred: true };
+}
+
+/**
+ * "Bowright Recurve Rye · Willett Rye"; at most three (a preferred bottle counts as one), then
+ * "+N more". Empty list: "None in stock". `sep` is the phone's no-break space before " · " (a wrapped
+ * line never starts with a dot); "(preferred)" stays with its bottle.
+ */
+export function bottleLine(names: string[], sep = " · ", preferred = false, max = 3): string {
   if (!names.length) return "None in stock";
-  const shown = names.slice(0, max).join(sep);
-  return names.length > max ? `${shown}${sep}+${names.length - max}\u00a0more` : shown;
+  const list = preferred ? [`${names[0]}\u00a0(preferred)`, ...names.slice(1)] : names;
+  const shown = list.slice(0, max).join(sep);
+  return list.length > max ? `${shown}${sep}+${list.length - max}\u00a0more` : shown;
 }
 export const PHONE_DOT = DOT;
 
@@ -281,11 +302,11 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
       ORDER BY s.position`,
     [id],
   );
-  const lines: RecipeLine[] = rows.map(({ own, kind, has_bottles, stock, ...line }) => ({
-    ...line,
+  const lines: RecipeLine[] = rows.map(({ own, kind, has_bottles, stock, ...line }) => {
     // The name the guest reads next to the bottles: the ingredient, or the stand-in it says to use.
-    bottles: bottleNames(!line.available && line.use_instead ? line.use_instead : line.name, { own, kind, has_bottles, stock }),
-  }));
+    const names = bottleNames(!line.available && line.use_instead ? line.use_instead : line.name, { own, kind, has_bottles, stock });
+    return { ...line, ...preferFirst(names, line.note) };
+  });
   return { ...recipe, lines };
 }
 

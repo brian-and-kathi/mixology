@@ -1,12 +1,12 @@
 import { headers } from "next/headers";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { dottedQrSvg } from "@/lib/qr-dots";
 
 /**
  * QR pointing at this host's /menu, built from the request host so it works on any deploy URL.
  * `above` (the build hash on the TV) sits centered over the code, in the same column as the caption.
  * Drawn as dots with solid rounded finders and error correction Q (lib/qr-dots). The code fills its box; the
- * black page is its quiet zone, and --qr-n (modules across) sizes the 4-module gaps around it in CSS.
+ * black page is its quiet zone, and --qr-n (modules across, set on .tv) sizes the 4-module gaps around it in CSS.
  */
 export async function MenuQr({ above }: { above?: ReactNode } = {}) {
   const h = await headers();
@@ -16,7 +16,9 @@ export async function MenuQr({ above }: { above?: ReactNode } = {}) {
   const proto = h.get("x-forwarded-proto") ?? (local ? "http" : "https");
   const { svg, modules } = dottedQrSvg(`${proto}://${host}/menu`, { dark: "#ffffff", light: "#000000" });
   return (
-    <aside className="tv-qr" style={{ "--qr-n": modules } as CSSProperties}>
+    <aside className="tv-qr">
+      {/* On the whole TV (not just this block): the board shortens a row rule by 4 modules during a cast. */}
+      <style>{`.tv { --qr-n: ${modules}; }`}</style>
       {above}
       <div className="tv-qr-code" role="img" aria-label="QR code for the guest menu" dangerouslySetInnerHTML={{ __html: svg }} />
       <p>Scan for recipes</p>

@@ -29,6 +29,11 @@ function pack(heights: number[], available: number): number[] {
   return out;
 }
 
+/** Unrounded row heights (offsetHeight rounds, and 8 x 0.5px can cost a row at 1024x576). */
+function rowHeights(ruler: HTMLElement): number[] {
+  return [...ruler.children].map((el) => el.getBoundingClientRect().height);
+}
+
 /** Hand out a sub-column budget: every section gets 1, extra goes where it is needed most. */
 function allocate(needed: number[], budget: number): number[] {
   const split = needed.map(() => 1);
@@ -157,12 +162,16 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
   // Subtext lines show everywhere, except while a cast is up and the shrunk board would have to
   // page with them: then every subtext line (all columns) is hidden until the cast ends.
   const [hideDetail, setHideDetail] = useState(false);
+  // If the cast board still pages with the subtext hidden, the rows' padding is trimmed a little (tv-tight)
+  // so one more row fits a page (8 pours at 1280x720 and 1024x576). Never needed at 1080.
+  const [tight, setTight] = useState(false);
   // The cast band shrinks the board, so re-plan the layout from scratch when it comes and goes.
   const key = (cast ? "cast|" : "") + columns.map((c) => c.id + ":" + c.items.map((i) => i.id).join(",")).join("|");
 
   // New data (or the cast band came or went): start over from one sub-column per section.
   useEffect(() => {
     setHideDetail(false);
+    setTight(false);
     setSplit(columns.map(() => 1));
     // Once more after the band's 400 ms slide, in case mid-animation sizes over-split a section.
     const t = window.setTimeout(() => setSplit(columns.map(() => 1)), 450);
@@ -178,8 +187,7 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
       const box = viewports.current[ci];
       const ruler = rulers.current[ci];
       if (!box || !ruler || box.clientHeight < 40) return c.items.map(() => 0);
-      const heights = [...ruler.children].map((el) => (el as HTMLElement).offsetHeight);
-      return pack(heights, box.clientHeight);
+      return pack(rowHeights(ruler), box.getBoundingClientRect().height);
     });
     const needed = packed.map((p) => (p.length ? Math.max(...p) + 1 : 1));
     const next = allocate(needed, budget);
@@ -199,28 +207,31 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
       setBasis(widths);
       return;
     }
-    // When a split section fits on one page, balance its sub-columns by item count
-    // (ceil(n/k) in each, the remainder in the last) instead of filling the first one up.
+    // Paging rule, for every column: the fewest pages (the greedy packing above), then the rows balanced by
+    // count over all the sub-columns on those pages, earlier ones taking the extra row (15 rows on 2 pages =
+    // 8/7, on 3 = 5/5/5; 16 in 3 = 6/5/5). Keeps the greedy packing if uneven row heights would overflow.
     const balanced = packed.map((p, ci) => {
       const k = split[ci] ?? 1;
       const box = viewports.current[ci];
       const ruler = rulers.current[ci];
-      if (k < 2 || !box || !ruler || needed[ci] > k || p.length === 0) return p;
-      const per = Math.ceil(p.length / k);
-      const even = p.map((_, i) => Math.floor(i / per));
-      const heights = [...ruler.children].map((el) => (el as HTMLElement).offsetHeight);
-      const tallest = Math.max(...Array.from({ length: k }, (_, c) => heights.reduce((sum, h, i) => sum + (even[i] === c ? h : 0), 0)));
-      return tallest <= box.clientHeight ? even : p;
+      const slots = Math.min(p.length, Math.ceil(needed[ci] / k) * k);
+      if (slots < 2 || !box || !ruler) return p;
+      const base = Math.floor(p.length / slots);
+      const long = (p.length % slots) * (base + 1); // rows in the sub-columns that take an extra one
+      const even = p.map((_, i) => (i < long ? Math.floor(i / (base + 1)) : long / (base + 1) + Math.floor((i - long) / base)));
+      const heights = rowHeights(ruler);
+      const tallest = Math.max(...Array.from({ length: slots }, (_, c) => heights.reduce((sum, h, i) => sum + (even[i] === c ? h : 0), 0)));
+      return tallest <= box.getBoundingClientRect().height ? even : p;
     });
     setAssign(balanced);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columns, split, basis, hideDetail]);
+  }, [columns, split, basis, hideDetail, tight]);
 
-  // Hiding the subtext makes rows shorter, so start the plan over from one sub-column per section.
+  // Hiding the subtext (or trimming the padding) makes rows shorter, so start the plan over from one sub-column per section.
   useEffect(() => {
-    if (hideDetail) setSplit(columns.map(() => 1));
+    if (hideDetail || tight) setSplit(columns.map(() => 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hideDetail]);
+  }, [hideDetail, tight]);
 
   useLayoutEffect(() => {
     measure();
@@ -249,6 +260,14 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
     }, 900);
     return () => window.clearTimeout(t);
   }, [casting, hideDetail, pageCount]);
+  // Still paging once the subtext is hidden: trim the row padding, then re-plan (fewest pages, balanced).
+  useEffect(() => {
+    if (!casting || !hideDetail || tight || pageCount <= 1) return;
+    const t = window.setTimeout(() => {
+      if (pagesRef.current > 1) setTight(true);
+    }, 900);
+    return () => window.clearTimeout(t);
+  }, [casting, hideDetail, tight, pageCount]);
 
   useEffect(() => {
     if (pageCount <= 1) {
@@ -272,7 +291,7 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
   const current = page % pageCount;
 
   return (
-    <div className={hideDetail ? "tv-columns tv-no-detail" : "tv-columns"} ref={boardRef} data-pages={pageCount} data-page={current + 1}>
+    <div className={`tv-columns${hideDetail ? " tv-no-detail" : ""}${tight ? " tv-tight" : ""}`} ref={boardRef} data-pages={pageCount} data-page={current + 1}>
       {columns.map((col, ci) => {
         const n = split[ci] ?? 1;
         const shownPage = Math.min(current, colPages[ci] - 1);

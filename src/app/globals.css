@@ -7,6 +7,9 @@
   --quiet: rgba(255, 255, 255, 0.55);
   --rule: rgba(255, 255, 255, 0.22);
   --cream: #f3ead3;
+  /* Gold accent (TV only for now): text, and a dimmer tone for lines. Deeper and more saturated than cream. */
+  --gold: #cfa453;
+  --gold-line: #95753d;
   --radius: 14px;
   color-scheme: dark;
 }
@@ -24,9 +27,9 @@ h1, h2, p { margin: 0; }
 
 /* Decorative frame with scalloped corners. .frame is the TV's (absolute on a fixed, non-scrolling page);
    guest phone pages use .g-frame below, which is fixed so the border is always visible. */
-.frame { position: absolute; inset: 12px; border: 1px solid rgba(255, 255, 255, 0.28); pointer-events: none; z-index: 10; }
+.frame { position: absolute; inset: 12px; border: 1px solid var(--gold-line); pointer-events: none; z-index: 10; }
 .frame-corner { position: absolute; width: 13px; height: 13px; overflow: hidden; }
-.frame-corner::before { content: ""; position: absolute; width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.28); background: var(--bg); }
+.frame-corner::before { content: ""; position: absolute; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--gold-line); background: var(--bg); }
 .frame-corner.tl { top: -1px; left: -1px; } .frame-corner.tl::before { top: -13px; left: -13px; }
 .frame-corner.tr { top: -1px; right: -1px; } .frame-corner.tr::before { top: -13px; right: -13px; }
 .frame-corner.bl { bottom: -1px; left: -1px; } .frame-corner.bl::before { bottom: -13px; left: -13px; }
@@ -54,7 +57,7 @@ h1, h2, p { margin: 0; }
 .tv-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; padding: 0 0.6vw; }
 .tv-col:first-child { padding-left: 0; }
 .tv-col:last-child { padding-right: 0; }
-.tv-col + .tv-col { border-left: 1px solid var(--rule); }
+.tv-col + .tv-col { border-left: 1px solid var(--gold-line); }
 .tv-heading { font-family: var(--font-display), Palatino, serif; font-style: italic; font-weight: 500; font-size: 5.2vh; text-align: center; color: rgba(255, 255, 255, 0.92); line-height: 1.1; }
 .tv-pageno { text-align: center; font: 1.1vh/1.6 ui-monospace, monospace; letter-spacing: 0.3em; color: rgba(255, 255, 255, 0.4); }
 .tv-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; margin-top: 1vh; }
@@ -72,7 +75,8 @@ h1, h2, p { margin: 0; }
 .tv-row .glass { margin-top: calc((2.75vh * 1.25 - 3.6vh) / 2); }
 .tv-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .tv-name { overflow-wrap: anywhere; }
-.tv-detail { font-size: 0.85em; line-height: 1.2; margin-top: 0.05vh; color: rgba(255, 255, 255, 0.6); font-weight: 400; white-space: nowrap; overflow: hidden; }
+/* Gold, ~85% of the old 0.85em size, never under ~18px at 1080p. */
+.tv-detail { font-size: max(1.7vh, 0.72em); line-height: 1.2; margin-top: 0.05vh; color: var(--gold); font-weight: 400; white-space: nowrap; overflow: hidden; }
 .tv-no-detail .tv-detail { display: none; }
 /* Two-line rows get tighter padding so the idle board (15 pours in 8/7) still fits on one screen. */
 .tv-columns:not(.tv-no-detail) .tv-row:has(.tv-detail) { padding: 0.62vh 0; }

@@ -164,6 +164,8 @@ export type RecipeLine = {
   unit: string | null;
   note: string | null;
   use_instead: string | null;
+  /** The in-stock bottles behind this line, ordered like Pours, or null when a line would add nothing (see bottleNames). */
+  bottles: string[] | null;
 };
 
 export type Recipe = {
@@ -181,6 +183,42 @@ export type Recipe = {
   lines: RecipeLine[];
 };
 
+type BottleFacts = { own: boolean | null; kind: string; has_bottles: boolean; stock: { name: string; brand: string | null }[] };
+
+/** Ingredient families that are bottles a guest would recognise; citrus, juice, syrups, garnishes, ice and water are not. */
+const BOTTLE_KINDS = new Set(["spirit", "modifier", "wine", "mixer"]);
+const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * The bottle line under a recipe ingredient: the in-stock bottles behind it (ordered like Pours); an
+ * empty list ("None in stock") when it has bottles but none is in and nothing stands in; or null
+ * when the line would add nothing: not a bottle family, no bottles on record at all, or the only
+ * bottle is the one the name beside it already says (the ingredient, or the stand-in it says to use:
+ * "Grand Marnier" → Grand Marnier is left off; "rye" → Willett Rye is still shown).
+ */
+export function bottleNames(spec: string, f: BottleFacts): string[] | null {
+  if (!BOTTLE_KINDS.has(f.kind)) return null;
+  const names = [...new Set(f.stock.map((b) => b.name.trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+  if (!names.length) return f.own === null && f.has_bottles ? [] : null;
+  if ((f.own || f.own === false) && names.length === 1) {
+    const s = norm(spec), only = f.stock.find((b) => b.name.trim() === names[0]);
+    if (s.includes(norm(names[0])) || (only?.brand && norm(only.brand) && s.includes(norm(only.brand)))) return null;
+  }
+  return names;
+}
+
+/**
+ * "Bowright Recurve Rye · Willett Rye"; at most three, then "+N more". Empty list: "None in stock".
+ * `sep` is the phone's no-break space before " · " (a wrapped line never starts with a dot).
+ */
+export function bottleLine(names: string[], sep = " · ", max = 3): string {
+  if (!names.length) return "None in stock";
+  const shown = names.slice(0, max).join(sep);
+  return names.length > max ? `${shown}${sep}+${names.length - max}\u00a0more` : shown;
+}
+export const PHONE_DOT = DOT;
+
 /** A recipe is only shown to guests while it is buildable (it appears in menu_mixed). */
 export async function loadRecipe(id: string): Promise<Recipe | null> {
   if (!isUuid(id)) return null;
@@ -197,30 +235,57 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   if (!recipe) return null;
   // A line is "in" when a bottle of that ingredient is on the shelf (or it is always on hand).
   // When it isn't, a stocked stand-in is named: spec_substitutions(source → target) means the
-  // source can stand in for the target (the same direction available_spec_ids() uses).
-  const lines = await query<RecipeLine>(
-    `WITH shelf AS (
-       SELECT sp.id FROM specs sp
-        WHERE sp.always_available
-           OR EXISTS (SELECT 1 FROM product_specs ps JOIN products p ON p.id = ps.product_id
-                       WHERE ps.spec_id = sp.id AND p.in_stock))
-     SELECT s.position, s.spec_name AS name, s.required,
-            (s.spec_id IN (SELECT id FROM shelf)) AS available,
-            rl.amount::text AS amount, rl.unit, rl.note,
-            (SELECT src.canonical_name
-               FROM spec_substitutions ss
-               JOIN specs src ON src.id = ss.source_spec_id
-              WHERE ss.target_spec_id = s.spec_id
-                AND ss.source_spec_id IN (SELECT id FROM shelf)
-                AND s.spec_id NOT IN (SELECT id FROM shelf)
-              ORDER BY src.canonical_name
-              LIMIT 1) AS use_instead
-       FROM recipe_line_status s
-       JOIN recipe_lines rl ON rl.recipe_id = s.recipe_id AND rl.position = s.position
-      WHERE s.recipe_id = $1
+  // source can stand in for the target. The shelf and the bottles come from spec_supply() (migration
+  // 021), the same function available_spec_ids() and so menu_mixed are built on: hops 0 is the shelf.
+  // Bottles listed: the ingredient's own when it is in; else the named stand-in's; else the nearest
+  // stand-in chain that makes the recipe buildable.
+  const rows = await query<Omit<RecipeLine, "bottles"> & BottleFacts>(
+    `WITH supply AS MATERIALIZED (SELECT * FROM spec_supply()),
+     shelf AS (SELECT DISTINCT spec_id AS id FROM supply WHERE hops = 0),
+     base AS (
+       SELECT s.position, s.spec_id, s.spec_name AS name, s.required,
+              (s.spec_id IN (SELECT id FROM shelf)) AS available,
+              rl.amount::text AS amount, rl.unit, rl.note,
+              sub.id AS use_instead_id, sub.canonical_name AS use_instead
+         FROM recipe_line_status s
+         JOIN recipe_lines rl ON rl.recipe_id = s.recipe_id AND rl.position = s.position
+         LEFT JOIN LATERAL (
+           SELECT src.id, src.canonical_name
+             FROM spec_substitutions ss
+             JOIN specs src ON src.id = ss.source_spec_id
+            WHERE ss.target_spec_id = s.spec_id
+              AND ss.source_spec_id IN (SELECT id FROM shelf)
+              AND s.spec_id NOT IN (SELECT id FROM shelf)
+            ORDER BY src.canonical_name
+            LIMIT 1) sub ON true
+        WHERE s.recipe_id = $1),
+     src AS (
+       SELECT b.*,
+              CASE WHEN b.available THEN b.spec_id
+                   WHEN b.use_instead_id IS NOT NULL THEN b.use_instead_id
+                   ELSE (SELECT x.source_spec_id FROM supply x JOIN specs xs ON xs.id = x.source_spec_id
+                          WHERE x.spec_id = b.spec_id AND x.hops > 0 AND x.product_id IS NOT NULL
+                          ORDER BY x.hops, xs.canonical_name LIMIT 1)
+              END AS from_spec
+         FROM base b)
+     SELECT s.position, s.name, s.required, s.available, s.amount, s.unit, s.note, s.use_instead,
+            (s.from_spec = s.spec_id) AS own,
+            COALESCE((SELECT f.kind FROM spec_families sf JOIN families f ON f.id = sf.family_id
+                       WHERE sf.spec_id = COALESCE(s.from_spec, s.spec_id)
+                       ORDER BY sf.is_primary DESC LIMIT 1), 'other') AS kind,
+            EXISTS (SELECT 1 FROM product_specs ps WHERE ps.spec_id = s.spec_id) AS has_bottles,
+            COALESCE((SELECT json_agg(json_build_object('name', p.display_name, 'brand', p.brand))
+                        FROM supply x JOIN products p ON p.id = x.product_id
+                       WHERE x.spec_id = s.from_spec AND x.hops = 0), '[]'::json) AS stock
+       FROM src s
       ORDER BY s.position`,
     [id],
   );
+  const lines: RecipeLine[] = rows.map(({ own, kind, has_bottles, stock, ...line }) => ({
+    ...line,
+    // The name the guest reads next to the bottles: the ingredient, or the stand-in it says to use.
+    bottles: bottleNames(!line.available && line.use_instead ? line.use_instead : line.name, { own, kind, has_bottles, stock }),
+  }));
   return { ...recipe, lines };
 }
 

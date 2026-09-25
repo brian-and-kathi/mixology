@@ -970,6 +970,48 @@ BEGIN
   RAISE NOTICE 'check 20 passed';
 END $$;
 
+-- 21. Bottles behind each ingredient (migration 021): available_spec_ids() is exactly spec_supply()'s
+--     ingredients; every bottle listed is in stock and is a bottle of the source ingredient; hops 0 means
+--     the ingredient itself, and its hops-0 bottles are exactly its in-stock bottles; a stand-in chain
+--     (A stands in for B, B for C) reaches C from A's bottles in 2 hops.
+DO $$
+DECLARE
+  v_a uuid; v_b uuid; v_c uuid; v_bottle uuid;
+BEGIN
+  IF EXISTS ((SELECT spec_id FROM available_spec_ids() EXCEPT SELECT spec_id FROM spec_supply())
+             UNION ALL (SELECT spec_id FROM spec_supply() EXCEPT SELECT spec_id FROM available_spec_ids())) THEN
+    RAISE EXCEPTION 'check 21 failed: available_spec_ids() and spec_supply() disagree';
+  END IF;
+  IF EXISTS (SELECT 1 FROM spec_supply() x LEFT JOIN products p ON p.id = x.product_id
+              WHERE (x.product_id IS NOT NULL AND (NOT p.in_stock OR NOT EXISTS (
+                       SELECT 1 FROM product_specs ps WHERE ps.product_id = x.product_id AND ps.spec_id = x.source_spec_id)))
+                 OR ((x.hops = 0) <> (x.spec_id = x.source_spec_id))) THEN
+    RAISE EXCEPTION 'check 21 failed: a supply row names a bottle that is out or not of its source';
+  END IF;
+  IF EXISTS ((SELECT ps.spec_id, ps.product_id FROM product_specs ps JOIN products p ON p.id = ps.product_id WHERE p.in_stock
+              EXCEPT SELECT spec_id, product_id FROM spec_supply() WHERE hops = 0 AND product_id IS NOT NULL)
+             UNION ALL (SELECT spec_id, product_id FROM spec_supply() WHERE hops = 0 AND product_id IS NOT NULL
+              EXCEPT SELECT ps.spec_id, ps.product_id FROM product_specs ps JOIN products p ON p.id = ps.product_id WHERE p.in_stock)) THEN
+    RAISE EXCEPTION 'check 21 failed: hops-0 bottles are not exactly the in-stock bottles';
+  END IF;
+  INSERT INTO specs (canonical_name, slug) VALUES ('acc supply a', 'acc-supply-a') RETURNING id INTO v_a;
+  INSERT INTO specs (canonical_name, slug) VALUES ('acc supply b', 'acc-supply-b') RETURNING id INTO v_b;
+  INSERT INTO specs (canonical_name, slug) VALUES ('acc supply c', 'acc-supply-c') RETURNING id INTO v_c;
+  INSERT INTO spec_substitutions (source_spec_id, target_spec_id) VALUES (v_a, v_b), (v_b, v_c);
+  v_bottle := create_product_from_lookup(p_title => 'Acc supply bottle', p_source => 'acceptance', p_raw => '{}'::jsonb,
+    p_in_stock => true, p_upc => '999000000121');
+  INSERT INTO product_specs (product_id, spec_id, is_primary) VALUES (v_bottle, v_a, true);
+  IF NOT EXISTS (SELECT 1 FROM spec_supply() WHERE spec_id = v_c AND source_spec_id = v_a AND hops = 2 AND product_id = v_bottle)
+     OR NOT EXISTS (SELECT 1 FROM available_spec_ids() WHERE spec_id = v_c) THEN
+    RAISE EXCEPTION 'check 21 failed: a two-hop stand-in did not reach its target with the source bottle';
+  END IF;
+  UPDATE products SET in_stock = false WHERE id = v_bottle;
+  IF EXISTS (SELECT 1 FROM spec_supply() WHERE spec_id IN (v_a, v_b, v_c)) THEN
+    RAISE EXCEPTION 'check 21 failed: an out bottle still supplies its chain';
+  END IF;
+  RAISE NOTICE 'check 21 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

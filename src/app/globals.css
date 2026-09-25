@@ -100,14 +100,18 @@ h1, h2, p { margin: 0; }
 /* Sizes follow the 1920x1080 mockup (px / 10.8 = vh). The menu shrinks to fit above the band. */
 .tv, .tv-wordmark, .tv-qr-code, .tv-heading, .tv-row, .tv-row .glass, .tv-columns { transition: padding 400ms ease, font-size 400ms ease, width 400ms ease, height 400ms ease, margin 400ms ease; }
 /* During a cast the header shrinks; the side inset stays, the top closes up (there is no spare height above the band). */
-/* Cast top inset is half the idle one (1.5vw from the frame); the room comes from a smaller QR block. */
+/* Cast top inset is half the idle one (1.5vw from the frame). The QR code itself keeps its idle size (a
+   smaller dotted code doesn't scan from the couch); the hash, caption and gaps shrink as before. The room
+   comes from the gap under the title: the 14.85vh block hangs 6.2vh below the header, so the header stays
+   8.65vh (the title sits where it did), and the columns start 0.48vh lower so the first rows clear the
+   caption by 0.6vh. The block never reaches the Cellar heading, which is centered in its column. */
 .tv.tv-casting { padding-bottom: calc(41.85vh + 12px + 1.6vh); padding-top: calc(13px + var(--tv-in) / 2); }
 .tv-casting .tv-wordmark { font-size: 5.93vh; }
-.tv-casting .tv-qr { gap: 0.4vh; }
-.tv-casting .tv-qr-code { width: 5.8vh; height: 5.8vh; }
+.tv-qr { transition: margin 400ms ease; }
+.tv-casting .tv-qr { gap: 0.4vh; margin-bottom: -6.2vh; }
 .tv-casting .tv-qr p { font-size: 0.85vh; }
 .tv-casting .tv-hash { font-size: 1.2vh; }
-.tv-casting .tv-columns { margin-top: 0.4vh; }
+.tv-casting .tv-columns { margin-top: 0.88vh; }
 .tv-casting .tv-heading { font-size: 3.33vh; }
 .tv-casting .tv-viewport { margin-top: 0.5vh; }
 .tv-casting .tv-row { font-size: 2.18vh; padding: 0.83vh 0 0.83vh 0.42vw; }

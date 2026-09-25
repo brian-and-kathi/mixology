@@ -32,6 +32,8 @@ On the TV, empty sections are omitted. The board first tries to fit the whole me
 | `GIT_SHA` | no | Commit shown on the TV when not on Vercel. The container gets it as a build arg. |
 | `VERCEL_GIT_COMMIT_SHA` | auto | Set by Vercel; takes precedence over `GIT_SHA`. |
 | `BAR_NAME` | no | Wordmark text (default "The Addled Cortex"). |
+| `ADMIN_PASSWORD` | for `/admin` | The single admin password (set as a sensitive Vercel env for Production and Preview). The session cookie's signing key is derived from it, so **changing the password signs every admin out**. If it is missing, `/admin` stays locked (fails closed). |
+| `SESSION_SECRET` | no | Optional. If set, the cookie-signing key is derived from it instead of `ADMIN_PASSWORD`. |
 
 ## Environments
 
@@ -89,6 +91,7 @@ docker run --rm -p 3000:3000 --env-file .env mixology
 ## Notes
 
 - Neon schema changes live in `db/migrations/` (010 glassware, 011–012 ingredient_only: dry/sweet vermouth, absinthe verte and vanilla vodka hidden from Cellar and Pours; 015 tv_cast: the single Show on TV record; 013–014 are reserved for the admin branch); `db/acceptance.sql` is the canonical Neon acceptance suite (`psql "$DATABASE_URL" -f db/acceptance.sql`, rolls back; run on `dev` first).
+- Admin: `/admin` (Stock, Bottles, Recipes, Ingredients) signs in with `ADMIN_PASSWORD` (~180-day cookie). Edits are logged in `change_log` (migration 013) for "Recently changed" and undo; sweet/dry vermouth can't stand in for each other (migration 014, acceptance check 15). Shared photos stay in the browser (IndexedDB), never on the server. See DESIGN §4.8 / §5.4.
 - Show on TV: cocktail and pour pages POST/DELETE `/api/cast` `{type: "recipe"|"pour", id}` (item must be on the guest menu; light per-IP rate limit); the TV polls `GET /api/cast` every 2 s and shows a bottom band for 5 minutes (DESIGN §10.1).
 - The Neon HTTP driver (`@neondatabase/serverless`) is used, so `DATABASE_URL` must point at Neon.
 - Glass icon shapes follow the line-art style of the speakeasy app's glassware icons.

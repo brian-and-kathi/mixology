@@ -68,7 +68,17 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
     else groups.push({ family: it.family, items: [it] });
   }
   const outTotal = items.filter((i) => !stockOf(i)).length;
-  const undoable = recent.filter((c) => (c.action === "stock" || c.action === "undo") && !c.undone && byId.has(c.entity_id)).slice(0, 4);
+  // Latest stock change per bottle that hasn't been undone. Undo entries themselves are not listed
+  // (undoing puts things back, so there is nothing new to show or to undo again).
+  const seen = new Set<string>();
+  const undoable = recent
+    .filter((c) => {
+      if (c.action !== "stock" && c.action !== "undo") return false;
+      if (seen.has(c.entity_id)) return false;
+      seen.add(c.entity_id);
+      return c.action === "stock" && !c.undone && byId.has(c.entity_id);
+    })
+    .slice(0, 4);
 
   return (
     <div className="a-stock">

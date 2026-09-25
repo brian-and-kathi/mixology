@@ -829,6 +829,79 @@ BEGIN
   RAISE NOTICE 'check 15 passed';
 END $$;
 
+-- 16. A stand-in only counts when the stand-in itself is on the shelf (or is itself covered).
+DO $$
+DECLARE
+  v_target uuid;
+  v_standin uuid;
+  v_bottle uuid;
+  v_recipe uuid;
+BEGIN
+  v_target := create_spec('acc-standin-target', 'Acc stand-in target', 'liqueur');
+  v_standin := create_spec('acc-standin-source', 'Acc stand-in source', 'liqueur');
+  v_bottle := create_product_from_lookup(
+    p_title => 'Acc stand-in bottle',
+    p_source => 'acceptance',
+    p_raw => '{}'::jsonb,
+    p_in_stock => false,
+    p_upc => '999000000031'
+  );
+  PERFORM link_product_spec(v_bottle, v_standin, true);
+  PERFORM add_substitution(v_standin, v_target, 'acceptance');
+  INSERT INTO recipes (name) VALUES ('Acc stand-in recipe') RETURNING id INTO v_recipe;
+  INSERT INTO recipe_lines (recipe_id, spec_id, position, required) VALUES (v_recipe, v_target, 1, true);
+  IF EXISTS (SELECT 1 FROM available_spec_ids() a WHERE a.spec_id = v_target)
+     OR (SELECT available FROM recipe_line_status WHERE recipe_id = v_recipe AND position = 1)
+     OR recipe_is_makeable(v_recipe) THEN
+    RAISE EXCEPTION 'check 16 failed: an out-of-stock stand-in counted as covering its target';
+  END IF;
+  UPDATE products SET in_stock = true WHERE id = v_bottle;
+  IF NOT EXISTS (SELECT 1 FROM available_spec_ids() a WHERE a.spec_id = v_target)
+     OR NOT recipe_is_makeable(v_recipe) THEN
+    RAISE EXCEPTION 'check 16 failed: a stocked stand-in did not cover its target';
+  END IF;
+  RAISE NOTICE 'check 16 passed';
+END $$;
+
+-- 17. "top" and "rinse" lines take no amount; every other unit needs one (migration 016).
+DO $$
+DECLARE
+  v_recipe uuid;
+  v_spec uuid;
+  v_rejected integer := 0;
+BEGIN
+  v_spec := create_spec('acc-top-soda', 'Acc top soda', 'mixer');
+  INSERT INTO recipes (name) VALUES ('Acc top recipe') RETURNING id INTO v_recipe;
+  INSERT INTO recipe_lines (recipe_id, spec_id, position, required, amount, unit) VALUES
+    (v_recipe, v_spec, 1, true, NULL, 'top'),
+    (v_recipe, v_spec, 2, true, NULL, 'rinse'),
+    (v_recipe, v_spec, 3, true, 1, 'barspoon');
+  BEGIN
+    INSERT INTO recipe_lines (recipe_id, spec_id, position, required, amount, unit) VALUES (v_recipe, v_spec, 4, true, NULL, 'oz');
+  EXCEPTION WHEN check_violation THEN v_rejected := v_rejected + 1;
+  END;
+  BEGIN
+    INSERT INTO recipe_lines (recipe_id, spec_id, position, required, amount, unit) VALUES (v_recipe, v_spec, 5, true, 2, 'top');
+  EXCEPTION WHEN check_violation THEN v_rejected := v_rejected + 1;
+  END;
+  IF v_rejected <> 2 THEN
+    RAISE EXCEPTION 'check 17 failed: a line with the wrong amount/unit pairing was accepted';
+  END IF;
+  RAISE NOTICE 'check 17 passed';
+END $$;
+
+-- 18. recipes.method_style only takes known styles (migration 017).
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO recipes (name, method_style) VALUES ('Acc style recipe', 'wobbled');
+    RAISE EXCEPTION 'check 18 failed: an unknown method style was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  INSERT INTO recipes (name, method_style) VALUES ('Acc style recipe ok', 'warm, in a mug');
+  RAISE NOTICE 'check 18 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

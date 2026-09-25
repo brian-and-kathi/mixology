@@ -252,7 +252,20 @@ a.card:active { background: #202020; }
 .item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: var(--gold); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .item-detail .nobr { white-space: nowrap; }
 .card.two-line { align-items: flex-start; }
-.two-line > .glass { margin-top: calc((1.05rem * 1.3 - 2.5rem) / 2); }
+.two-line > .card-lead { margin-top: calc((1.05rem * 1.3 - 2.5rem) / 2); }
+/* Guest rating under the glass ("4.2 ★", TV board styling): 70% white, weight 500, 90% of the subtext size,
+   gold star at 0.92 of the number, centered under the glass. With a subtext line the box has the subtext's
+   size and line height and sits on its first line (name line + 0.15rem, measured from the glass's top, which
+   hangs (2.5rem - 1.3 x 1.05rem) / 2 above the text), so the baselines match; that is just under the glass
+   foot (the icons' ink ends ~5px above their box; glasses that reach lower, like the highball, set
+   --card-rating-drop so the rating clears them too). Without one it sits under the glass box, inside the
+   card's bottom padding. Out of flow: card heights and the 2.5rem glass column never change; unrated cards
+   show nothing. */
+.card-lead { position: relative; flex: none; display: flex; justify-content: center; width: 2.5rem; }
+.card-rating { position: absolute; left: 50%; top: calc(100% - 0.2rem); transform: translateX(-50%); font-size: 0.85em; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; }
+.two-line .card-rating { top: calc(1.05rem * 1.3 + 0.15rem + (2.5rem - 1.05rem * 1.3) / 2 + var(--card-rating-drop, 0rem)); line-height: 1.3; }
+.card-rating-num { font-size: 0.9em; font-weight: 500; color: rgba(255, 255, 255, 0.7); }
+.card-rating-star { font-size: calc(0.9em * 0.92); margin-left: calc(0.9em * 0.22 / 0.828); color: var(--gold); }
 .serve p { font-size: 1.15rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .serve p + p { margin-top: 0.35rem; font-size: 1rem; }
 .ingredients { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }

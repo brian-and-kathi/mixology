@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { GlassIcon } from "@/components/GlassIcon";
+import type { CSSProperties } from "react";
+import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
 import { loadMenu, SECTIONS, type SectionId } from "@/lib/menu";
+import { ratingKey } from "@/lib/rating-key";
+import { loadAllRatings } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Menu" };
@@ -9,7 +12,8 @@ export const metadata = { title: "Menu" };
 /** Phone guest menu: same sections and order as the TV, one tab per non-empty section. */
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams;
-  const menu = await loadMenu().catch(() => null);
+  // Guest ratings, the TV board's single query and rounding; a failure just shows no ratings.
+  const [menu, ratings] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch((): Record<string, number> => ({}))]);
   if (!menu) {
     return (
       <PhoneShell>
@@ -39,9 +43,21 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
       <ul className="cards">
         {menu[current].map((item) => {
           // Every section has a muted second line (ingredients, region · ABV, region · style) when there is data for it.
+          const rating = ratings[ratingKey(current, item.id)];
+          // Taller glasses (highball, collins) end lower: move the rating down by the difference so it clears the foot.
+          const drop = rating != null ? glassFootDrop(item.glass) : 0;
           const body = (
             <>
-              <GlassIcon glass={item.glass} />
+              {/* Glass, and under it the guests' average ("4.2 ★", as on the TV board). Out of flow: same card height, same column. */}
+              <span className="card-lead" style={drop ? ({ "--card-rating-drop": `${drop}rem` } as CSSProperties) : undefined}>
+                <GlassIcon glass={item.glass} />
+                {rating != null ? (
+                  <span className="card-rating" role="img" aria-label={`Rated ${rating.toFixed(1)} of 5`}>
+                    <span className="card-rating-num">{rating.toFixed(1)}</span>
+                    <span className="card-rating-star" aria-hidden>★</span>
+                  </span>
+                ) : null}
+              </span>
               <span className="item-text">
                 <span className="item-name">{item.name}</span>
                 {item.detail ? <span className="item-detail">{keepHyphens(item.detail)}</span> : null}

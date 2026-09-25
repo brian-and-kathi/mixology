@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { GlassIcon } from "@/components/GlassIcon";
 import { useCastHighlight } from "@/components/TvCast";
 import type { MenuItem } from "@/lib/menu";
+import { ratingKey } from "@/lib/rating-key";
 
 type Column = { id: string; label: string; items: MenuItem[] };
 
@@ -146,9 +147,6 @@ function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on
  * 2. Only if it still doesn't fit, ALL columns turn pages together on one slow timer
  *    (a section with fewer pages holds its last page). There is no per-column paging.
  */
-// Pours and Cellar wines are rated as bottles ("product"), cocktails as recipes.
-const ratingKey = (section: string, id: string) => `${section === "cocktails" ? "recipe" : "product"}:${id}`;
-
 export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?: Record<string, number> }) {
   const boardRef = useRef<HTMLDivElement>(null);
   const viewports = useRef<(HTMLDivElement | null)[]>([]);

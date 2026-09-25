@@ -147,6 +147,15 @@ const BY_NAME: Record<string, string> = {
   mug: "mug",
 };
 
+// Where each shape's ink ends (viewBox y, before the stroke), for shapes lower than the usual foot at 54.
+const FOOT: Record<string, number> = { highball: 57.5, collins: 58.5, coppermug: 56, default: 55.5 };
+
+/** How far (in rem, at the 2.5rem card size) this glass's ink reaches below the usual foot; 0 for most glasses. */
+export function glassFootDrop(glass: string | null | undefined): number {
+  const key = BY_NAME[(glass ?? "").trim().toLowerCase()] ?? "default";
+  return +((((FOOT[key] ?? 54) - 54) / 64) * 2.5).toFixed(4);
+}
+
 export function GlassIcon({ glass, className }: { glass: string | null | undefined; className?: string }) {
   const key = BY_NAME[(glass ?? "").trim().toLowerCase()] ?? "default";
   return (

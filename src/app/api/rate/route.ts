@@ -1,13 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/db";
-import { GUEST_COOKIE, GUEST_COOKIE_MAX_AGE, rateDrink, voteRateLimited, type RatingKind } from "@/lib/ratings";
+import { GUEST_COOKIE, GUEST_COOKIE_MAX_AGE, loadAverage, rateDrink, voteRateLimited, type RatingKind } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
 
 const noStore = { "cache-control": "no-store" };
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: noStore });
 const ip = (req: NextRequest) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
+
+/**
+ * GET ?kind=product|recipe&id=: the guests' average (2 decimals) and vote count, read by the TV cast
+ * band when a cast appears. Read-only, no cookie; the same numbers every guest page already shows.
+ */
+export async function GET(req: NextRequest) {
+  const kind = req.nextUrl.searchParams.get("kind");
+  const id = req.nextUrl.searchParams.get("id");
+  if ((kind !== "product" && kind !== "recipe") || !id || !isUuid(id)) return json({ error: "Send ?kind=product|recipe&id=." }, 400);
+  const r = await loadAverage(kind, id).catch(() => undefined);
+  return r ? json(r) : json({ error: "Ratings unavailable." }, 503);
+}
 
 /**
  * POST {kind: "product" | "recipe", id, stars: 1-5 | null}: this device's vote for a drink on the

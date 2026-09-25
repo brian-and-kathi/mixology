@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
 import type { Cast, CastPayload } from "@/lib/cast";
 
@@ -71,6 +71,22 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(t);
   }, [live]);
 
+  // Guests' rating for the cast item, fetched once when a cast appears (not refreshed during the cast).
+  const castKey = shown ? `${shown.type}:${shown.id}:${shown.started_at}` : null;
+  const castType = shown?.type, castId = shown?.id;
+  const [rating, setRating] = useState<{ key: string; avg: number | null } | null>(null);
+  useEffect(() => {
+    if (!castKey || !castType || !castId) return;
+    let stop = false;
+    const kind = castType === "recipe" ? "recipe" : "product";
+    fetch(`/api/rate?kind=${kind}&id=${castId}`, { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<{ avg: number | null; votes: number }>) : null))
+      .then((d) => { if (!stop && d) setRating({ key: castKey, avg: d.votes > 0 ? d.avg : null }); })
+      .catch(() => {}); // no stars is fine
+    return () => { stop = true; };
+  }, [castKey, castType, castId]);
+  const avg = rating && rating.key === castKey ? rating.avg : null;
+
   const highlight = open && shown ? { type: shown.type, id: shown.id } : null;
   const remaining = shown ? Math.max(0, Date.parse(shown.expires_at) - serverNow) : 0;
 
@@ -85,7 +101,7 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
               <CastBar key={`${shown.type}:${shown.id}:${shown.started_at}`} startedAt={shown.started_at} expiresAt={shown.expires_at} serverOffset={offset.current} />
             </div>
             <span className="tv-band-clock">{mss(remaining)}</span>
-            <BandBody payload={shown.payload} />
+            <BandBody payload={shown.payload} avg={avg} />
           </section>
         ) : null}
       </div>
@@ -109,8 +125,34 @@ function CastBar({ startedAt, expiresAt, serverOffset }: { startedAt: string; ex
   return <div className="tv-band-fill" style={timing} />;
 }
 
+const STAR = "M12 2.6l2.82 6.06 6.63.72-4.95 4.47 1.38 6.53L12 17.1l-5.88 3.28 1.38-6.53-4.95-4.47 6.63-.72z";
+const STAR_BOX = 24, STAR_GAP = 7, STAR_L = 2.55, STAR_W = 18.9; // viewBox units; the star's drawn left edge and width
+
+/**
+ * Five stars beside the band's glass, filled to the guests' average: whole stars, then the next one
+ * clipped to the fraction of its drawn width (4.2 = four full, the fifth ~20%). Gold fill over quiet
+ * outlines, like the phone. No number. With no ratings the row is kept but invisible, so rated and
+ * unrated casts lay out the same.
+ */
+function BandStars({ avg }: { avg: number | null }) {
+  const clip = `tvstars${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const v = avg == null ? 0 : Math.min(5, Math.max(0, avg));
+  const full = Math.floor(v);
+  const edge = full >= 5 ? 5 * STAR_BOX + 4 * STAR_GAP + 2 : full * (STAR_BOX + STAR_GAP) + (v > full ? STAR_L + (v - full) * STAR_W : 0);
+  const width = 5 * STAR_BOX + 4 * STAR_GAP;
+  const stars = (cls: string) => [0, 1, 2, 3, 4].map((i) => <path key={i} className={cls} d={STAR} transform={`translate(${i * (STAR_BOX + STAR_GAP)} 0)`} />);
+  return (
+    <svg className="tv-band-stars" viewBox={`0 0 ${width} ${STAR_BOX}`} style={avg == null ? { visibility: "hidden" } : undefined}
+      role={avg == null ? undefined : "img"} aria-label={avg == null ? undefined : `Rated ${avg.toFixed(1)} of 5`} aria-hidden={avg == null ? true : undefined}>
+      <defs><clipPath id={clip}><rect x={-2} y={-2} width={edge + 2} height={STAR_BOX + 4} /></clipPath></defs>
+      {stars("tv-star-empty")}
+      <g clipPath={`url(#${clip})`}>{stars("tv-star-full")}</g>
+    </svg>
+  );
+}
+
 /** The band's columns (30/35/35). Empty columns are left out; long content is scaled down to fit. */
-function BandBody({ payload }: { payload: CastPayload }) {
+function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }) {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   useEffect(() => setScale(1), [payload]);
@@ -129,7 +171,12 @@ function BandBody({ payload }: { payload: CastPayload }) {
     cols.push({
       key: "hero", weight: 30, body: (
         <>
-          {payload.glass ? <GlassIcon glass={payload.glass} className="tv-band-glass" /> : null}
+          {payload.glass ? (
+            <div className="tv-band-lead">
+              <GlassIcon glass={payload.glass} className="tv-band-glass" />
+              <BandStars avg={avg} />
+            </div>
+          ) : null}
           <h3 className="tv-band-name">{payload.name}</h3>
           {payload.serve ? <p className="tv-band-serve">{payload.serve}</p> : null}
           {payload.alt ? <p className="tv-band-note">{payload.alt}</p> : null}
@@ -171,7 +218,10 @@ function BandBody({ payload }: { payload: CastPayload }) {
     cols.push({
       key: "hero", weight: 30, body: (
         <>
-          <GlassIcon glass={payload.glass} className="tv-band-glass" />
+          <div className="tv-band-lead">
+            <GlassIcon glass={payload.glass} className="tv-band-glass" />
+            <BandStars avg={avg} />
+          </div>
           <h3 className="tv-band-name">{payload.name}</h3>
           {payload.detail ? <p className="tv-band-serve">{payload.detail}</p> : null}
         </>

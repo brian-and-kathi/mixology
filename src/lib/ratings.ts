@@ -30,6 +30,15 @@ export async function loadRating(kind: RatingKind, id: string): Promise<Rating> 
   return { avg: row?.avg != null ? Number(row.avg) : null, votes: row?.votes ?? 0, mine: row?.mine ?? null };
 }
 
+/** Guests' exact average and vote count, no device (the TV cast band). Null avg when nobody has voted. */
+export async function loadAverage(kind: RatingKind, id: string): Promise<{ avg: number | null; votes: number }> {
+  const [row] = await query<{ avg: string | null; votes: number }>(
+    "SELECT round(avg(stars), 2)::text AS avg, count(*)::int AS votes FROM drink_ratings WHERE item_kind = $1 AND item_id = $2",
+    [kind, id],
+  );
+  return { avg: row?.avg != null ? Number(row.avg) : null, votes: row?.votes ?? 0 };
+}
+
 /** Set (1-5) or clear (null) a vote. Null result: the drink isn't on the guest menu. */
 export async function rateDrink(kind: RatingKind, id: string, device: string, stars: number | null): Promise<{ avg: number | null; votes: number } | null> {
   const [row] = await query<{ avg: string | null; votes: number }>(

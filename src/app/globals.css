@@ -132,6 +132,12 @@ h1, h2, p { margin: 0; }
 .tv-band-text { font-size: calc(2.96vh * var(--s)); line-height: 1.45; color: rgba(255, 255, 255, 0.92); text-wrap: balance; }
 .tv-band-text + .tv-band-text { margin-top: 1.3vh; }
 .tv-band-text.quiet { color: var(--quiet); }
+/* Guest rating beside the band's glass: the stars share the glass's row (same vertical margins, so they
+   center on it) and are shorter than it, so the row, the name and the recipe text don't move. */
+.tv-band-lead { display: flex; align-items: center; gap: calc(1.35vw * var(--s)); }
+.tv-band-stars { flex: none; height: calc(4.07vh * var(--s)); aspect-ratio: 148 / 24; margin: -0.9vh 0 0.55vh; overflow: visible; }
+.tv-star-empty { fill: none; stroke: rgba(255, 255, 255, 0.38); stroke-width: 1.5; stroke-linejoin: round; }
+.tv-star-full { fill: var(--gold); stroke: var(--gold); stroke-width: 1.5; stroke-linejoin: round; }
 @media (prefers-reduced-motion: reduce) {
   .tv, .tv *, .tv-band, .tv-band-fill { transition: none !important; }
 }

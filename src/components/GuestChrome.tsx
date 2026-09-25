@@ -7,7 +7,8 @@ import { useEffect, useId, useRef, useState } from "react";
  * Guest phone chrome (DESIGN §5.2): an always-visible frame drawn as fixed overlays over the page's
  * native scroll (no inner scroller, so iOS momentum, the collapsing address bar, pull-to-refresh and
  * scroll restore all keep working), top/bottom fades that appear only when there is content under
- * them, and the floating menu button. Decorative parts are aria-hidden and ignore pointer events.
+ * them, solid edges from a few px inside the frame line out to the screen edge, and the floating
+ * menu button. Decorative parts are aria-hidden and ignore pointer events.
  */
 export function GuestChrome({ editHref }: { editHref?: string }) {
   const [top, setTop] = useState(false);
@@ -41,13 +42,18 @@ export function GuestChrome({ editHref }: { editHref?: string }) {
 
   return (
     <>
-      <div aria-hidden className={top ? "g-fade g-fade-top on" : "g-fade g-fade-top"} />
-      <div aria-hidden className={bottom ? "g-fade g-fade-bottom on" : "g-fade g-fade-bottom"} />
+      {/* The fades live inside the frame box, so they always meet its inner edge exactly (no separate
+          viewport maths that can drift or round differently). The frame paints solid black outside its
+          border and a thin solid strip just inside it, so nothing scrolls into view at the edges. */}
       <div aria-hidden className="g-frame">
-        <span className="frame-corner tl" />
-        <span className="frame-corner tr" />
-        <span className="frame-corner bl" />
-        <span className="frame-corner br" />
+        <div className={top ? "g-fade g-fade-top on" : "g-fade g-fade-top"} />
+        <div className={bottom ? "g-fade g-fade-bottom on" : "g-fade g-fade-bottom"} />
+        <div className="g-line">
+          <span className="frame-corner tl" />
+          <span className="frame-corner tr" />
+          <span className="frame-corner bl" />
+          <span className="frame-corner br" />
+        </div>
       </div>
       <GuestMenu editHref={editHref} />
     </>

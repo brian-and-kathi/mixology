@@ -126,20 +126,31 @@ h1, h2, p { margin: 0; }
   --fl: calc(env(safe-area-inset-left, 0px) + 12px);
   --fr: calc(env(safe-area-inset-right, 0px) + 12px);
   --fade: 28px;
+  --solid: 4px;
   max-width: 28rem; margin: 0 auto; min-height: 100dvh;
   padding: calc(var(--ft) + 10px) calc(var(--fr) + 1.1rem) calc(var(--fb) + var(--fade) + 2rem) calc(var(--fl) + 1.1rem);
 }
-.g-frame { position: fixed; top: var(--ft); left: var(--fl); right: var(--fr); bottom: var(--fb); border: 1px solid rgba(255, 255, 255, 0.28); box-shadow: 0 0 0 100vmax var(--bg); pointer-events: none; z-index: 30; }
-.g-fade { position: fixed; left: calc(var(--fl) + 1px); right: calc(var(--fr) + 1px); height: var(--fade); pointer-events: none; z-index: 29; opacity: 0; transition: opacity 180ms ease; }
+/* The frame is the clip edge. Everything outside it is painted solid (the 100vmax shadow, which also
+   covers the safe areas and overscroll); a solid strip runs from 2px outside each of the top and bottom
+   lines to --solid px inside, overlapping the shadow so no fractional-pixel seam (e.g. 125%/150% display
+   scaling) can let content through; and the line is drawn on top as an opaque grey (the colour the old
+   translucent line had over black). So content only ever renders inside the frame, and the fades reach
+   solid black a few px before the line. */
+.g-frame { position: fixed; top: var(--ft); left: var(--fl); right: var(--fr); bottom: var(--fb); box-shadow: 0 0 0 100vmax var(--bg); pointer-events: none; z-index: 30; }
+.g-frame::before, .g-frame::after { content: ""; position: absolute; z-index: 0; left: -2px; right: -2px; height: calc(3px + var(--solid)); background: var(--bg); }
+.g-frame::before { top: -2px; }
+.g-frame::after { bottom: -2px; }
+.g-line { position: absolute; inset: 0; z-index: 2; border: 1px solid #474747; }
+.g-line .frame-corner::before { border-color: #474747; }
+.g-fade { position: absolute; z-index: 1; left: 0; right: 0; opacity: 0; transition: opacity 180ms ease; }
 .g-fade.on { opacity: 1; }
 /* Once scrolled, the top band is solid black through the whole menu-button row (frame edge + 10px +
-   48px button + 6px, ~72px from the screen top without insets), then fades over --fade, so cards fade
-   out before they reach the button. At rest (scrollY = 0) it's hidden, so nothing changes there. */
-.g-fade-top { --band: 64px; top: calc(var(--ft) + 1px); height: calc(var(--band) + var(--fade)); background: linear-gradient(to bottom, #000 0, #000 var(--band), rgba(0, 0, 0, 0) 100%); }
-.g-fade-bottom { bottom: calc(var(--fb) + 1px); background: linear-gradient(to top, #000, rgba(0, 0, 0, 0)); }
+   48px button + 6px, ~77px from the screen top without insets), then fades over --fade, so cards fade
+   out before they reach the button or the pinned wordmark. At rest (scrollY = 0) it's hidden. */
+.g-fade-top { --band: 64px; top: 1px; height: calc(var(--band) + var(--fade)); background: linear-gradient(to bottom, #000 0, #000 var(--band), rgba(0, 0, 0, 0) 100%); }
+.g-fade-bottom { bottom: 0; height: calc(1px + var(--solid) + var(--fade)); background: linear-gradient(to top, #000 0, #000 calc(1px + var(--solid)), rgba(0, 0, 0, 0) 100%); }
 @supports (height: 100dvh) {
   .g-frame { bottom: auto; height: calc(100dvh - var(--ft) - var(--fb)); }
-  .g-fade-bottom { bottom: auto; top: calc(100dvh - var(--fb) - 1px - var(--fade)); }
 }
 @media (prefers-reduced-motion: reduce) { .g-fade { transition: none; } }
 /* Floating menu button: inside the frame's top-right corner, above the fades. */
@@ -156,6 +167,10 @@ h1, h2, p { margin: 0; }
 .g-menu-panel hr { border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 6px 4px; }
 .phone-header { margin-bottom: 1.4rem; display: flex; flex-direction: column; gap: 1rem; }
 .phone-top { display: flex; align-items: center; min-height: 48px; padding-right: 60px; }
+/* Pinned wordmark row: sticky at its resting offset (the .phone top padding), so it doesn't move or
+   resize on scroll. Above the frame layer (the top band), below the menu button. Not interactive. */
+.phone-pin { position: sticky; top: calc(var(--ft) + 10px); z-index: 35; margin-bottom: 1.4rem; pointer-events: none; }
+.phone-pin + .phone-header { margin-top: -0.4rem; }
 /* Sized to stay on one line beside the menu button (the script face is ~11 font-sizes wide). */
 .phone-wordmark { font-size: min(1.9rem, calc((100vw - 2 * (12px + 1.1rem) - 64px) / 11.2)); white-space: nowrap; }
 .phone-title { display: flex; align-items: center; gap: 1rem; }

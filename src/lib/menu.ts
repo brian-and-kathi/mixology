@@ -91,6 +91,11 @@ async function loadCocktailLines(): Promise<Map<string, Sub>> {
 const first = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const clean = (t: string | null) => (t ?? "").trim();
 const DOT = "\u00a0· ";
+const NBSP = "\u00a0";
+/** Phone subtext: a place name never splits inside a part ("Grand Rapids", "New York", "United Kingdom"); a line may still break after its comma. */
+const keepPlace = (region: string) => region.split(/,\s*/).map((part) => part.trim().replace(/\s+/g, NBSP)).filter(Boolean).join(", ");
+/** Phone subtext: the number and "ABV" stay together ("26% ABV" never leaves "ABV" alone on a line). */
+const keepAbv = (abv: string) => abv.replace(/ ABV$/, `${NBSP}ABV`);
 
 /**
  * A list line ("Rye · sweet vermouth · cherry liqueur"), only the first word capitalized.
@@ -113,7 +118,8 @@ export function ingredientLine(names: string[]) {
 }
 
 /**
- * Pours. Phone: "Lake City, Michigan · 45% ABV" (one if the other is missing; neither, the type).
+ * Pours. Phone: "Lake City, Michigan · 45% ABV" (one if the other is missing; neither, the type), with
+ * no-break spaces inside "Lake City" and "45% ABV" so neither splits across lines.
  * TV: the ABV always stays whole; the region shortens to its state or country ("Michigan · 45% ABV")
  * and is dropped entirely if that still doesn't fit.
  */
@@ -125,7 +131,7 @@ export function pourLine(p: { origin: string | null; abv: string | null; type: s
     const type = clean(p.type);
     return type ? { detail: first(type), fit: [first(type)] } : {};
   }
-  const detail = first([region, abv].filter(Boolean).join(DOT));
+  const detail = first([keepPlace(region), keepAbv(abv)].filter(Boolean).join(DOT));
   const fit = abv ? [short ? `${short} · ${abv}` : abv, abv] : [short];
   return { detail, fit: [...new Set(fit.map(first))] };
 }
@@ -140,7 +146,10 @@ export function wineLine(w: { name: string; origin: string | null; type: string 
   const type = clean(w.type);
   const redundant = !!type && w.name.toLowerCase().includes(type.toLowerCase());
   const items = region ? (type && !redundant ? [region, type] : [region]) : type ? [type] : [];
-  return listSub(items) ?? {};
+  const sub = listSub(items);
+  if (!sub) return {};
+  // Same TV candidates; only the phone line keeps the place name's words together.
+  return region ? { ...sub, detail: first([keepPlace(region), ...items.slice(1)].join(DOT)) } : sub;
 }
 
 export type RecipeLine = {

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Geist, Rock_Salt } from "next/font/google";
 import { Frame } from "@/components/Frame";
+import { RegisterSW } from "@/components/RegisterSW";
 import { BAR_NAME } from "@/lib/brand";
 import "./globals.css";
 
@@ -17,6 +18,10 @@ export const metadata: Metadata = {
   title: { default: BAR_NAME, template: `%s · ${BAR_NAME}` },
   description: "Home bar menu: pours, cocktails, and cellar.",
   robots: { index: false, follow: false },
+  // iPhone home-screen support (the manifest covers Chrome/Android).
+  appleWebApp: { capable: true, title: "Cortex", statusBarStyle: "black" },
+  icons: { apple: "/apple-touch-icon.png" },
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 
 export const viewport: Viewport = {
@@ -32,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Frame />
+        <RegisterSW />
       </body>
     </html>
   );

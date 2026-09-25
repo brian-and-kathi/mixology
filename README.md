@@ -88,6 +88,7 @@ docker run --rm -p 3000:3000 --env-file .env mixology
 
 ## Notes
 
+- Neon schema changes live in `db/migrations/` (010 glassware, 011 ingredient_only: dry/sweet vermouth hidden from Cellar and Pours); `db/acceptance.sql` is the canonical Neon acceptance suite (`psql "$DATABASE_URL" -f db/acceptance.sql`, rolls back; run on `dev` first).
 - The Neon HTTP driver (`@neondatabase/serverless`) is used, so `DATABASE_URL` must point at Neon.
 - Glass icon shapes follow the line-art style of the speakeasy app's glassware icons.
 - Not in this first pass: PIN admin, Open/Closed + paired devices, displays / TV assignment, PartyKit "Show on TV" overlays, themes and skins (DESIGN §4.4–4.6).

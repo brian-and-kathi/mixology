@@ -126,3 +126,18 @@ export function methodParts(description: string | null, style: string | null | u
   const st = style ? cap(style) : parsed.style;
   return { label: st ? `Method · ${st}` : "Method", paragraphs: parsed.paragraphs };
 }
+
+/** Trimmed, lower-cased, accents removed, runs of whitespace as one space: "  Réviseur  VS" → "reviseur vs". */
+const plain = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+/**
+ * Whether a bottle's title already says `name` (the pour page's meta line drops it then): the title is `name`,
+ * or starts with it as whole words ("Réviseur VS" / "Réviseur", "Bowright Recurve" / "Bowright"), ignoring case,
+ * accents and extra spaces. Whole words only, so "Mid" doesn't match "Midori"; a longer name the title only
+ * starts ("Long Road Distillers" under "Long Road") isn't said by the title, so it stays.
+ */
+export function titleSays(title: string, name: string | null | undefined): boolean {
+  const t = plain(title), n = plain(name ?? "");
+  if (!n || !t.startsWith(n)) return false;
+  return t.length === n.length || !/[\p{L}\p{N}]/u.test(t[n.length]);
+}

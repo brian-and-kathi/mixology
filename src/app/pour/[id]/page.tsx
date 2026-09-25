@@ -4,7 +4,7 @@ import { DrinkLead } from "@/components/DrinkLead";
 import { PhoneShell } from "@/components/PhoneShell";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
-import { serveLine } from "@/lib/format";
+import { serveLine, titleSays } from "@/lib/format";
 import { loadPour } from "@/lib/menu";
 import { loadRating } from "@/lib/ratings";
 
@@ -19,7 +19,9 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
   const [admin, rating] = await Promise.all([isAdmin(), loadRating("product", pour.id)]);
   const editHref = admin ? `/admin/bottles/${pour.id}` : undefined;
 
-  const details = [pour.brand && pour.brand !== pour.full_name ? pour.brand : null, pour.origin, pour.abv ? `${Number(pour.abv)}%\u00a0ABV` : null].filter(Boolean);
+  // The brand is left out when the full name is the brand (Midori), or the title right above already says it:
+  // "Beefeater" / Beefeater, "Réviseur VS" / Réviseur (see titleSays). Otherwise it stays ("Knight Gabriello").
+  const details = [pour.brand && pour.brand !== pour.full_name && !titleSays(pour.name, pour.brand) ? pour.brand : null, pour.origin, pour.abv ? `${Number(pour.abv)}%\u00a0ABV` : null].filter(Boolean);
 
   return (
     // Title: the short name; the type badge always sits on its own line under it, so the title keeps the full width.

@@ -4,7 +4,8 @@ import { query } from "@/lib/db";
 // (menu_mixed, recipe_line_status, spec_availability) so admin and guest menu agree.
 
 export type Family = { id: string; slug: string; name: string; kind: string; allows_flavoring: boolean };
-export type StockItem = { id: string; name: string; in_stock: boolean; family: string; family_order: number; spec: string | null };
+/** `wine`: the bottle belongs in the guest Cellar (is_cellar_wine, migration 020): the admin Wines view. */
+export type StockItem = { id: string; name: string; in_stock: boolean; family: string; family_order: number; spec: string | null; wine: boolean };
 export type Change = { id: number; at: string; summary: string; entity_id: string; action: string; before: { in_stock?: boolean } | null; after: { in_stock?: boolean } | null; undone: boolean };
 
 export async function loadFamilies(): Promise<Family[]> {
@@ -16,7 +17,8 @@ export async function loadStock(): Promise<StockItem[]> {
     `SELECT p.id, p.display_name AS name, p.in_stock,
             COALESCE(pf.canonical_name, sf.canonical_name, 'other') AS family,
             COALESCE(pf.sort_order, sf.sort_order, 999) AS family_order,
-            s.canonical_name AS spec
+            s.canonical_name AS spec,
+            is_cellar_wine(p.id) AS wine
        FROM products p
        LEFT JOIN families pf ON pf.id = p.family_id
        LEFT JOIN LATERAL (SELECT ps.spec_id FROM product_specs ps WHERE ps.product_id = p.id
@@ -37,16 +39,22 @@ export async function loadRecentChanges(limit = 8): Promise<Change[]> {
   );
 }
 
-export type RecipeStatus = { id: string; name: string; on_menu: boolean; missing: string[] };
+export type RecipeStatus = { id: string; name: string; on_menu: boolean; missing: string[]; needs_wine: boolean };
 
-/** Every mixed recipe with its missing required ingredients (recipe_line_status + menu_mixed). */
+/**
+ * Every mixed recipe with its missing required ingredients (recipe_line_status + menu_mixed).
+ * needs_wine: one of the missing ingredients is a Cellar wine (is_cellar_wine_spec), so buying
+ * spirits can't unlock it and it stays off "To buy".
+ */
 export async function loadRecipeStatus(): Promise<RecipeStatus[]> {
   return query<RecipeStatus>(
     `SELECT r.id, r.name,
             r.id IN (SELECT id FROM menu_mixed) AS on_menu,
             COALESCE((SELECT array_agg(DISTINCT s.spec_name ORDER BY s.spec_name)
                         FROM recipe_line_status s
-                       WHERE s.recipe_id = r.id AND s.required AND NOT s.available), '{}') AS missing
+                       WHERE s.recipe_id = r.id AND s.required AND NOT s.available), '{}') AS missing,
+            EXISTS (SELECT 1 FROM recipe_line_status s
+                     WHERE s.recipe_id = r.id AND s.required AND NOT s.available AND is_cellar_wine_spec(s.spec_id)) AS needs_wine
        FROM recipes r
       WHERE r.section = 'mixed'
       ORDER BY lower(r.name)`,
@@ -67,6 +75,7 @@ export async function loadGlance(): Promise<Glance> {
     query<{ id: string; name: string }>(
       `SELECT p.id, p.display_name AS name FROM products p
         WHERE NOT p.in_stock
+          AND NOT is_cellar_wine(p.id)
           AND NOT EXISTS (
             SELECT 1 FROM product_specs ps
              WHERE ps.product_id = p.id
@@ -78,7 +87,9 @@ export async function loadGlance(): Promise<Glance> {
   ]);
   const canMake = status.filter((r) => r.on_menu);
   const blocked = status.filter((r) => !r.on_menu && r.missing.length > 0);
-  return { canMake, oneAway: blocked.filter((r) => r.missing.length === 1), ...(() => { const l = shoppingList(blocked); return { buy: l.entries, buyItems: l.items }; })(), unusedOut };
+  // Wine outs are never shopping items: recipes waiting on a wine stay under "One away" but not "To buy".
+  const l = shoppingList(blocked.filter((r) => !r.needs_wine));
+  return { canMake, oneAway: blocked.filter((r) => r.missing.length === 1), buy: l.entries, buyItems: l.items, unusedOut };
 }
 
 /**
@@ -125,6 +136,20 @@ export async function loadSpecOptions(): Promise<SpecOption[]> {
        LEFT JOIN families f ON f.id = sf.family_id
       ORDER BY lower(s.canonical_name)`,
   );
+}
+
+/** "Add wine" preselect: the wine type most Cellar bottles use; ties go to the most recently added bottle's type (else any wine type). */
+export async function loadDefaultWineSpec(): Promise<string | null> {
+  const [row] = await query<{ id: string }>(
+    `SELECT id FROM (
+       SELECT ps.spec_id AS id, count(*) AS n, max(p.created_at) AS latest, 0 AS pass
+         FROM product_specs ps JOIN products p ON p.id = ps.product_id
+        WHERE ps.is_primary AND is_cellar_wine(ps.product_id) GROUP BY ps.spec_id
+       UNION ALL
+       SELECT s.id, 0, NULL, 1 FROM specs s WHERE is_cellar_wine_spec(s.id)
+     ) c ORDER BY pass, n DESC, latest DESC NULLS LAST, id LIMIT 1`,
+  );
+  return row?.id ?? null;
 }
 
 export type ProductRow = {

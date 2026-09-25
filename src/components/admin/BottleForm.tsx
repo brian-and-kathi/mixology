@@ -27,11 +27,17 @@ function initial(p: ProductRow | null): Form {
 }
 
 /** Add / edit a bottle. Short form first; rarer fields under "More details". */
-export function BottleForm({ product, specs: initialSpecs, families, shared }: { product: ProductRow | null; specs: SpecOption[]; families: Family[]; shared: boolean | null }) {
+/** `wine` + `presetSpecId`: "Add wine" from the Wines view, with a wine type already chosen in "What is it?". */
+export function BottleForm({ product, specs: initialSpecs, families, shared, wine = false, presetSpecId = null }: { product: ProductRow | null; specs: SpecOption[]; families: Family[]; shared: boolean | null; wine?: boolean; presetSpecId?: string | null }) {
   const router = useRouter();
   const [specs, setSpecs] = useState(initialSpecs);
-  const [f, setF] = useState<Form>(() => initial(product));
-  const [base] = useState(() => JSON.stringify(initial(product)));
+  const start = () => {
+    const f0 = initial(product);
+    const s0 = !product && presetSpecId ? initialSpecs.find((x) => x.id === presetSpecId) : undefined;
+    return s0 ? { ...f0, spec_id: s0.id, family_id: s0.family_id ?? "", pourable: !s0.ingredient_only } : f0;
+  };
+  const [f, setF] = useState<Form>(start);
+  const [base] = useState(() => JSON.stringify(start()));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dirty = JSON.stringify(f) !== base;
@@ -72,13 +78,13 @@ export function BottleForm({ product, specs: initialSpecs, families, shared }: {
   return (
     <form className="a-form" onSubmit={submit}>
       <BackLink href="/admin/bottles" label="Bottles" dirty={dirty} />
-      <h1 className="a-h1">{product ? "Edit bottle" : "Add bottle"}</h1>
+      <h1 className="a-h1">{product ? "Edit bottle" : wine ? "Add wine" : "Add bottle"}</h1>
       {!product ? <SharedPhoto fromShare={shared === true} /> : null}
       {shared === false ? <p className="a-quiet a-small">The photo couldn&apos;t be kept this time (the app wasn&apos;t ready). Share it again if you want it as a reference.</p> : null}
 
       <label className="a-field">
         <span className="a-label">Name</span>
-        <input value={f.display_name} onChange={(e) => set("display_name", e.target.value)} placeholder="Brand and expression, e.g. Buffalo Trace Bourbon" required maxLength={120} />
+        <input value={f.display_name} onChange={(e) => set("display_name", e.target.value)} placeholder={wine ? "Producer and wine, e.g. Woodbridge Pinot Grigio" : "Brand and expression, e.g. Buffalo Trace Bourbon"} required maxLength={120} />
       </label>
 
       <SpecPicker label="What is it?" specs={specs} families={families} value={f.spec_id} onChange={(id) => pickSpec(id)} onCreate={(s) => { const next = [...specs, s].sort((a, b) => a.name.localeCompare(b.name)); setSpecs(next); pickSpec(s.id, next); }} />
@@ -86,7 +92,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared }: {
 
       {/* Region and ABV sit with the type: guests see them under the name on Pours and Cellar. */}
       <div className="a-grid2 a-grid2-tight">
-        <label className="a-field"><span className="a-label">Region</span><input value={f.origin} onChange={(e) => set("origin", e.target.value)} maxLength={120} placeholder="e.g. Kentucky" /></label>
+        <label className="a-field"><span className="a-label">Region</span><input value={f.origin} onChange={(e) => set("origin", e.target.value)} maxLength={120} placeholder={wine ? "e.g. California" : "e.g. Kentucky"} /></label>
         <label className="a-field"><span className="a-label">ABV %</span><input value={f.abv} onChange={(e) => set("abv", e.target.value)} inputMode="decimal" placeholder="e.g. 40" /></label>
       </div>
 
@@ -149,7 +155,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared }: {
         ) : null}
       </details>
 
-      <SaveBar isNew={!product} dirty={dirty} ready={ready} saving={saving} error={error} newLabel="Add bottle" />
+      <SaveBar isNew={!product} dirty={dirty} ready={ready} saving={saving} error={error} newLabel={wine ? "Add wine" : "Add bottle"} />
     </form>
   );
 }

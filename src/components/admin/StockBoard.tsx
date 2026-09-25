@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Change, StockItem } from "@/lib/admin-data";
 import { api } from "./api";
+import { KindSwitch, useAdminKind, type Kind } from "./KindSwitch";
 
 type Result = { name: string; in_stock: boolean; log_id: number | null; blocked: string[]; unlocked: string[] };
 type Toast = { text: string; undo?: { id: string; to: boolean; logId: number | null } };
@@ -32,11 +33,28 @@ function ago(iso: string, now: number): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** Stock: one tap flips a bottle In/Out (optimistic), with an undo toast that shows the menu impact. */
+/**
+ * Stock: one tap flips a bottle In/Out (optimistic), with an undo toast that shows the menu impact.
+ * Spirits | Wines switch: Spirits is the short list whose outs matter (red Out, "Out only", counts).
+ * Wines (the guest Cellar's bottles) lists in-stock wines by type, with the out ones folded into a
+ * quiet "Out · N" section at the bottom; wine outs never count as shopping or "out" numbers.
+ */
 export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]; recent: Change[]; initialQuery: string }) {
   const router = useRouter();
   const [q, setQ] = useState(initialQuery);
   const [outOnly, setOutOnly] = useState(false);
+  const [kind, setKindRaw] = useAdminKind();
+  // Wines keep the section they were in when first tapped this visit, so a row never jumps away under
+  // your thumb (marking a wine out leaves it in place with a gray Out until the next visit).
+  const [pinned, setPinned] = useState<Record<string, boolean>>({});
+  // Out section: null = automatic (collapsed, or open while a search matches out wines); true/false = the user's choice.
+  const [outOpen, setOutOpen] = useState<boolean | null>(null);
+  const setKind = (k: Kind) => {
+    setKindRaw(k);
+    setPinned({});
+    setOutOpen(null);
+    setOutOnly(false);
+  };
   const [override, setOverride] = useState<Record<string, boolean>>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [rowError, setRowError] = useState<Record<string, string>>({});
@@ -58,6 +76,7 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
   }
 
   async function flip(it: StockItem, to: boolean, undoOf?: number | null) {
+    if (it.wine) setPinned((p) => (it.id in p ? p : { ...p, [it.id]: stockOf(it) }));
     setOverride((o) => ({ ...o, [it.id]: to }));
     setTouched((t) => new Set(t).add(it.id));
     setRowError(({ [it.id]: _gone, ...rest }) => rest);
@@ -78,18 +97,27 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
 
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const needle = fold(q.trim());
-  const visible = items.filter((it) => {
-    if (needle && !fold(it.name).includes(needle) && !fold(it.spec ?? "").includes(needle)) return false;
+  const wines = kind === "wines";
+  const matches = (it: StockItem) => !needle || fold(it.name).includes(needle) || fold(it.spec ?? "").includes(needle);
+  const inView = items.filter((it) => it.wine === wines);
+  const shelf = (it: StockItem) => pinned[it.id] ?? stockOf(it); // wines: which section the row sits in
+  const visible = inView.filter((it) => {
+    if (!matches(it)) return false;
+    if (wines) return shelf(it);
     if (outOnly && stockOf(it) && !touched.has(it.id)) return false;
     return true;
   });
+  const outWines = wines ? inView.filter((it) => !shelf(it) && matches(it)) : [];
+  const outWinesCount = outWines.filter((it) => !stockOf(it)).length;
+  const outExpanded = outOpen ?? (needle !== "" && outWines.length > 0);
   const groups: { family: string; items: StockItem[] }[] = [];
   for (const it of visible) {
     const g = groups[groups.length - 1];
     if (g && g.family === it.family) g.items.push(it);
     else groups.push({ family: it.family, items: [it] });
   }
-  const outTotal = items.filter((i) => !stockOf(i)).length;
+  // Out counts are spirits only: wines are routinely out and never a shopping item.
+  const outTotal = items.filter((i) => !i.wine && !stockOf(i)).length;
   // Latest stock change per bottle that hasn't been undone. Undo entries themselves are not listed
   // (undoing puts things back, so there is nothing new to show or to undo again).
   const seen = new Set<string>();
@@ -104,15 +132,18 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
 
   return (
     <div className="a-stock">
+      <KindSwitch kind={kind} onChange={setKind} />
       <div className="a-searchbar">
         <div className="a-search">
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bottles" aria-label="Search bottles" enterKeyHint="search" />
+          <input type="search" value={q} onChange={(e) => { setQ(e.target.value); if (outOpen === false) setOutOpen(null); }} placeholder={wines ? "Search wines" : "Search spirits"} aria-label={wines ? "Search wines" : "Search spirits"} enterKeyHint="search" />
           {q ? <button type="button" className="a-clear" onClick={() => setQ("")} aria-label="Clear search">×</button> : null}
         </div>
-        <div className="a-chips" role="group" aria-label="Filter">
-          <button type="button" className={outOnly ? "a-chip" : "a-chip on"} onClick={() => setOutOnly(false)} aria-pressed={!outOnly}>All</button>
-          <button type="button" className={outOnly ? "a-chip on" : "a-chip"} onClick={() => setOutOnly(true)} aria-pressed={outOnly}>Out only · {outTotal}</button>
-        </div>
+        {!wines ? (
+          <div className="a-chips" role="group" aria-label="Filter">
+            <button type="button" className={outOnly ? "a-chip" : "a-chip on"} onClick={() => setOutOnly(false)} aria-pressed={!outOnly}>All</button>
+            <button type="button" className={outOnly ? "a-chip on" : "a-chip"} onClick={() => setOutOnly(true)} aria-pressed={outOnly}>Out only · {outTotal}</button>
+          </div>
+        ) : null}
       </div>
 
       {/* Hidden while the toast is up, so the same Undo never shows twice at once. */}
@@ -135,29 +166,34 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
         </section>
       ) : null}
 
-      {groups.length === 0 ? <p className="a-quiet a-empty">{outOnly ? "Nothing is out." : "No bottles match."}</p> : null}
+      {groups.length === 0 && !(wines && outWines.length) ? (
+        <p className="a-quiet a-empty">{wines ? (needle ? "No wines match." : "No wines yet.") : outOnly ? "Nothing is out." : "No bottles match."}</p>
+      ) : null}
       {groups.map((g) => {
         const out = g.items.filter((i) => !stockOf(i)).length;
         return (
           <section key={g.family} className="a-group">
-            <h2 className="a-group-head">{g.family.replace(/^./, (c) => c.toUpperCase())}<span className="a-quiet"> · {g.items.length}{out ? ` · ${out} out` : ""}</span></h2>
+            <h2 className="a-group-head">{g.family.replace(/^./, (c) => c.toUpperCase())}<span className="a-quiet"> · {g.items.length}{out && !wines ? ` · ${out} out` : ""}</span></h2>
             <ul className="a-rows">
-              {g.items.map((it) => {
-                const inStock = stockOf(it);
-                return (
-                  <li key={it.id}>
-                    <button type="button" className={inStock ? "a-row" : "a-row is-out"} onClick={() => flip(it, !inStock)} aria-pressed={inStock} aria-label={`${it.name}: ${inStock ? "in stock" : "out"}. Tap to mark ${inStock ? "out" : "in"}.`}>
-                      <span className="a-row-name">{it.name}</span>
-                      <span className={inStock ? "a-pill in" : "a-pill out"}>{inStock ? "In" : "Out"}</span>
-                    </button>
-                    {rowError[it.id] ? <p className="a-error a-row-error" role="alert">{rowError[it.id]}</p> : null}
-                  </li>
-                );
-              })}
+              {g.items.map((it) => <StockRow key={it.id} it={it} inStock={stockOf(it)} quiet={wines} error={rowError[it.id]} onFlip={flip} />)}
             </ul>
           </section>
         );
       })}
+
+      {wines && outWines.length > 0 ? (
+        <section className="a-outsec" aria-label="Out wines">
+          <button type="button" className="a-outsec-head" aria-expanded={outExpanded} aria-controls="out-wines" onClick={() => setOutOpen(!outExpanded)}>
+            <span>Out · {outWinesCount}</span>
+            <span className="a-outsec-chev" aria-hidden>{outExpanded ? "▾" : "▸"}</span>
+          </button>
+          {outExpanded ? (
+            <ul className="a-rows" id="out-wines">
+              {outWines.map((it) => <StockRow key={it.id} it={it} inStock={stockOf(it)} quiet error={rowError[it.id]} onFlip={flip} />)}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="a-toast-wrap" aria-live="polite">
         {toast ? (
@@ -175,5 +211,18 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** One tap-to-flip row. `quiet`: wines, where Out is a neutral gray, not the red spirits Out. */
+function StockRow({ it, inStock, quiet, error, onFlip }: { it: StockItem; inStock: boolean; quiet: boolean; error?: string; onFlip: (it: StockItem, to: boolean) => void }) {
+  return (
+    <li>
+      <button type="button" className={inStock ? "a-row" : "a-row is-out"} onClick={() => onFlip(it, !inStock)} aria-pressed={inStock} aria-label={`${it.name}: ${inStock ? "in stock" : "out"}. Tap to mark ${inStock ? "out" : "in"}.`}>
+        <span className="a-row-name">{it.name}</span>
+        <span className={inStock ? "a-pill in" : quiet ? "a-pill gray" : "a-pill out"}>{inStock ? "In" : "Out"}</span>
+      </button>
+      {error ? <p className="a-error a-row-error" role="alert">{error}</p> : null}
+    </li>
   );
 }

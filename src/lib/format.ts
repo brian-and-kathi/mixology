@@ -59,3 +59,20 @@ export function serveLine(neat: boolean, rocks: boolean, chilled: boolean): stri
   const parts = [ways ? `Usually ${ways}` : "Neat or on the rocks", chilled && "best chilled", "water on request"];
   return parts.filter(Boolean).join(" · ");
 }
+
+/** Short TV serve line: "Coupe · served up", "Double rocks glass · over one large cube". */
+export function tvGlassLine(glass: string, service: string | null, note: string | null): string {
+  const ice = service === "on the rocks" && note && /cube|ice/i.test(note);
+  const SHORT: Record<string, string> = { up: "served up", "on the rocks": "over ice", neat: "neat", hot: "served hot" };
+  const parts = [cap(glassNoun(glass))];
+  if (ice) parts.push(`over ${note}`);
+  else if (service) parts.push(SHORT[service] ?? service);
+  if (note && !ice) parts.push(note);
+  return parts.join(" · ");
+}
+
+/** Pour serve text split for the TV: main line plus quiet lines. */
+export function serveParts(neat: boolean, rocks: boolean, chilled: boolean): { main: string; quiet: string[] } {
+  const ways = [neat && "neat", rocks && "on the rocks"].filter(Boolean).join(" or ");
+  return { main: ways ? cap(ways) : "Neat or on the rocks", quiet: [chilled ? "Best chilled" : null, "Water on request"].filter((x): x is string => !!x) };
+}

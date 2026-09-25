@@ -49,6 +49,25 @@ function allocate(needed: number[], budget: number): number[] {
   return split;
 }
 
+let canvas: HTMLCanvasElement | null = null;
+/** Width a column needs so its longest name stays on one line (text + icon + gaps + padding). */
+function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): number {
+  const row = ruler.firstElementChild as HTMLElement | null;
+  const span = row?.querySelector("span");
+  if (!row || !span) return 0;
+  canvas ??= document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return 0;
+  const rs = getComputedStyle(row);
+  ctx.font = `${rs.fontWeight} ${rs.fontSize} ${rs.fontFamily}`;
+  const text = Math.max(...[...ruler.querySelectorAll("span")].map((el) => ctx.measureText(el.textContent ?? "").width));
+  const icon = (row.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0;
+  const perRow = Math.ceil(text + icon + parseFloat(rs.columnGap || "0") + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight)) + 2;
+  const cs = getComputedStyle(section);
+  const subGap = parseFloat(getComputedStyle(ruler.nextElementSibling as HTMLElement).columnGap || "0");
+  return n * perRow + (n - 1) * subGap + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 1;
+}
+
 function Row({ item }: { item: MenuItem }) {
   return (
     <li className="tv-row">
@@ -70,6 +89,7 @@ export function TvBoard({ columns }: { columns: Column[] }) {
   const rulers = useRef<(HTMLUListElement | null)[]>([]);
   const [split, setSplit] = useState<number[]>(() => columns.map(() => 1));
   const [assign, setAssign] = useState<number[][]>(() => columns.map((c) => c.items.map(() => 0)));
+  const [basis, setBasis] = useState<number[]>(() => columns.map(() => 0));
   const [page, setPage] = useState(0);
   const [visible, setVisible] = useState(true);
   const key = columns.map((c) => c.id + ":" + c.items.map((i) => i.id).join(",")).join("|");
@@ -99,8 +119,18 @@ export function TvBoard({ columns }: { columns: Column[] }) {
       setSplit(next.map((n, i) => Math.max(n, split[i] ?? 1)));
       return;
     }
+    // Size each column to its longest name; leftover width is shared evenly.
+    const widths = columns.map((_, ci) => {
+      const box = viewports.current[ci];
+      const ruler = rulers.current[ci];
+      return box && ruler ? neededWidth(box.parentElement as HTMLElement, ruler, split[ci] ?? 1) : 0;
+    });
+    if (widths.some((w, i) => Math.abs(w - (basis[i] ?? 0)) > 1)) {
+      setBasis(widths);
+      return;
+    }
     setAssign(packed);
-  }, [columns, split]);
+  }, [columns, split, basis]);
 
   useLayoutEffect(() => {
     measure();
@@ -143,7 +173,7 @@ export function TvBoard({ columns }: { columns: Column[] }) {
         const shownPage = Math.min(current, colPages[ci] - 1);
         const subcols = Array.from({ length: n }, (_, k) => shownPage * n + k);
         return (
-          <section key={col.id} className="tv-col" data-section={col.id} style={{ flexGrow: n }}>
+          <section key={col.id} className="tv-col" data-section={col.id} style={{ flex: `1 1 ${basis[ci] || 0}px` }}>
             <h2 className="tv-heading">{col.label}</h2>
             <p className="tv-pageno">{pageCount > 1 ? `${current + 1} / ${pageCount}` : "\u00a0"}</p>
             <div className="tv-viewport" ref={(el) => { viewports.current[ci] = el; }}>

@@ -49,7 +49,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
               {item.href ? (
                 <Link href={item.href} className="card">{body}</Link>
               ) : (
-                <div className="card">{body}</div>
+                <div className="row-flat">{body}</div>
               )}
             </li>
           );

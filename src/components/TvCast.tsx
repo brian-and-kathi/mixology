@@ -72,7 +72,6 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
   }, [live]);
 
   const highlight = open && shown ? { type: shown.type, id: shown.id } : null;
-  const total = shown ? Date.parse(shown.expires_at) - Date.parse(shown.started_at) : 1;
   const remaining = shown ? Math.max(0, Date.parse(shown.expires_at) - serverNow) : 0;
 
   return (
@@ -82,7 +81,8 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
         {shown ? (
           <section className={`tv-band${open ? " open" : ""}`} aria-live="polite" aria-label={`On the TV: ${shown.payload.name}`}>
             <div className="tv-band-progress" aria-hidden>
-              <div className="tv-band-fill" style={{ width: `${Math.min(100, (remaining / total) * 100)}%` }} />
+              {/* Keyed by cast: a new cast (or a re-cast) remounts the bar at full width, never animating back. */}
+              <CastBar key={`${shown.type}:${shown.id}:${shown.started_at}`} startedAt={shown.started_at} expiresAt={shown.expires_at} serverOffset={offset.current} />
             </div>
             <span className="tv-band-clock">{mss(remaining)}</span>
             <BandBody payload={shown.payload} />
@@ -91,6 +91,22 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
       </div>
     </CastContext.Provider>
   );
+}
+
+/**
+ * Countdown bar: shrinks from both ends to nothing in the middle (scaleX from the center), linear over
+ * the whole cast. Timed from the cast's server started_at / expires_at, not from when this TV saw it:
+ * a negative animation-delay starts it part-way, so after a reload mid-cast it shows the true remainder
+ * and reaches zero exactly at expires_at. The delay is fixed at mount so re-renders never make it jump.
+ */
+function CastBar({ startedAt, expiresAt, serverOffset }: { startedAt: string; expiresAt: string; serverOffset: number }) {
+  const [timing] = useState(() => {
+    const start = Date.parse(startedAt), end = Date.parse(expiresAt);
+    const total = Math.max(1, end - start);
+    const elapsed = Math.min(total, Math.max(0, Date.now() + serverOffset - start));
+    return { animationDuration: `${total}ms`, animationDelay: `${-elapsed}ms` };
+  });
+  return <div className="tv-band-fill" style={timing} />;
 }
 
 /** The band's columns (30/35/35). Empty columns are left out; long content is scaled down to fit. */

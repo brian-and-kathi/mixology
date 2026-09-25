@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
+import { BadgedName } from "@/components/SpecBadge";
 import { loadMenu, SECTIONS, type SectionId } from "@/lib/menu";
 import { ratingKey } from "@/lib/rating-key";
 import { loadAllRatings } from "@/lib/ratings";
@@ -59,7 +60,8 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
                 ) : null}
               </span>
               <span className="item-text">
-                <span className="item-name">{item.name}</span>
+                {/* Pours: short name, then the type badge riding with its last word. */}
+                <span className="item-name"><BadgedName name={item.name} spec={item.spec} /></span>
                 {item.detail ? <span className="item-detail">{keepHyphens(item.detail)}</span> : null}
               </span>
             </>

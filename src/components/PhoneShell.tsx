@@ -11,7 +11,8 @@ export function PhoneShell({
   editHref,
   children,
 }: {
-  title?: string;
+  /** Text, or text with a spec badge (pour page). */
+  title?: ReactNode;
   lead?: ReactNode;
   back?: { href: string; label: string };
   /** Only passed when this device has a valid admin session (checked server-side). */

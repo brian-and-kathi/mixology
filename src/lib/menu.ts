@@ -1,4 +1,5 @@
 import { isUuid, query } from "@/lib/db";
+import { specLabel } from "@/lib/spec-label";
 
 // Section order is fixed everywhere (TV and phone): Pours, Cocktails, Cellar.
 export const SECTIONS = [
@@ -14,7 +15,8 @@ export type SectionId = (typeof SECTIONS)[number]["id"];
  * the TV measures and shows the first one that fits on one line (see TvBoard FitLine).
  */
 export type Sub = { detail: string; fit: string[] };
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[] };
+/** `spec`: the badge after a Pours name ("Rye", see lib/spec-label); other sections have none. */
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -27,7 +29,9 @@ const byName = (a: MenuItem, b: MenuItem) =>
 export async function loadMenu(): Promise<Menu> {
   const [pours, cocktails, cellar, lines] = await Promise.all([
     query<{ id: string; name: string; origin: string | null; abv: string | null; type: string | null }>(
-      "SELECT id, display_name AS name, origin, abv::text AS abv, primary_spec_name AS type FROM menu_neat",
+      // Pours show the bottle's short name (migration 023; NULL = the full name) with its type as a badge.
+      `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.origin, n.abv::text AS abv, n.primary_spec_name AS type
+         FROM menu_neat n JOIN products p ON p.id = n.id`,
     ),
     query<{ id: string; name: string; glass: string | null }>(
       `SELECT m.id, m.name, g.name AS glass
@@ -45,7 +49,7 @@ export async function loadMenu(): Promise<Menu> {
   ]);
   return {
     // Pours have no glass_id in the schema; they are shown with a rocks glass.
-    pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, ...pourLine(p) })).sort(byName),
+    pours: pours.map((p) => ({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: specLabel(p.type), ...pourLine(p) })).sort(byName),
     cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
     cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, ...wineLine(w) })).sort(byName),
   };
@@ -185,14 +189,16 @@ export type Recipe = {
   lines: RecipeLine[];
 };
 
-type BottleFacts = { own: boolean | null; kind: string; has_bottles: boolean; stock: { name: string; brand: string | null }[] };
+/** `short`: the name shown for the bottle (short name, or the full name; Cellar wines always the full name). */
+type BottleFacts = { own: boolean | null; kind: string; has_bottles: boolean; stock: { name: string; brand: string | null; short?: string | null }[] };
 
 /** Ingredient families that are bottles a guest would recognise; citrus, juice, syrups, garnishes, ice and water are not. */
 const BOTTLE_KINDS = new Set(["spirit", "modifier", "wine", "mixer"]);
 const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 /**
- * The bottle line under a recipe ingredient: the in-stock bottles behind it (ordered like Pours); an
+ * The bottle line under a recipe ingredient: the in-stock bottles behind it (full names, ordered like
+ * Pours, i.e. by the name shown; see shownNames for what the guest reads); an
  * empty list ("None in stock") when it has bottles but none is in and nothing stands in; or null
  * when the line would add nothing: not a bottle family, no bottles on record at all, or the only
  * bottle is the one the name beside it already says (the ingredient, or the stand-in it says to use:
@@ -200,14 +206,25 @@ const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").t
  */
 export function bottleNames(spec: string, f: BottleFacts): string[] | null {
   if (!BOTTLE_KINDS.has(f.kind)) return null;
+  const shown = new Map(f.stock.map((b) => [b.name.trim(), (b.short ?? b.name).trim()]));
   const names = [...new Set(f.stock.map((b) => b.name.trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+    .sort((a, b) => (shown.get(a) ?? a).localeCompare(shown.get(b) ?? b, "en", { sensitivity: "base" }));
   if (!names.length) return f.own === null && f.has_bottles ? [] : null;
   if ((f.own || f.own === false) && names.length === 1) {
     const s = norm(spec), only = f.stock.find((b) => b.name.trim() === names[0]);
     if (s.includes(norm(names[0])) || (only?.brand && norm(only.brand) && s.includes(norm(only.brand)))) return null;
   }
   return names;
+}
+
+/**
+ * What the guest reads for each bottle on the line: its short name ("Bowright Recurve" under "Rye"), or
+ * the full name when it has none. The "already says it" and "preferred" rules above run on full names.
+ */
+export function shownNames(names: string[] | null, stock: BottleFacts["stock"]): string[] | null {
+  if (!names) return names;
+  const shown = new Map(stock.map((b) => [b.name.trim(), (b.short ?? b.name).trim()]));
+  return names.map((n) => shown.get(n) || n);
 }
 
 /** "Grand Marnier preferred", "Grand Marnier (preferred)", "preferably Grand Marnier", "ideally Grand Marnier". */
@@ -228,7 +245,7 @@ export function preferFirst(names: string[] | null, note: string | null): { bott
 }
 
 /**
- * "Bowright Recurve Rye · Willett Rye"; at most three (a preferred bottle counts as one), then
+ * "Bowright Recurve · Willett"; at most three (a preferred bottle counts as one), then
  * "+N more". Empty list: "None in stock". `sep` is the phone's no-break space before " · " (a wrapped
  * line never starts with a dot); "(preferred)" stays with its bottle.
  */
@@ -295,7 +312,8 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
                        WHERE sf.spec_id = COALESCE(s.from_spec, s.spec_id)
                        ORDER BY sf.is_primary DESC LIMIT 1), 'other') AS kind,
             EXISTS (SELECT 1 FROM product_specs ps WHERE ps.spec_id = s.spec_id) AS has_bottles,
-            COALESCE((SELECT json_agg(json_build_object('name', p.display_name, 'brand', p.brand))
+            COALESCE((SELECT json_agg(json_build_object('name', p.display_name, 'brand', p.brand,
+                                                        'short', CASE WHEN is_cellar_wine(p.id) THEN NULL ELSE p.short_name END))
                         FROM supply x JOIN products p ON p.id = x.product_id
                        WHERE x.spec_id = s.from_spec AND x.hops = 0), '[]'::json) AS stock
        FROM src s
@@ -305,7 +323,8 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   const lines: RecipeLine[] = rows.map(({ own, kind, has_bottles, stock, ...line }) => {
     // The name the guest reads next to the bottles: the ingredient, or the stand-in it says to use.
     const names = bottleNames(!line.available && line.use_instead ? line.use_instead : line.name, { own, kind, has_bottles, stock });
-    return { ...line, ...preferFirst(names, line.note) };
+    const { bottles, preferred } = preferFirst(names, line.note);
+    return { ...line, bottles: shownNames(bottles, stock), preferred };
   });
   return { ...recipe, lines };
 }
@@ -347,7 +366,11 @@ export async function loadWine(id: string): Promise<Wine | null> {
 
 export type Pour = {
   id: string;
+  /** Short name (migration 023), or the full name when there is none. */
   name: string;
+  full_name: string;
+  /** Badge after the title ("Rye"), from the primary ingredient; null: no badge. */
+  spec: string | null;
   brand: string | null;
   origin: string | null;
   description: string | null;
@@ -362,10 +385,11 @@ export type Pour = {
 export async function loadPour(id: string): Promise<Pour | null> {
   if (!isUuid(id)) return null;
   const [pour] = await query<Pour>(
-    `SELECT id, display_name AS name, brand, origin, description, serve_note, rating,
-            abv::text AS abv, serves_neat, serves_rocks, serves_chilled
-       FROM menu_neat WHERE id = $1`,
+    `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full_name, n.brand, n.origin,
+            n.description, n.serve_note, n.rating, n.abv::text AS abv, n.serves_neat, n.serves_rocks, n.serves_chilled,
+            n.primary_spec_name AS spec
+       FROM menu_neat n JOIN products p ON p.id = n.id WHERE n.id = $1`,
     [id],
   );
-  return pour ?? null;
+  return pour ? { ...pour, spec: specLabel(pour.spec) } : null;
 }

@@ -1053,6 +1053,44 @@ BEGIN
   RAISE NOTICE 'check 22 passed';
 END $$;
 
+-- 23. Bottle short names (migration 023): short_name is optional (NULL falls back to the full name), is never
+--     blank or padded when set, and setting it leaves the full name and the guest views untouched.
+DO $$
+DECLARE
+  v_pour uuid := (SELECT id FROM menu_neat ORDER BY display_name LIMIT 1);
+  v_name text := (SELECT display_name FROM products WHERE id = (SELECT id FROM menu_neat ORDER BY display_name LIMIT 1));
+  v_neat integer := (SELECT count(*) FROM menu_neat);
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name = 'products' AND column_name = 'short_name' AND is_nullable = 'YES') THEN
+    RAISE EXCEPTION 'check 23 failed: products.short_name is missing or not nullable';
+  END IF;
+  UPDATE products SET short_name = 'Acceptance Short' WHERE id = v_pour;
+  IF (SELECT display_name FROM products WHERE id = v_pour) IS DISTINCT FROM v_name
+     OR (SELECT count(*) FROM menu_neat) <> v_neat
+     OR (SELECT display_name FROM menu_neat WHERE id = v_pour) IS DISTINCT FROM v_name THEN
+    RAISE EXCEPTION 'check 23 failed: a short name changed the full name or the guest views';
+  END IF;
+  IF (SELECT COALESCE(short_name, display_name) FROM products WHERE id = v_pour) <> 'Acceptance Short' THEN
+    RAISE EXCEPTION 'check 23 failed: the short name did not take';
+  END IF;
+  UPDATE products SET short_name = NULL WHERE id = v_pour;
+  IF (SELECT COALESCE(short_name, display_name) FROM products WHERE id = v_pour) IS DISTINCT FROM v_name THEN
+    RAISE EXCEPTION 'check 23 failed: NULL should fall back to the full name';
+  END IF;
+  BEGIN
+    UPDATE products SET short_name = '   ' WHERE id = v_pour;
+    RAISE EXCEPTION 'check 23 failed: a blank short name was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE products SET short_name = ' Padded ' WHERE id = v_pour;
+    RAISE EXCEPTION 'check 23 failed: a padded short name was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  RAISE NOTICE 'check 23 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
+import { BadgedName } from "@/components/SpecBadge";
 import { useCastHighlight } from "@/components/TvCast";
 import type { MenuItem } from "@/lib/menu";
 import { ratingKey } from "@/lib/rating-key";
@@ -68,7 +69,12 @@ function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): 
   const rs = getComputedStyle(row);
   ctx.font = `${rs.fontWeight} ${rs.fontSize} ${rs.fontFamily}`;
   // Only names set the width; the detail line under a name truncates with an ellipsis instead.
-  const text = Math.max(...[...ruler.querySelectorAll(".tv-name")].map((el) => ctx.measureText(el.textContent ?? "").width));
+  // A Pours name counts with its spec badge (rendered width plus its gap), which never wraps away from it.
+  const text = Math.max(...[...ruler.querySelectorAll<HTMLElement>(".tv-name")].map((el) => {
+    const badge = el.querySelector<HTMLElement>(".spec-badge");
+    const extra = badge ? badge.getBoundingClientRect().width + parseFloat(getComputedStyle(badge).marginLeft || "0") : 0;
+    return ctx.measureText(el.dataset.name ?? el.textContent ?? "").width + extra;
+  }));
   const icon = (row.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0;
   const perRow = Math.ceil(text + icon + parseFloat(rs.columnGap || "0") + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight)) + 2;
   const cs = getComputedStyle(section);
@@ -134,7 +140,7 @@ function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on
     <li className={on ? "tv-row on" : "tv-row"}>
       <Lead glass={item.glass} rating={rating} />
       <span className="tv-text">
-        <span className="tv-name">{item.name}</span>
+        <span className="tv-name" data-name={item.name}><BadgedName name={item.name} spec={item.spec} /></span>
         {item.fit?.length ? <FitLine fit={item.fit} /> : null}
       </span>
     </li>

@@ -34,10 +34,11 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
   const p = await loadPour(id);
   if (!p) return null;
   const [spec] = await query<{ spec: string | null }>("SELECT primary_spec_name AS spec FROM menu_neat WHERE id = $1", [id]);
-  const detail = [p.brand && !p.name.toLowerCase().includes(p.brand.toLowerCase()) ? p.brand : null, spec?.spec ? cap(spec.spec) : null, p.abv ? `${Number(p.abv)}% ABV` : null].filter(Boolean).join(" · ");
+  // The TV band keeps the bottle's full name (its detail line already says the type).
+  const detail = [p.brand && !p.full_name.toLowerCase().includes(p.brand.toLowerCase()) ? p.brand : null, spec?.spec ? cap(spec.spec) : null, p.abv ? `${Number(p.abv)}% ABV` : null].filter(Boolean).join(" · ");
   const s = serveParts(p.serves_neat, p.serves_rocks, p.serves_chilled);
   return {
-    type, id: p.id, name: p.name, glass: "rocks", detail: detail || null,
+    type, id: p.id, name: p.full_name, glass: "rocks", detail: detail || null,
     serve: s.main, serve_quiet: [...(p.serve_note ? [p.serve_note] : []), ...s.quiet], note: p.description,
   };
 }

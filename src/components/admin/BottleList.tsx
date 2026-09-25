@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { StockItem } from "@/lib/admin-data";
 import { KindSwitch, useAdminKind } from "./KindSwitch";
 import { Disclosure } from "./Disclosure";
+import { specLabel } from "@/lib/spec-label";
 
 const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 
@@ -29,7 +30,8 @@ export function BottleList({ items, saved }: { items: StockItem[]; saved?: strin
   const row = (i: StockItem) => (
     <li key={i.id}>
       <Link href={`/admin/bottles/${i.id}`} className={i.in_stock ? "a-list-row" : "a-list-row is-out"}>
-        <span>{i.name}<span className="a-quiet a-small"> · {i.spec ?? i.family}</span></span>
+        {/* The type as guests see it on the Pours badge ("Rye"); no type: the family. */}
+        <span>{i.name}<span className="a-quiet a-small"> · {specLabel(i.spec) ?? i.family}</span></span>
         {/* Plain status text, not a pill: the whole row opens the bottle, stock is toggled on Stock. */}
         <span className={i.in_stock ? "a-state" : wines ? "a-state" : "a-state out"}>{i.in_stock ? "In" : "Out"}</span>
         <span className="a-chev" aria-hidden>›</span>

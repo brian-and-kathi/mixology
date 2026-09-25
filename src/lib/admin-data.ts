@@ -164,7 +164,7 @@ export async function loadDefaultWineSpec(): Promise<string | null> {
 }
 
 export type ProductRow = {
-  id: string; display_name: string; packaged_name: string; brand: string | null; description: string | null;
+  id: string; display_name: string; short_name: string | null; packaged_name: string; brand: string | null; description: string | null;
   origin: string | null; serve_note: string | null; abv: string | null; upc: string | null; family_id: string | null;
   in_stock: boolean; mix_only: boolean; serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean;
   fortified: boolean; wine_color: string; wine_effervescence: string; spec_id: string | null; other_spec_ids: string[];
@@ -172,7 +172,7 @@ export type ProductRow = {
 
 export async function loadProduct(id: string): Promise<ProductRow | null> {
   const [p] = await query<ProductRow>(
-    `SELECT p.id, p.display_name, p.packaged_name, p.brand, p.description, p.origin, p.serve_note, p.abv::text AS abv,
+    `SELECT p.id, p.display_name, p.short_name, p.packaged_name, p.brand, p.description, p.origin, p.serve_note, p.abv::text AS abv,
             p.upc, p.family_id, p.in_stock, p.mix_only, p.serves_neat, p.serves_rocks, p.serves_chilled,
             p.fortified, p.wine_color, p.wine_effervescence,
             (SELECT ps.spec_id FROM product_specs ps WHERE ps.product_id = p.id ORDER BY ps.is_primary DESC LIMIT 1) AS spec_id,

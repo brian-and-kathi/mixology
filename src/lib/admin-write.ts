@@ -83,14 +83,16 @@ export async function saveProduct(id: string | null, body: Record<string, unknow
   if (abv !== null && (abv < 0 || abv > 100)) throw new UserError("ABV must be between 0 and 100.");
   const wineColor = WINE_COLORS.includes(String(body.wine_color)) ? String(body.wine_color) : "not_applicable";
   const eff = EFFERVESCENCE.includes(String(body.wine_effervescence)) ? String(body.wine_effervescence) : "not_applicable";
+  // Short name (migration 023): optional; blank means "use the full name".
+  const shortName = text(body.short_name, 120);
   const v = [
     name, text(body.brand, 120), text(body.description, 2000), text(body.origin, 120), text(body.serve_note, 200), abv, upc,
     familyId, bool(body.in_stock), !pourable, servesNeat, servesRocks, pourable && bool(body.serves_chilled),
-    bool(body.fortified), wineColor, eff,
+    bool(body.fortified), wineColor, eff, shortName,
   ];
   const cols = `display_name = $2, brand = $3, description = $4, origin = $5, serve_note = $6, abv = $7, upc = $8,
     family_id = $9, in_stock = $10, mix_only = $11, serves_neat = $12, serves_rocks = $13, serves_chilled = $14,
-    fortified = $15, wine_color = $16, wine_effervescence = $17`;
+    fortified = $15, wine_color = $16, wine_effervescence = $17, short_name = $18`;
   const pid = id ?? randomUUID();
   const stmts: Stmt[] = [];
   if (id) {
@@ -105,8 +107,9 @@ export async function saveProduct(id: string | null, body: Record<string, unknow
     stmts.push([
       `WITH ins AS (
          INSERT INTO products (id, packaged_name, display_name, brand, description, origin, serve_note, abv, upc, family_id,
-                               in_stock, mix_only, serves_neat, serves_rocks, serves_chilled, fortified, wine_color, wine_effervescence)
-         VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                               in_stock, mix_only, serves_neat, serves_rocks, serves_chilled, fortified, wine_color, wine_effervescence,
+                               short_name)
+         VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          RETURNING to_jsonb(products.*) j)
        INSERT INTO change_log (entity, entity_id, action, summary, after)
        SELECT 'product', $1::text, 'create', 'Added ' || $2, ins.j FROM ins`,

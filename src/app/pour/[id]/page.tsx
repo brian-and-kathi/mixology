@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
 import { DrinkLead } from "@/components/DrinkLead";
 import { PhoneShell } from "@/components/PhoneShell";
+import { BadgedName } from "@/components/SpecBadge";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { serveLine } from "@/lib/format";
@@ -19,10 +20,11 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
   const [admin, rating] = await Promise.all([isAdmin(), loadRating("product", pour.id)]);
   const editHref = admin ? `/admin/bottles/${pour.id}` : undefined;
 
-  const details = [pour.brand && pour.brand !== pour.name ? pour.brand : null, pour.origin, pour.abv ? `${Number(pour.abv)}%\u00a0ABV` : null].filter(Boolean);
+  const details = [pour.brand && pour.brand !== pour.full_name ? pour.brand : null, pour.origin, pour.abv ? `${Number(pour.abv)}%\u00a0ABV` : null].filter(Boolean);
 
   return (
-    <PhoneShell title={pour.name} editHref={editHref} back={{ href: "/menu?tab=pours", label: "Pours" }} lead={<DrinkLead glass="rocks" kind="product" id={pour.id} rating={rating} />}>
+    // Title: the short name with the type badge after it, as on Pours ("Bowright Recurve [Rye]").
+    <PhoneShell title={<BadgedName name={pour.name} spec={pour.spec} />} editHref={editHref} back={{ href: "/menu?tab=pours", label: "Pours" }} lead={<DrinkLead glass="rocks" kind="product" id={pour.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
       <CastButton type="pour" id={pour.id} />
       <section>

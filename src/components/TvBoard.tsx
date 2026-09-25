@@ -103,10 +103,30 @@ function FitLine({ fit }: { fit: string[] }) {
   return <span ref={ref} className="tv-detail">{text}</span>;
 }
 
-function Row({ item, on = false }: { item: MenuItem; on?: boolean }) {
+/**
+ * The row's icon cell: the glass, and under it the guests' average ("4.2 ★", like the phone) on the
+ * subtext line. The rating is positioned out of flow, so the cell is exactly as tall as the glass and
+ * row heights (and so paging) never change; the cell's fixed width is what the column measurement sees.
+ * Unrated: no rating, same width. Hidden during a cast (CSS), when the cell shrinks back to the glass.
+ */
+function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
+  return (
+    <span className="tv-lead">
+      <GlassIcon glass={glass} />
+      {rating != null ? (
+        <span className="tv-rating" role="img" aria-label={`Rated ${rating.toFixed(1)} of 5`}>
+          <span className="tv-rating-num">{rating.toFixed(1)}</span>
+          <span className="tv-rating-star" aria-hidden>★</span>
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on?: boolean }) {
   return (
     <li className={on ? "tv-row on" : "tv-row"}>
-      <GlassIcon glass={item.glass} />
+      <Lead glass={item.glass} rating={rating} />
       <span className="tv-text">
         <span className="tv-name">{item.name}</span>
         {item.fit?.length ? <FitLine fit={item.fit} /> : null}
@@ -121,7 +141,10 @@ function Row({ item, on = false }: { item: MenuItem; on?: boolean }) {
  * 2. Only if it still doesn't fit, ALL columns turn pages together on one slow timer
  *    (a section with fewer pages holds its last page). There is no per-column paging.
  */
-export function TvBoard({ columns }: { columns: Column[] }) {
+// Pours and Cellar wines are rated as bottles ("product"), cocktails as recipes.
+const ratingKey = (section: string, id: string) => `${section === "cocktails" ? "recipe" : "product"}:${id}`;
+
+export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?: Record<string, number> }) {
   const boardRef = useRef<HTMLDivElement>(null);
   const viewports = useRef<(HTMLDivElement | null)[]>([]);
   const rulers = useRef<(HTMLUListElement | null)[]>([]);
@@ -259,12 +282,12 @@ export function TvBoard({ columns }: { columns: Column[] }) {
             <div className="tv-viewport" ref={(el) => { viewports.current[ci] = el; }}>
               {/* Invisible full list at sub-column width, used only to measure row heights. */}
               <ul className="tv-list tv-ruler" aria-hidden style={{ width: `${100 / n}%` }} ref={(el) => { rulers.current[ci] = el; }}>
-                {col.items.map((item) => <Row key={item.id} item={item} />)}
+                {col.items.map((item) => <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} />)}
               </ul>
               <div className={`tv-subcols ${visible ? "" : "tv-fading"}`}>
                 {subcols.map((v) => (
                   <ul key={v} className="tv-list">
-                    {col.items.map((item, i) => ((assign[ci]?.[i] ?? 0) === v ? <Row key={item.id} item={item} on={cast?.id === item.id} /> : null))}
+                    {col.items.map((item, i) => ((assign[ci]?.[i] ?? 0) === v ? <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} on={cast?.id === item.id} /> : null))}
                   </ul>
                 ))}
               </div>

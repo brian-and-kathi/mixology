@@ -39,6 +39,17 @@ export async function loadAverage(kind: RatingKind, id: string): Promise<{ avg: 
   return { avg: row?.avg != null ? Number(row.avg) : null, votes: row?.votes ?? 0 };
 }
 
+/**
+ * Every rated drink's average in one query, rounded like the phone's "4.2 ★": keys are
+ * "product:<id>" (pours, Cellar wines) and "recipe:<id>" (cocktails). For the TV board.
+ */
+export async function loadAllRatings(): Promise<Record<string, number>> {
+  const rows = await query<{ kind: RatingKind; id: string; avg: string }>(
+    "SELECT item_kind AS kind, item_id::text AS id, round(avg(stars), 1)::text AS avg FROM drink_ratings GROUP BY item_kind, item_id",
+  );
+  return Object.fromEntries(rows.map((r) => [`${r.kind}:${r.id}`, Number(r.avg)]));
+}
+
 /** Set (1-5) or clear (null) a vote. Null result: the drink isn't on the guest menu. */
 export async function rateDrink(kind: RatingKind, id: string, device: string, stars: number | null): Promise<{ avg: number | null; votes: number } | null> {
   const [row] = await query<{ avg: string | null; votes: number }>(

@@ -5,13 +5,15 @@ import { TvBoard } from "@/components/TvBoard";
 import { TvCastLayer } from "@/components/TvCast";
 import { BAR_NAME } from "@/lib/brand";
 import { loadMenu, SECTIONS } from "@/lib/menu";
+import { loadAllRatings } from "@/lib/ratings";
 import { commitHash } from "@/lib/version";
 
 export const dynamic = "force-dynamic";
 
 /** TV billboard: names only, three sections in fixed order, no interactive chrome. */
 export default async function TvPage() {
-  const menu = await loadMenu().catch(() => null);
+  // Guest ratings for the board, one query; refreshed with the page (AutoRefresh). Never blocks the menu.
+  const [menu, ratings] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch(() => ({}))]);
   // Empty sections are omitted entirely (DESIGN §5.1).
   const columns = menu
     ? SECTIONS.map((s) => ({ id: s.id, label: s.label, items: menu[s.id] })).filter((c) => c.items.length > 0)
@@ -31,7 +33,7 @@ export default async function TvPage() {
       ) : columns.length === 0 ? (
         <p className="tv-empty">Nothing available tonight</p>
       ) : (
-        <TvBoard columns={columns} />
+        <TvBoard columns={columns} ratings={ratings} />
       )}
     </TvCastLayer>
     <Frame />

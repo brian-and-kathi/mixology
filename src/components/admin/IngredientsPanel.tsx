@@ -7,6 +7,7 @@ import type { Family, SpecOption, Sub } from "@/lib/admin-data";
 import { cap } from "@/lib/format";
 import { api } from "./api";
 import { SpecPicker } from "./SpecPicker";
+import { Disclosure } from "./Disclosure";
 
 const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 const VERMOUTH = new Set(["sweet vermouth", "dry vermouth"]);
@@ -112,15 +113,13 @@ export function IngredientsPanel({ specs: initialSpecs, families, subs }: { spec
       })}
       {groups.size === 0 ? <p className="a-quiet a-empty">{outOnly ? "Nothing is out." : "No ingredients match."}</p> : null}
 
-      <details className="a-more">
-        <summary>Add an ingredient</summary>
+      <Disclosure className="a-more" headClassName="a-more-head" bodyClassName="a-more-body" summary="Add an ingredient">
         <SpecPicker label="Type a new name, then add it" specs={specs} families={families} value={null}
           onChange={(id) => router.push(`/admin/ingredients/${id}`)}
           onCreate={(s) => setSpecs((l) => [...l, s].sort((a, b) => a.name.localeCompare(b.name)))} />
-      </details>
+      </Disclosure>
 
-      <details className="a-more a-standins">
-        <summary>Stand-ins <span className="a-quiet">· {subs.length}</span></summary>
+      <Disclosure className="a-more a-standins" headClassName="a-more-head" bodyClassName="a-more-body" summary={<>Stand-ins <span className="a-quiet">· {subs.length}</span></>}>
         {subs.length === 0 ? <p className="a-quiet">No stand-ins yet.</p> : (
           <ul className="a-subs">
             {subs.map((s) => (
@@ -148,7 +147,7 @@ export function IngredientsPanel({ specs: initialSpecs, families, subs }: { spec
             </div>
           </form>
         )}
-      </details>
+      </Disclosure>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Change, StockItem } from "@/lib/admin-data";
 import { api } from "./api";
 import { KindSwitch, useAdminKind, type Kind } from "./KindSwitch";
+import { Disclosure } from "./Disclosure";
 
 type Result = { name: string; in_stock: boolean; log_id: number | null; blocked: string[]; unlocked: string[] };
 type Toast = { text: string; undo?: { id: string; to: boolean; logId: number | null } };
@@ -183,15 +184,11 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
 
       {wines && outWines.length > 0 ? (
         <section className="a-outsec" aria-label="Out wines">
-          <button type="button" className="a-outsec-head" aria-expanded={outExpanded} aria-controls="out-wines" onClick={() => setOutOpen(!outExpanded)}>
-            <span>Out · {outWinesCount}</span>
-            <span className="a-outsec-chev" aria-hidden>{outExpanded ? "▾" : "▸"}</span>
-          </button>
-          {outExpanded ? (
-            <ul className="a-rows" id="out-wines">
+          <Disclosure headClassName="a-outsec-head" id="out-wines" open={outExpanded} onOpenChange={setOutOpen} summary={<>Out · {outWinesCount}</>}>
+            <ul className="a-rows">
               {outWines.map((it) => <StockRow key={it.id} it={it} inStock={stockOf(it)} quiet error={rowError[it.id]} onFlip={flip} />)}
             </ul>
-          ) : null}
+          </Disclosure>
         </section>
       ) : null}
 

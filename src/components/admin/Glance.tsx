@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { Glance as GlanceData } from "@/lib/admin-data";
 import { cap } from "@/lib/format";
+import { Disclosure } from "./Disclosure";
 
 /** "At a glance": one compact card at the top of Stock that expands in place. */
 export function Glance({ data }: { data: GlanceData }) {
@@ -32,20 +33,18 @@ export function Glance({ data }: { data: GlanceData }) {
   ].filter(Boolean).join(" · ");
 
   return (
-    <details className="a-glance">
-      <summary>
+    <Disclosure className="a-glance" headClassName="a-glance-head" bodyClassName="a-glance-body" summary={
+      <>
         <span className="a-glance-title">At a glance</span>
         <span className="a-glance-sum">{summary}</span>
-      </summary>
-      <div className="a-glance-body">
-        <details open>
-          <summary>On the menu <span className="a-count">{data.canMake.length}</span></summary>
+      </>
+    }>
+        <Disclosure className="a-glance-sec" defaultOpen summary={<>On the menu <span className="a-count">{data.canMake.length}</span></>}>
           <ul className="a-plain">
             {data.canMake.map((r) => <li key={r.id}><Link href={`/admin/recipes/${r.id}`}>{r.name}</Link></li>)}
           </ul>
-        </details>
-        <details open>
-          <summary>To buy <span className="a-count">{data.buyItems}</span></summary>
+        </Disclosure>
+        <Disclosure className="a-glance-sec" defaultOpen summary={<>To buy <span className="a-count">{data.buyItems}</span></>}>
           {data.buy.length === 0 ? <p className="a-quiet">Nothing to buy. Every recipe can be made.</p> : (
             <>
               <ul className="a-plain">
@@ -60,22 +59,19 @@ export function Glance({ data }: { data: GlanceData }) {
               <button type="button" className="a-btn" onClick={share}>{copied ? "Copied" : "Copy / share list"}</button>
             </>
           )}
-        </details>
-        <details open={data.oneAway.length > 0}>
-          <summary>One away <span className="a-count">{data.oneAway.length}</span></summary>
+        </Disclosure>
+        <Disclosure className="a-glance-sec" defaultOpen={data.oneAway.length > 0} summary={<>One away <span className="a-count">{data.oneAway.length}</span></>}>
           <ul className="a-plain">
             {data.oneAway.map((r) => (
               <li key={r.id}><Link href={`/admin/recipes/${r.id}`}>{r.name}</Link> <span className="a-quiet">needs {r.missing[0]}</span></li>
             ))}
           </ul>
-        </details>
-        <details>
-          <summary>Out, and no recipe uses them <span className="a-count">{data.unusedOut.length}</span></summary>
+        </Disclosure>
+        <Disclosure className="a-glance-sec" summary={<>Out, and no recipe uses them <span className="a-count">{data.unusedOut.length}</span></>}>
           <ul className="a-plain a-quiet">
             {data.unusedOut.map((p) => <li key={p.id}><Link href={`/admin/bottles/${p.id}`}>{p.name}</Link></li>)}
           </ul>
-        </details>
-      </div>
-    </details>
+        </Disclosure>
+    </Disclosure>
   );
 }

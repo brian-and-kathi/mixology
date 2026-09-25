@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { StockItem } from "@/lib/admin-data";
 import { KindSwitch, useAdminKind } from "./KindSwitch";
+import { Disclosure } from "./Disclosure";
 
 const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 
@@ -50,11 +51,9 @@ export function BottleList({ items, saved }: { items: StockItem[]; saved?: strin
       <ul className="a-list">{main.map(row)}</ul>
       {out.length > 0 ? (
         <section className="a-outsec" aria-label="Out wines">
-          <button type="button" className="a-outsec-head" aria-expanded={outExpanded} aria-controls="out-bottles" onClick={() => setOutOpen(!outExpanded)}>
-            <span>Out · {out.length}</span>
-            <span className="a-outsec-chev" aria-hidden>{outExpanded ? "▾" : "▸"}</span>
-          </button>
-          {outExpanded ? <ul className="a-list" id="out-bottles">{out.map(row)}</ul> : null}
+          <Disclosure headClassName="a-outsec-head" id="out-bottles" open={outExpanded} onOpenChange={setOutOpen} summary={<>Out · {out.length}</>}>
+            <ul className="a-list">{out.map(row)}</ul>
+          </Disclosure>
         </section>
       ) : null}
       {shown.length === 0 ? <p className="a-quiet">{wines ? (needle ? "No wines match." : "No wines yet.") : "No bottles match."}</p> : null}

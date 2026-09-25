@@ -7,6 +7,7 @@ import { api } from "./api";
 import { BackLink, SaveBar, useUnsavedGuard } from "./SaveBar";
 import { SharedPhoto } from "./SharedPhoto";
 import { SpecPicker } from "./SpecPicker";
+import { Disclosure } from "./Disclosure";
 
 type Form = {
   display_name: string; spec_id: string | null; family_id: string; in_stock: boolean; pourable: boolean;
@@ -149,8 +150,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
         <textarea value={f.description} onChange={(e) => set("description", e.target.value)} rows={3} placeholder="Tasting note guests see on the pour card" maxLength={2000} />
       </label>
 
-      <details className="a-more">
-        <summary>More details</summary>
+      <Disclosure className="a-more" headClassName="a-more-head" bodyClassName="a-more-body" summary="More details">
         <label className="a-field"><span className="a-label">Brand</span><input value={f.brand} onChange={(e) => set("brand", e.target.value)} maxLength={120} /></label>
         <label className="a-field"><span className="a-label">Serving note</span><input value={f.serve_note} onChange={(e) => set("serve_note", e.target.value)} maxLength={200} placeholder="e.g. Best with a single large cube" /></label>
         <label className="a-field"><span className="a-label">Barcode</span><input value={f.upc} onChange={(e) => set("upc", e.target.value)} inputMode="numeric" /></label>
@@ -169,7 +169,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
             <label className="a-check"><input type="checkbox" checked={f.fortified} onChange={(e) => set("fortified", e.target.checked)} /><span>Fortified (vermouth, sherry, port)</span></label>
           </>
         ) : null}
-      </details>
+      </Disclosure>
 
       <SaveBar isNew={!product} dirty={dirty} ready={ready} saving={saving} error={error} newLabel={wine ? "Add wine" : "Add bottle"} />
     </form>

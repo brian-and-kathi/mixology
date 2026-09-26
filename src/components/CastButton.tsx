@@ -1,8 +1,49 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-type CastState = { type: string; id: string; expires_at: string } | null;
+type CastState = { type: string; id: string; started_at: string; expires_at: string } | null;
+
+const POLL_MS = 10_000;
+const HIDE_MS = 5_000;
+const LEAVE_MS = 400;
+const OWN = "cast-owner";
+/** Cancelled on the next mount, so a dev remount does not take the cast off the TV. */
+let leaveTimer = 0;
+
+type Own = { type: string; id: string; started_at: string };
+
+const ownKey = (c: Own) => `${c.type}:${c.id}:${c.started_at}`;
+
+function readOwn(): Own | null {
+  try {
+    const raw = sessionStorage.getItem(OWN);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Own;
+    return v?.type && v.id && v.started_at ? v : null;
+  } catch { return null; }
+}
+
+function writeOwn(value: Own | null) {
+  try {
+    if (value) sessionStorage.setItem(OWN, JSON.stringify(value));
+    else sessionStorage.removeItem(OWN);
+  } catch { /* private mode: this phone just won't auto-clear */ }
+}
+
+/** Take our cast off the TV. No-op unless this tab started it. started_at keeps a newer cast of the same drink up. */
+function endOwned(type: string, id: string, cast: CastState) {
+  const saved = readOwn();
+  if (!saved || saved.type !== type || saved.id !== id) return;
+  if (cast && ownKey(cast) !== ownKey(saved)) return;
+  writeOwn(null);
+  void fetch("/api/cast", {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ type, id, started_at: saved.started_at }),
+    keepalive: true,
+  }).catch(() => {});
+}
 
 const mss = (ms: number) => {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -20,25 +61,42 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const castRef = useRef(cast);
+  castRef.current = cast;
+
   const apply = useCallback((data: { cast: CastState; now: string }) => {
     setOffset(Date.parse(data.now) - Date.now());
-    setCast(data.cast ? { type: data.cast.type, id: data.cast.id, expires_at: data.cast.expires_at } : null);
-  }, []);
+    const next = data.cast ? { type: data.cast.type, id: data.cast.id, started_at: data.cast.started_at, expires_at: data.cast.expires_at } : null;
+    setCast(next);
+    // Drop ownership once the server no longer has the cast this tab started.
+    const saved = readOwn();
+    if (saved && saved.type === type && saved.id === id && (!next || ownKey(next) !== ownKey(saved))) writeOwn(null);
+  }, [type, id]);
 
   // Keep in step with the TV (someone else may cast or take it off); pause when hidden.
   useEffect(() => {
     let stop = false;
+    let rev = "";
     const load = async () => {
       if (document.hidden) return;
       try {
-        const res = await fetch("/api/cast", { cache: "no-store" });
-        if (res.ok && !stop) apply(await res.json());
+        const res = await fetch("/api/cast", { cache: "no-store", headers: rev ? { "if-none-match": rev } : {} });
+        if (stop) return;
+        if (res.status === 304) {
+          const now = res.headers.get("x-now");
+          if (now) setOffset(Date.parse(now) - Date.now());
+          return;
+        }
+        if (res.ok) {
+          rev = res.headers.get("etag") ?? "";
+          apply(await res.json());
+        }
       } catch {
         // Offline for a moment: keep the last known state.
       }
     };
     void load();
-    const poll = window.setInterval(load, 5000);
+    const poll = window.setInterval(load, POLL_MS);
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
     document.addEventListener("visibilitychange", load);
     return () => {
@@ -48,6 +106,40 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
       document.removeEventListener("visibilitychange", load);
     };
   }, [apply]);
+
+  // This tab started the cast: take it off when they leave the page, or after the page has been
+  // hidden (switched apps, screen off) for a few seconds. Back within that window leaves it up.
+  useEffect(() => {
+    window.clearTimeout(leaveTimer);
+    let hideTimer = 0;
+    let hiddenAt = 0;
+    const end = () => endOwned(type, id, castRef.current);
+    const onVis = () => {
+      window.clearTimeout(hideTimer);
+      if (document.hidden) {
+        hiddenAt = Date.now();
+        hideTimer = window.setTimeout(end, HIDE_MS);
+      } else if (hiddenAt && Date.now() - hiddenAt >= HIDE_MS) {
+        hiddenAt = 0;
+        end();
+      } else {
+        hiddenAt = 0;
+      }
+    };
+    const onPageHide = (e: PageTransitionEvent) => {
+      if (e.persisted) return;
+      window.clearTimeout(hideTimer);
+      end();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onPageHide);
+      window.clearTimeout(hideTimer);
+      leaveTimer = window.setTimeout(end, LEAVE_MS);
+    };
+  }, [type, id]);
 
   const remaining = cast ? Date.parse(cast.expires_at) - (now + offset) : 0;
   const onTv = !!cast && cast.type === type && cast.id === id && remaining > 0;
@@ -60,6 +152,8 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error ?? "Couldn't reach the TV.");
       apply(data);
+      if (method === "POST" && data?.cast?.type === type && data.cast.id === id && data.cast.started_at) writeOwn({ type, id, started_at: data.cast.started_at });
+      if (method === "DELETE") writeOwn(null);
       navigator.vibrate?.(10);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't reach the TV.");

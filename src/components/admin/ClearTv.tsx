@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/components/admin/api";
 
 type Showing = { name: string; expires: number } | null;
@@ -13,10 +13,18 @@ export function ClearTv() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const rev = useRef("");
   const load = useCallback(async () => {
+    if (document.hidden) return;
     try {
-      const res = await fetch("/api/cast", { cache: "no-store" });
+      const res = await fetch("/api/cast", { cache: "no-store", headers: rev.current ? { "if-none-match": rev.current } : {} });
+      if (res.status === 304) {
+        const now = res.headers.get("x-now");
+        if (now) setOffset(Date.parse(now) - Date.now());
+        return;
+      }
       if (!res.ok) return;
+      rev.current = res.headers.get("etag") ?? "";
       const data = (await res.json()) as { cast: { expires_at: string; payload: { name: string } } | null; now: string };
       setOffset(Date.parse(data.now) - Date.now());
       setShowing(data.cast ? { name: data.cast.payload.name, expires: Date.parse(data.cast.expires_at) } : null);
@@ -27,11 +35,13 @@ export function ClearTv() {
 
   useEffect(() => {
     void load();
-    const poll = window.setInterval(load, 5000);
+    const poll = window.setInterval(load, 10_000);
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
+    document.addEventListener("visibilitychange", load);
     return () => {
       window.clearInterval(poll);
       window.clearInterval(tick);
+      document.removeEventListener("visibilitychange", load);
     };
   }, [load]);
 

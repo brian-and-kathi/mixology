@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { castRateLimited, currentCast, startCast, stopCast, type CastType } from "@/lib/cast";
+import { castRateLimited, castRevision, currentCast, startCast, stopCast, type CastType } from "@/lib/cast";
 import { isUuid } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -7,16 +7,26 @@ export const dynamic = "force-dynamic";
 const noStore = { "cache-control": "no-store" };
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: noStore });
 
-/** GET: what the TV should show right now. The TV polls this every 2 seconds. */
-export async function GET() {
-  return json({ cast: await currentCast(), now: new Date().toISOString() });
+/**
+ * GET: what the TV should show right now. The TV polls this every 4 seconds.
+ * If-None-Match with the previous ETag (the cast revision, or "none") gets a 304 and does not
+ * rebuild the recipe or pour. x-now is the server clock, including on a 304.
+ */
+export async function GET(req: NextRequest) {
+  const rev = await castRevision();
+  const etag = `"${rev}"`;
+  const now = new Date().toISOString();
+  const headers = { ...noStore, etag, "x-now": now };
+  if (req.headers.get("if-none-match") === etag) return new NextResponse(null, { status: 304, headers });
+  return NextResponse.json({ cast: await currentCast(), now }, { headers });
 }
 
-async function parse(req: NextRequest): Promise<{ type: CastType; id: string } | null> {
-  const body = (await req.json().catch(() => null)) as { type?: unknown; id?: unknown } | null;
+async function parse(req: NextRequest): Promise<{ type: CastType; id: string; started_at: string | null } | null> {
+  const body = (await req.json().catch(() => null)) as { type?: unknown; id?: unknown; started_at?: unknown } | null;
   const type = body?.type === "recipe" || body?.type === "pour" ? body.type : null;
   const id = typeof body?.id === "string" && isUuid(body.id) ? body.id : null;
-  return type && id ? { type, id } : null;
+  const started_at = typeof body?.started_at === "string" && body.started_at ? body.started_at : null;
+  return type && id ? { type, id, started_at } : null;
 }
 
 const ip = (req: NextRequest) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
@@ -36,6 +46,6 @@ export async function DELETE(req: NextRequest) {
   if (castRateLimited(ip(req))) return json({ error: "Too many requests. Try again in a minute." }, 429);
   const item = await parse(req);
   if (!item) return json({ error: "Send {type: 'recipe' | 'pour', id}." }, 400);
-  const stopped = await stopCast(item.type, item.id);
+  const stopped = await stopCast(item.type, item.id, item.started_at);
   return json({ stopped, cast: await currentCast(), now: new Date().toISOString() });
 }

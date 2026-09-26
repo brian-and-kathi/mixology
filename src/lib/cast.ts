@@ -45,9 +45,20 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
 
 type Row = { item_type: CastType; item_id: string; started_at: string; expires_at: string };
 
+const CAST_ROW = "SELECT item_type, item_id, started_at, expires_at FROM tv_cast WHERE id = 1 AND expires_at > now()";
+
+/** Stable token for the current cast row: "none", or type, id, and started_at. No recipe or pour load. */
+export async function castRevision(): Promise<string> {
+  const [row] = await query<Row>(CAST_ROW);
+  if (!row) return "none";
+  const started = new Date(row.started_at);
+  const stamp = Number.isNaN(started.getTime()) ? String(row.started_at) : started.toISOString();
+  return `${row.item_type}:${row.item_id}:${stamp}`;
+}
+
 /** The current cast, or null when nothing is showing (expired casts count as nothing). */
 export async function currentCast(): Promise<Cast | null> {
-  const [row] = await query<Row>("SELECT item_type, item_id, started_at, expires_at FROM tv_cast WHERE id = 1 AND expires_at > now()");
+  const [row] = await query<Row>(CAST_ROW);
   if (!row) return null;
   const payload = await castPayload(row.item_type, row.item_id);
   if (!payload) return null; // e.g. the cocktail went off the menu mid-cast
@@ -68,9 +79,17 @@ export async function startCast(type: CastType, id: string): Promise<Cast | null
   return { type: row.item_type, id: row.item_id, started_at: row.started_at, expires_at: row.expires_at, payload };
 }
 
-/** Take a cast off the TV, but only if it is still the item the caller is looking at. */
-export async function stopCast(type: CastType, id: string): Promise<boolean> {
-  const rows = await query<{ id: number }>("DELETE FROM tv_cast WHERE id = 1 AND item_type = $1 AND item_id = $2 RETURNING id", [type, id]);
+/**
+ * Take a cast off the TV, but only if it is still the item the caller is looking at.
+ * `startedAt`, when set, only removes that exact cast, so a phone leaving an older one
+ * does not take down a replacement of the same drink.
+ */
+export async function stopCast(type: CastType, id: string, startedAt?: string | null): Promise<boolean> {
+  const rows = await query<{ id: number }>(
+    `DELETE FROM tv_cast WHERE id = 1 AND item_type = $1 AND item_id = $2
+       AND ($3::text IS NULL OR started_at = $3::timestamptz) RETURNING id`,
+    [type, id, startedAt || null],
+  );
   return rows.length > 0;
 }
 

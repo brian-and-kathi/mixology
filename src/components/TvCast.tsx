@@ -4,9 +4,9 @@ import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, u
 import { GlassIcon } from "@/components/GlassIcon";
 import type { Cast, CastPayload } from "@/lib/cast";
 
-// TV side of "Show on TV" (DESIGN §10). Polls /api/cast every 2 s; while something is cast,
+// TV side of "Show on TV" (DESIGN §10). Polls /api/cast every 4 s; while something is cast,
 // a bottom band slides up and the menu above shrinks to fit, with the cast item highlighted.
-const POLL_MS = 2000;
+const POLL_MS = 4000;
 const SLIDE_MS = 400;
 
 type Highlight = { type: string; id: string } | null;
@@ -26,13 +26,20 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
   const [now, setNow] = useState(() => Date.now());
   const offset = useRef(0); // server clock minus ours, so the countdown matches expires_at
 
-  // Poll the single cast record.
+  // Poll the single cast record. A repeat of the same cast is a 304: no new payload, just the clock.
   useEffect(() => {
     let stop = false;
+    let rev = "";
     const poll = async () => {
       try {
-        const res = await fetch("/api/cast", { cache: "no-store" });
+        const res = await fetch("/api/cast", { cache: "no-store", headers: rev ? { "if-none-match": rev } : {} });
+        if (res.status === 304) {
+          const now = res.headers.get("x-now");
+          if (now) offset.current = Date.parse(now) - Date.now();
+          return;
+        }
         if (res.ok) {
+          rev = res.headers.get("etag") ?? "";
           const data = (await res.json()) as { cast: Cast | null; now: string };
           offset.current = Date.parse(data.now) - Date.now();
           if (!stop) setCast((prev) => (prev && data.cast && prev.id === data.cast.id && prev.started_at === data.cast.started_at && JSON.stringify(prev.payload) === JSON.stringify(data.cast.payload) ? prev : data.cast));

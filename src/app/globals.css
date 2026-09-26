@@ -8,7 +8,7 @@
   --rule: rgba(255, 255, 255, 0.22);
   --cream: #f3ead3;
   /* Gold accent, shared by the TV and the guest phone (admin never uses it): text, and a dimmer tone for lines. */
-  --gold: #cfa453;
+  --gold: #b8903c;
   --gold-line: #95753d;
   --radius: 14px;
   color-scheme: dark;
@@ -65,7 +65,7 @@ h1, h2, p { margin: 0; }
 .tv-col + .tv-col { border-left: 1px solid var(--gold-line); }
 .tv-heading { font-family: var(--font-display), Palatino, serif; font-style: italic; font-weight: 500; font-size: 5.2vh; text-align: center; color: rgba(255, 255, 255, 0.92); line-height: 1.1; }
 /* Same row height as before (1.76vh), so the board fit is unchanged; only on a column that has a second page. */
-.tv-pageno { text-align: center; font: 1.6vh/1.1 ui-monospace, monospace; letter-spacing: 0.2em; margin-right: -0.2em; color: var(--gold); }
+.tv-pageno { text-align: center; font: 1.12vh/1.1 ui-monospace, monospace; letter-spacing: 0.2em; margin-right: -0.2em; color: var(--gold); }
 .tv-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; margin-top: 1vh; }
 .tv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; min-width: 0; }
 .tv-subcols { display: flex; gap: 1vw; height: 100%; transition: opacity 400ms ease; }
@@ -106,20 +106,22 @@ h1, h2, p { margin: 0; }
    Same size as on the name line (72% of the name; the TV subtext is 72% too), centered on the subtext's cap height.
    Negative vertical margins take its padding and border out of the line box, so the row is exactly as tall as before. */
 .tv-detail > .spec-badge { font-size: 1em; vertical-align: 0; margin: -2px 0.45em -2px 0; }
+/* Spec tags on the TV and the guest Pours list: gold fill, black type. */
+.tv-row .spec-badge, .corner-badge { background: var(--gold); color: #000; border-color: var(--gold); }
 /* The TV subtext clips at its box (it is measured to fit); give the badge's border 2px of room above and below
    without moving anything (padding and margin cancel out). */
 .tv-detail:has(> .spec-badge) { padding-block: 2px; margin-top: calc(0.05vh - 2px); margin-bottom: -2px; }
 /* Pour page: the badge on its own line under the title (72% of the title size). */
 .phone-title-text { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; min-width: 0; }
 .spec-badge.title-badge { margin-left: 0; font-size: calc(1.6rem * 0.72); vertical-align: baseline; }
-/* Gold, ~85% of the old 0.85em size, never under ~18px at 1080p. */
-.tv-detail { font-size: max(1.7vh, 0.72em); line-height: 1.2; margin-top: 0.05vh; color: var(--gold); font-weight: 400; white-space: nowrap; overflow: hidden; }
+/* Gold subtext, about 30% smaller than the previous max(1.7vh, 0.72em). */
+.tv-detail { font-size: max(1.19vh, 0.5em); line-height: 1.2; margin-top: 0.05vh; color: var(--gold); font-weight: 400; white-space: nowrap; overflow: hidden; }
 .tv-no-detail .tv-detail { display: none; }
 /* Two-line rows get tighter padding so the idle board (15 pours in 8/7) still fits on one screen. */
 .tv-columns:not(.tv-no-detail) .tv-row:has(.tv-detail) { padding: 0.62vh 0; }
 .tv-casting .tv-columns:not(.tv-no-detail) .tv-row:has(.tv-detail) { padding: 0.45vh 0 0.45vh 0.42vw; }
 .tv-row.on .tv-detail { color: rgba(243, 234, 211, 0.72); }
-.tv-row.on .spec-badge, .tv-row.on .tv-detail > .spec-badge { color: rgba(243, 234, 211, 0.72); border-color: rgba(243, 234, 211, 0.35); }
+.tv-row.on .spec-badge, .tv-row.on .tv-detail > .spec-badge { background: var(--gold); color: #000; border-color: var(--gold); }
 /* Guest rating under each glass ("4.2 ★", phone format and proportions). The box has the subtext's own
    size and line height and sits on the subtext line (the name line is 1.25 x 2.75vh, then the subtext's
    0.05vh margin), so its baseline is the subtext's; the number inside is 90% of the subtext size.
@@ -127,7 +129,7 @@ h1, h2, p { margin: 0; }
    widened just enough for "5.0★" (2.23 subtext ems with tabular digits), the same in every column; during a
    cast the rating hides and the cell is the glass again. */
 .tv-lead { position: relative; flex: none; display: flex; justify-content: center; width: max(3.6vh, calc(2.25 * max(1.7vh, 0.72em))); }
-.tv-rating { position: absolute; left: 50%; top: calc(1.25 * 2.75vh + 0.05vh); transform: translateX(-50%); font-size: max(1.7vh, 0.72em); line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tv-rating { position: absolute; left: 50%; top: calc(1.25 * 2.75vh + 0.05vh); transform: translateX(-50%); font-size: max(1.19vh, 0.5em); line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tv-rating-num { font-size: 0.9em; font-weight: 500; color: rgba(255, 255, 255, 0.7); }
 .tv-rating-star { font-size: calc(0.9em * 0.92); margin-left: calc(0.9em * 0.22 / 0.828); color: var(--gold); }
 .tv-casting .tv-lead { width: auto; }

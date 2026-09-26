@@ -10,6 +10,7 @@ export function PhoneShell({
   lead,
   back,
   editHref,
+  admin = false,
   children,
 }: {
   title?: string;
@@ -19,11 +20,13 @@ export function PhoneShell({
   back?: { href: string; label: string };
   /** Only passed when this device has a valid admin session (checked server-side). */
   editHref?: string;
+  /** Signed-in admin: the menu shows the database link. */
+  admin?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="phone">
-      <GuestChrome editHref={editHref} />
+      <GuestChrome editHref={editHref} admin={admin || !!editHref} />
       {back ? null : (
         // Pinned wordmark: sticky at exactly its resting position (the .phone top padding), so it never
         // moves or resizes; it sits in the solid part of the top band beside the fixed menu button.

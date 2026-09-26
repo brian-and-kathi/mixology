@@ -10,7 +10,7 @@ import { useEffect, useId, useRef, useState } from "react";
  * them, solid edges from a few px inside the frame line out to the screen edge, and the floating
  * menu button. Decorative parts are aria-hidden and ignore pointer events.
  */
-export function GuestChrome({ editHref }: { editHref?: string }) {
+export function GuestChrome({ editHref, admin = false }: { editHref?: string; admin?: boolean }) {
   const [top, setTop] = useState(false);
   const [bottom, setBottom] = useState(false);
 
@@ -55,13 +55,13 @@ export function GuestChrome({ editHref }: { editHref?: string }) {
           <span className="frame-corner br" />
         </div>
       </div>
-      <GuestMenu editHref={editHref} />
+      <GuestMenu editHref={editHref} admin={admin || !!editHref} />
     </>
   );
 }
 
 /** 48px outline hamburger with a small dark dropdown. Disclosure pattern: Escape, outside tap and tabbing away close it. */
-function GuestMenu({ editHref }: { editHref?: string }) {
+function GuestMenu({ editHref, admin }: { editHref?: string; admin: boolean }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -113,7 +113,8 @@ function GuestMenu({ editHref }: { editHref?: string }) {
       <div ref={panel} id={id} className="g-menu-panel" hidden={!open}>
         <nav aria-label="Site">
           <Link href="/menu" onClick={() => setOpen(false)}>Menu</Link>
-          <Link href="/admin/stock" onClick={() => setOpen(false)}>Bar admin</Link>
+          <Link href="/admin" onClick={() => setOpen(false)}>Bar admin</Link>
+          {admin ? <Link href="/db" onClick={() => setOpen(false)}>Database</Link> : null}
           {editHref ? (
             <>
               <hr />

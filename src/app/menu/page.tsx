@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
+import { isAdmin } from "@/lib/admin-guard";
 import { loadMenu, SECTIONS, type SectionId } from "@/lib/menu";
 import { ratingKey } from "@/lib/rating-key";
 import { loadAllRatings } from "@/lib/ratings";
@@ -13,10 +14,10 @@ export const metadata = { title: "Menu" };
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams;
   // Guest ratings, the TV board's single query and rounding; a failure just shows no ratings.
-  const [menu, ratings] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch((): Record<string, number> => ({}))]);
+  const [menu, ratings, admin] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch((): Record<string, number> => ({})), isAdmin()]);
   if (!menu) {
     return (
-      <PhoneShell>
+      <PhoneShell admin={admin}>
         <p className="notice">The menu can't be loaded right now. Try again in a minute.</p>
       </PhoneShell>
     );
@@ -24,7 +25,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const tabs = SECTIONS.filter((s) => menu[s.id].length > 0);
   if (tabs.length === 0) {
     return (
-      <PhoneShell>
+      <PhoneShell admin={admin}>
         <p className="notice">Nothing available tonight.</p>
       </PhoneShell>
     );
@@ -32,7 +33,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const current: SectionId = tabs.find((t) => t.id === tab)?.id ?? tabs[0].id;
 
   return (
-    <PhoneShell>
+    <PhoneShell admin={admin}>
       <nav className="tabs" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
         {tabs.map((t) => (
           <Link key={t.id} href={`/menu?tab=${t.id}`} className={t.id === current ? "tab active" : "tab"} aria-current={t.id === current ? "page" : undefined}>

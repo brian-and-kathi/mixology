@@ -138,7 +138,7 @@ async function saveFamily(id: string | null, input: ReturnType<typeof familyInpu
 const SPEC_FLAGS: [string, string, string][] = [
   ["fortified", "F", "Fortified"],
   ["as_ingredient", "I", "Ingredient"],
-  ["as_neat", "N", "Neat"],
+  ["as_neat", "P", "Pours"],
   ["as_wine_glass", "W", "Wine glass"],
   ["always_available", "A", "Always"],
   ["ingredient_only", "H", "Hidden from Pours and Cellar"],
@@ -173,10 +173,10 @@ function specForm(spec: Bag | null, aliases: string, primaryFamilyId: string, ex
             <div class="checks checks-stack">
               ${check("fortified", value.fortified, "Fortified", "", "A fortified or aromatized wine, such as vermouth, sherry, or port.")}
               ${check("as_ingredient", value.as_ingredient, "Ingredient", "", "Recipes can call for this spec.")}
-              ${check("as_neat", value.as_neat, "Neat", "", "A bottle linked here can show on the neat menu.")}
+              ${check("as_neat", value.as_neat, "Pours", "", "A bottle of this spec can show on Pours, even when that bottle is not itself marked neat or on the rocks. Drinks only still hides it.")}
               ${check("as_wine_glass", value.as_wine_glass, "Wine glass", "", "This is normally served in a wine glass.")}
               ${check("always_available", value.always_available, "Always available", "", "Treat this as on hand with no bottle. Use it for ice and water.")}
-              ${check("ingredient_only", value.ingredient_only, "Drinks only", "", "Hide bottles of this spec from Pours and Cellar. Recipes can still use it.")}
+              ${check("ingredient_only", value.ingredient_only, "Drinks only", "", "Hide bottles of this spec from Pours and from Cellar. Recipes can still use it.")}
             </div>
             ${field("Secondary families", `<div class="picker" data-also-in>${familyOptions}</div>`, "Other families this spec also belongs to. Belonging to a family does not let one spec stand in for another.")}
             ${field("Aliases", area("aliases", aliases, 'rows="8"'), "Other names for this same spec, one per line.")}

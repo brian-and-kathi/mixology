@@ -95,7 +95,7 @@ let fitCanvas: HTMLCanvasElement | null = null;
  * whole items or words, e.g. "Rye · sweet vermouth · …") that fits the row. Re-measures when the
  * row or the text size changes (column widths, cast shrink, web fonts).
  */
-function FitLine({ fit, badge = null }: { fit: string[]; badge?: string | null }) {
+function FitLine({ fit, badge = null, origin = null }: { fit: string[]; badge?: string | null; origin?: string | null }) {
   const ref = useRef<HTMLSpanElement>(null);
   const badgeRef = useRef<HTMLSpanElement>(null);
   const [text, setText] = useState(fit[0]);
@@ -122,10 +122,12 @@ function FitLine({ fit, badge = null }: { fit: string[]; badge?: string | null }
     void document.fonts?.ready.then(run);
     return () => ro.disconnect();
   }, [fit, badge]);
+  const place = origin && text.startsWith(origin) ? origin : "";
   return (
     <span ref={ref} className="tv-detail">
       {badge ? <span ref={badgeRef} className="spec-badge">{badge}</span> : null}
-      {text}
+      {place ? <span className="tv-origin">{place}</span> : null}
+      {place ? text.slice(place.length) : text}
     </span>
   );
 }
@@ -163,7 +165,7 @@ function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on
           {item.name}
           {item.abv ? <sup className="tv-abv">{item.abv}</sup> : null}
         </span>
-        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} /> : null}
+        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} /> : null}
       </span>
     </li>
   );

@@ -66,7 +66,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
                   {item.spec ? <span className="spec-badge badge-reserve" aria-hidden>{item.spec}</span> : null}
                   {item.name}
                 </span>
-                {item.detail ? <span className="item-detail">{keepHyphens(item.detail)}</span> : null}
+                {item.detail ? <ItemDetail text={item.detail} origin={item.origin} /> : null}
               </span>
               {/* Pours: the type badge as a tab in the card's top-right corner, out of flow. */}
               {item.spec ? <span className="spec-badge corner-badge">{item.spec}</span> : null}
@@ -94,6 +94,17 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
  * Browsers may wrap after a hyphen ("semi-" / "dry"). Words that are kept whole with no-break spaces
  * (see lib/menu.ts) are wrapped in a nowrap span when they contain one, so lines still only break at " · ".
  */
+function ItemDetail({ text, origin }: { text: string; origin?: string | null }) {
+  const place = origin && text.startsWith(origin) ? origin : "";
+  const rest = place ? text.slice(place.length) : text;
+  return (
+    <span className="item-detail">
+      {place ? <span className="origin">{keepHyphens(place)}</span> : null}
+      {keepHyphens(rest)}
+    </span>
+  );
+}
+
 function keepHyphens(text: string) {
   const parts = text.split(/([^ ]*-[^ ]*)/);
   if (parts.length === 1) return text;

@@ -15,14 +15,14 @@ export type SectionId = (typeof SECTIONS)[number]["id"];
  * " · ", so a wrapped line never starts with a dot). `fit` is the TV's candidates, longest first:
  * the TV measures and shows the first one that fits on one line (see TvBoard FitLine).
  */
-export type Sub = { detail: string; fit: string[] };
+export type Sub = { detail: string; fit: string[]; /** Place name as it appears at the start of `detail` (phone) and of the TV line. */ origin?: string; /** Shorter place shown on the TV when the phone line keeps the full origin. */ originTv?: string };
 /**
  * `spec`: the badge after a Pours name ("Rye", see lib/spec-label; none when the name already says it);
  * other sections have none. `measure`: the text the TV sizes the column by (the full name, so column
  * widths are exactly what they were before short names and badges). `famStart` (Pours): the first bottle of a
  * spirit family after another family (lib/spirit-family.ts); the phone and TV add a small gap above it.
  */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40%" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; measure?: string; famStart?: boolean };
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40% abv" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -74,11 +74,11 @@ export async function loadMenu(): Promise<Menu> {
     pours: byFamily(pours.map((p) => {
       const badge = specLabel(p.type, p.label);
       return { id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, badge), measure: p.full, ...pourLine(p),
-        abv: p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}%` : null,
+        abv: p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% abv` : null,
         family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" };
     })),
     cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
-    cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, ...wineLine(w) })).sort(byName),
+    cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: badgeFor(w.name, specLabel(w.type)), ...wineLine(w) })).sort(byName),
   };
 }
 
@@ -161,28 +161,35 @@ export function pourLine(p: { origin: string | null; abv: string | null; type: s
     const type = clean(p.type);
     return type ? { detail: first(type), fit: [first(type)] } : {};
   }
-  const detail = first([keepPlace(region), keepAbv(abv)].filter(Boolean).join(DOT));
-  if (!short) return { detail };
-  return { detail, fit: [first(short)] };
+  const head = region ? keepPlace(region) : "";
+  const detail = first([head, keepAbv(abv)].filter(Boolean).join(DOT));
+  const origin = head ? detail.slice(0, first(head).length) : undefined;
+  const originTv = short ? first(short) : undefined;
+  if (!short) return { detail, origin, originTv };
+  return { detail, origin, originTv, fit: [originTv!] };
 }
 
 /**
- * Cellar: region, then the grape or style (the bottle's primary ingredient) unless the name already
- * says it ("Hakutsuru Sake" → just "Japan"). No region: the style alone ("Sake"). Nothing: no line.
- * Regions come only from the bottle's origin field; nothing is guessed.
+ * Cellar. Phone: region, then the grape or style unless the name already says it
+ * ("Hakutsuru Sake" → just "Japan"). No region: the style alone ("Sake").
+ * TV: the style is the spec badge and the line under the name is only the place, in the same
+ * arrangement as Pours. Regions come only from the bottle's origin field; nothing is guessed.
  */
 export function wineLine(w: { name: string; origin: string | null; type: string | null }): Partial<Sub> {
   const region = clean(w.origin);
   const type = clean(w.type);
   const redundant = !!type && w.name.toLowerCase().includes(type.toLowerCase());
   const items = region ? (type && !redundant ? [region, type] : [region]) : type ? [type] : [];
-  const sub = listSub(items);
-  if (!sub) return {};
+  if (!items.length) return {};
   // Phone line: the place name and the type each stay whole ("semi-dry white wine"), so at narrow widths
-  // it only breaks at " · ". TV candidates are unchanged.
+  // it only breaks at " · ".
   const keepWords = (t: string) => t.trim().replace(/\s+/g, NBSP);
-  const parts = region ? [keepPlace(region), ...items.slice(1).map(keepWords)] : items.map(keepWords);
-  return { ...sub, detail: first(parts.join(DOT)) };
+  const head = region ? keepPlace(region) : "";
+  const parts = head ? [head, ...items.slice(1).map(keepWords)] : items.map(keepWords);
+  const detail = first(parts.join(DOT));
+  const origin = head ? detail.slice(0, first(head).length) : undefined;
+  const originTv = region ? first(region) : undefined;
+  return { detail, origin, originTv, ...(originTv ? { fit: [originTv] } : {}) };
 }
 
 export type RecipeLine = {

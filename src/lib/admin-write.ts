@@ -83,9 +83,9 @@ export async function saveProduct(id: string | null, body: Record<string, unknow
   if (abv !== null && (abv < 0 || abv > 100)) throw new UserError("ABV must be between 0 and 100.");
   const wineColor = WINE_COLORS.includes(String(body.wine_color)) ? String(body.wine_color) : "not_applicable";
   const eff = EFFERVESCENCE.includes(String(body.wine_effervescence)) ? String(body.wine_effervescence) : "not_applicable";
-  // Short name and badge label (migration 023): optional; blank means "use the full name" / "use the type".
+  // Short name (migration 023): optional; blank means "use the full name". Badge overrides are retired (026); spec_label is always cleared.
   const shortName = text(body.short_name, 120);
-  const specLabel = text(body.spec_label, 60);
+  const specLabel = null;
   const v = [
     name, text(body.brand, 120), text(body.description, 2000), text(body.origin, 120), text(body.serve_note, 200), abv, upc,
     familyId, bool(body.in_stock), !pourable, servesNeat, servesRocks, pourable && bool(body.serves_chilled),

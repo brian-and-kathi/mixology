@@ -255,13 +255,12 @@ function productForm(product: Bag | null, selectedSpecs: string[], primarySpecId
     title: creating ? "New product" : String(value.display_name),
     active: `${DB}/products`,
     error,
-    body: `${heading(creating ? "New product" : "Edit product", "The display name is what menus show. The short name is what Pours shows, with the badge beside it.")}
+    body: `${heading(creating ? "New product" : "Edit product", "The display name is what menus show. The short name is what Pours shows, with the primary spec beside it.")}
       <form class="card" method="post" action="${creating ? `${DB}/products` : `${DB}/products/${product?.id}`}">
         <div class="stack">
           <div class="grid grid-3">
             ${field("Display name", text("display_name", value.display_name, "required"), "The cleaned full name. Leave the size out of this name.")}
             ${field("Short name", text("short_name", value.short_name), "The name on Pours, without the type. Leave empty to use the full name.")}
-            ${field("Badge", text("spec_label", value.spec_label), "The small type tag on Pours, such as Rye. Leave empty to use the spec name.")}
             ${field("Packaged name", text("packaged_name", value.packaged_name, "required"), "The name on the label or from a scan. It can stay wordy.")}
             ${field("Brand", text("brand", value.brand), "The brand on the bottle. A brand is not a spec.")}
             ${field("UPC", text("upc", value.upc), "The barcode, digits only. Leave empty for homemade items and produce.")}
@@ -306,7 +305,7 @@ function lookupCard(product: Bag) {
   const lookup = (product.lookup ?? null) as Bag | null;
   const raw = !lookup?.raw ? "{\n}" : typeof lookup.raw === "string" ? lookup.raw : JSON.stringify(lookup.raw, null, 2);
   return `<h2>Last lookup</h2>
-    <p class="lede">Saving a lookup does not change the display name, short name, badge, rating, notes, or spec links.</p>
+    <p class="lede">Saving a lookup does not change the display name, short name, rating, notes, or spec links.</p>
     <form class="card" method="post" action="${DB}/products/${product.id}/lookup">
       <div class="grid">
         ${field("Source", text("source", lookup?.source ?? ""), "Where this lookup came from.")}
@@ -354,7 +353,7 @@ function productInput(body: Bag) {
   if (!WINE_COLORS.some(([v]) => v === wineColor)) throw new ValidationError("Wine color is not valid.");
   if (!EFFERVESCENCE.some(([v]) => v === eff)) throw new ValidationError("Effervescence is not valid.");
   return {
-    displayName, packagedName, shortName: blank(body.short_name), specLabel: blank(body.spec_label), upc, familyId,
+    displayName, packagedName, shortName: blank(body.short_name), specLabel: null, upc, familyId,
     brand: blank(body.brand), description: blank(body.description), rating, origin: blank(body.origin),
     pairing: blank(body.pairing_notes), serve: blank(body.serve_note), abv, amount, unit, wineColor, eff,
     fortified: checked(body.fortified), inStock: checked(body.in_stock), servesNeat, servesRocks,

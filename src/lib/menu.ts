@@ -22,7 +22,7 @@ export type Sub = { detail: string; fit: string[] };
  * widths are exactly what they were before short names and badges). `famStart` (Pours): the first bottle of a
  * spirit family after another family (lib/spirit-family.ts); the phone and TV add a small gap above it.
  */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; measure?: string; famStart?: boolean };
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40%" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; measure?: string; famStart?: boolean };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -74,6 +74,7 @@ export async function loadMenu(): Promise<Menu> {
     pours: byFamily(pours.map((p) => {
       const badge = specLabel(p.type, p.label);
       return { id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, badge), measure: p.full, ...pourLine(p),
+        abv: p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}%` : null,
         family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" };
     })),
     cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
@@ -150,8 +151,7 @@ export function ingredientLine(names: string[]) {
 /**
  * Pours. Phone: "Lake City, Michigan · 45% ABV" (one if the other is missing; neither, the type), with
  * no-break spaces inside "Lake City" and "45% ABV" so neither splits across lines.
- * TV: the ABV always stays whole; the region shortens to its state or country ("Michigan · 45% ABV")
- * and is dropped entirely if that still doesn't fit.
+ * TV: the region only, shortened to its state or country ("Michigan"). The ABV is a superscript on the name.
  */
 export function pourLine(p: { origin: string | null; abv: string | null; type: string | null }): Partial<Sub> {
   const abv = p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% ABV` : "";
@@ -162,8 +162,8 @@ export function pourLine(p: { origin: string | null; abv: string | null; type: s
     return type ? { detail: first(type), fit: [first(type)] } : {};
   }
   const detail = first([keepPlace(region), keepAbv(abv)].filter(Boolean).join(DOT));
-  const fit = abv ? [short ? `${short} · ${abv}` : abv, abv] : [short];
-  return { detail, fit: [...new Set(fit.map(first))] };
+  if (!short) return { detail };
+  return { detail, fit: [first(short)] };
 }
 
 /**

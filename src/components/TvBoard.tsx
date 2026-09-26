@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
-import { BadgedName, useBadgePlace } from "@/components/SpecBadge";
+
 import { useCastHighlight } from "@/components/TvCast";
 import type { MenuItem } from "@/lib/menu";
 import { ratingKey } from "@/lib/rating-key";
@@ -104,7 +104,7 @@ function FitLine({ fit, badge = null }: { fit: string[]; badge?: string | null }
     const box = el?.parentElement;
     if (!el || !box) return;
     const run = () => {
-      // A badge moved here from the name line comes first; the text gets the room after it.
+      // The Pours spec badge is always first on this line; the region gets the room after it.
       const b = badgeRef.current;
       const width = box.clientWidth - (b ? b.getBoundingClientRect().width + parseFloat(getComputedStyle(b).marginRight || "0") : 0);
       if (!box.clientWidth) return;
@@ -134,7 +134,7 @@ function FitLine({ fit, badge = null }: { fit: string[]; badge?: string | null }
  * The row's icon cell: the glass, and under it the guests' average ("4.2 ★", like the phone) on the
  * subtext line. The rating is positioned out of flow, so the cell is exactly as tall as the glass and
  * row heights (and so paging) never change; the cell's fixed width is what the column measurement sees.
- * Unrated: no rating, same width. Hidden during a cast (CSS), when the cell shrinks back to the glass.
+ * Unrated: no rating, same width. Hidden only when the subtext lines are hidden.
  */
 function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
   return (
@@ -153,14 +153,17 @@ function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
 function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on?: boolean }) {
   // Pours are grouped by spirit family: the first bottle of a family gets a small gap above it (.fam-start).
   const cls = "tv-row" + (on ? " on" : "") + (item.famStart ? " fam-start" : "");
-  // Pours badge: after the name, or at the start of the subtext line when it doesn't fit there (useBadgePlace).
-  const { ref, sub } = useBadgePlace(item.spec, !!item.fit?.length);
+  // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name.
+  const below = !!item.spec || !!item.fit?.length;
   return (
     <li className={cls}>
       <Lead glass={item.glass} rating={rating} />
       <span className="tv-text">
-        <span className="tv-name" ref={ref} data-measure={item.measure}><BadgedName name={item.name} spec={item.spec} off={sub} /></span>
-        {item.fit?.length ? <FitLine fit={item.fit} badge={sub ? item.spec : null} /> : null}
+        <span className="tv-name" data-measure={item.measure}>
+          {item.name}
+          {item.abv ? <sup className="tv-abv">{item.abv}</sup> : null}
+        </span>
+        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} /> : null}
       </span>
     </li>
   );
@@ -182,19 +185,12 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
   const [page, setPage] = useState(0);
   const [visible, setVisible] = useState(true);
   const cast = useCastHighlight();
-  // Subtext lines show everywhere, except while a cast is up and the shrunk board would have to
-  // page with them: then every subtext line (all columns) is hidden until the cast ends.
-  const [hideDetail, setHideDetail] = useState(false);
-  // If the cast board still pages with the subtext hidden, the rows' padding is trimmed a little (tv-tight)
-  // so one more row fits a page (8 pours at 1280x720 and 1024x576). Never needed at 1080.
-  const [tight, setTight] = useState(false);
-  // The cast band shrinks the board, so re-plan the layout from scratch when it comes and goes.
+  // The cast band covers the bottom of the screen. Rows stay full size; whatever no longer fits
+  // turns the page with the rest of the board.
   const key = (cast ? "cast|" : "") + columns.map((c) => c.id + ":" + c.items.map((i) => i.id).join(",")).join("|");
 
   // New data (or the cast band came or went): start over from one sub-column per section.
   useEffect(() => {
-    setHideDetail(false);
-    setTight(false);
     setSplit(columns.map(() => 1));
     // Once more after the band's 400 ms slide, in case mid-animation sizes over-split a section.
     const t = window.setTimeout(() => setSplit(columns.map(() => 1)), 450);
@@ -250,20 +246,13 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
     });
     setAssign(balanced);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columns, split, basis, hideDetail, tight]);
-
-  // Hiding the subtext (or trimming the padding) makes rows shorter, so start the plan over from one sub-column per section.
-  useEffect(() => {
-    if (hideDetail || tight) setSplit(columns.map(() => 1));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hideDetail, tight]);
+  }, [columns, split, basis]);
 
   useLayoutEffect(() => {
     measure();
     const ro = new ResizeObserver(() => measure());
     if (boardRef.current) ro.observe(boardRef.current);
-    // Also watch the hidden measuring lists: when a cast hides the subtext, the rows keep resizing (padding
-    // and font transitions) after the board has stopped changing size, so re-plan once they settle.
+    // The measuring lists keep resizing while the cast band slides, after the board's own size has settled.
     for (const ruler of rulers.current) if (ruler) ro.observe(ruler);
     // Web fonts change row heights after first paint; measure again once they are ready.
     void document.fonts?.ready.then(() => measure());
@@ -273,26 +262,6 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
   const needed = assign.map((a) => (a.length ? Math.max(...a) + 1 : 1));
   const colPages = needed.map((n, i) => Math.ceil(n / (split[i] ?? 1)));
   const pageCount = Math.max(1, ...colPages);
-
-  // During a cast, check once the band has finished sliding and the plan has settled.
-  const pagesRef = useRef(pageCount);
-  pagesRef.current = pageCount;
-  const casting = !!cast; // the highlight object is new on every tick; only presence matters here
-  useEffect(() => {
-    if (!casting || hideDetail || pageCount <= 1) return;
-    const t = window.setTimeout(() => {
-      if (pagesRef.current > 1) setHideDetail(true);
-    }, 900);
-    return () => window.clearTimeout(t);
-  }, [casting, hideDetail, pageCount]);
-  // Still paging once the subtext is hidden: trim the row padding, then re-plan (fewest pages, balanced).
-  useEffect(() => {
-    if (!casting || !hideDetail || tight || pageCount <= 1) return;
-    const t = window.setTimeout(() => {
-      if (pagesRef.current > 1) setTight(true);
-    }, 900);
-    return () => window.clearTimeout(t);
-  }, [casting, hideDetail, tight, pageCount]);
 
   useEffect(() => {
     if (pageCount <= 1) {
@@ -316,7 +285,7 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
   const current = page % pageCount;
 
   return (
-    <div className={`tv-columns${hideDetail ? " tv-no-detail" : ""}${tight ? " tv-tight" : ""}`} ref={boardRef} data-pages={pageCount} data-page={current + 1}>
+    <div className="tv-columns" ref={boardRef} data-pages={pageCount} data-page={current + 1}>
       {columns.map((col, ci) => {
         const n = split[ci] ?? 1;
         const shownPage = Math.min(current, colPages[ci] - 1);

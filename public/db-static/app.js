@@ -198,3 +198,32 @@ document.querySelectorAll("th.flag[data-tip], td.flag[data-tip]").forEach((cell)
   cell.addEventListener("mouseleave", hideFlagTip);
 });
 window.addEventListener("scroll", hideFlagTip, true);
+
+const dbMenu = document.querySelector("[data-db-menu]");
+if (dbMenu) {
+  const dbMenuButton = dbMenu.querySelector("button");
+  const dbMenuPanel = dbMenu.querySelector("[data-db-menu-panel]");
+  const closeDbMenu = () => {
+    dbMenuPanel.hidden = true;
+    dbMenuButton.setAttribute("aria-expanded", "false");
+  };
+  dbMenuButton.addEventListener("click", () => {
+    const open = dbMenuPanel.hidden;
+    dbMenuPanel.hidden = !open;
+    dbMenuButton.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) dbMenuPanel.querySelector("a, button")?.focus();
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!dbMenu.contains(event.target)) closeDbMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !dbMenuPanel.hidden) {
+      event.preventDefault();
+      closeDbMenu();
+      dbMenuButton.focus();
+    }
+  });
+  dbMenu.addEventListener("focusout", (event) => {
+    if (!dbMenuPanel.hidden && event.relatedTarget && !dbMenu.contains(event.relatedTarget)) closeDbMenu();
+  });
+}

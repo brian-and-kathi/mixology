@@ -24,6 +24,19 @@ export function page({ title, active, body, error = null, notice = null }: { tit
     const current = href === active ? ' aria-current="page"' : "";
     return `<a href="${href}"${current}>${label}</a>`;
   }).join("");
+  const menu = `<div class="db-menu" data-db-menu>
+      <button type="button" class="db-menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="db-menu-panel">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div id="db-menu-panel" class="db-menu-panel" data-db-menu-panel hidden>
+        <nav aria-label="Site">
+          <a href="/menu">Guest menu</a>
+          <a href="/admin">Bar admin</a>
+          <hr>
+          <form method="post" action="/api/admin/logout"><button type="submit">Sign out</button></form>
+        </nav>
+      </div>
+    </div>`;
   const banner = error
     ? `<p class="banner" role="alert">${esc(error)}</p>`
     : notice
@@ -34,20 +47,22 @@ export function page({ title, active, body, error = null, notice = null }: { tit
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#06140e">
   <meta name="robots" content="noindex">
   <title>${esc(title)} · Database</title>
-  <link rel="stylesheet" href="/db-static/app.css?v=1">
+  <link rel="stylesheet" href="/db-static/app.css?v=3">
 </head>
 <body>
   <header class="top">
     <a class="mark" href="/">Database</a>
-    <nav>${nav}</nav>
+    <nav class="sections" aria-label="Database">${nav}</nav>
+    ${menu}
   </header>
   <main>
     ${banner}
     ${body}
   </main>
-  <script src="/db-static/app.js?v=1"></script>
+  <script src="/db-static/app.js?v=3"></script>
 </body>
 </html>`;
 }

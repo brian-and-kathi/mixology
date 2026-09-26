@@ -90,7 +90,7 @@ export async function startCast(type: CastType, id: string): Promise<Cast | null
 export async function stopCast(type: CastType, id: string, startedAt?: string | null): Promise<boolean> {
   const rows = await query<{ id: number }>(
     `DELETE FROM tv_cast WHERE id = 1 AND item_type = $1 AND item_id = $2
-       AND ($3::text IS NULL OR started_at = $3::timestamptz) RETURNING id`,
+       AND ($3::timestamptz IS NULL OR started_at = $3::timestamptz) RETURNING id`,
     [type, id, startedAt || null],
   );
   return rows.length > 0;

@@ -155,7 +155,7 @@ export async function createSpec(body: Record<string, unknown>) {
   ]))[0] as { id: string }[];
   await query(
     `INSERT INTO change_log (entity, entity_id, action, summary, after)
-     SELECT 'spec', $1::text, 'create', 'Added ingredient ' || $2, to_jsonb(s) FROM specs s WHERE s.id = $1::uuid`,
+     SELECT 'spec', s.id::text, 'create', 'Added ingredient ' || $2, to_jsonb(s) FROM specs s WHERE s.id = $1::uuid`,
     [row.id, name],
   );
   return { id: row.id, name };
@@ -170,9 +170,9 @@ export async function saveSpec(id: string, body: Record<string, unknown>) {
   const aliases = [...new Set((Array.isArray(body.aliases) ? body.aliases : []).map((a) => text(a, 80)?.toLowerCase()).filter((a): a is string => !!a && a !== name))];
   await tx([
     [
-      `WITH old AS (SELECT to_jsonb(s) || jsonb_build_object('aliases', (SELECT jsonb_agg(alias ORDER BY alias) FROM spec_aliases WHERE spec_id = $1::uuid)) j FROM specs s WHERE id = $1::uuid)
+      `WITH old AS (SELECT s.id, to_jsonb(s) || jsonb_build_object('aliases', (SELECT jsonb_agg(alias ORDER BY alias) FROM spec_aliases WHERE spec_id = s.id)) j FROM specs s WHERE s.id = $1::uuid)
        INSERT INTO change_log (entity, entity_id, action, summary, before)
-       SELECT 'spec', $1::text, 'update', 'Edited ingredient ' || $2, old.j FROM old`,
+       SELECT 'spec', old.id::text, 'update', 'Edited ingredient ' || $2, old.j FROM old`,
       [id, name],
     ],
     ["DELETE FROM spec_aliases WHERE spec_id = $1", [id]],
@@ -183,8 +183,8 @@ export async function saveSpec(id: string, body: Record<string, unknown>) {
     ["SELECT set_spec_primary_family($1, $2)", [id, familyId]],
     ["INSERT INTO spec_aliases (spec_id, alias) SELECT $1, unnest($2::text[])", [id, aliases]],
     [
-      `UPDATE change_log SET after = (SELECT to_jsonb(s) || jsonb_build_object('aliases', (SELECT jsonb_agg(alias ORDER BY alias) FROM spec_aliases WHERE spec_id = $1::uuid)) FROM specs s WHERE id = $1::uuid)
-        WHERE id = (SELECT max(id) FROM change_log WHERE entity = 'spec' AND entity_id = $1::text)`,
+      `UPDATE change_log SET after = (SELECT to_jsonb(s) || jsonb_build_object('aliases', (SELECT jsonb_agg(alias ORDER BY alias) FROM spec_aliases WHERE spec_id = s.id)) FROM specs s WHERE s.id = $1::uuid)
+        WHERE id = (SELECT max(c.id) FROM change_log c JOIN specs s ON s.id = $1::uuid AND c.entity = 'spec' AND c.entity_id = s.id::text)`,
       [id],
     ],
   ]);
@@ -224,10 +224,11 @@ export async function deleteSubstitution(body: Record<string, unknown>) {
   await tx([
     [
       `INSERT INTO change_log (entity, entity_id, action, summary, before)
-       SELECT 'substitution', $1::text || ':' || $2::text, 'delete',
-              'Removed: ' || a.canonical_name || ' for ' || b.canonical_name, $4::jsonb
+       SELECT 'substitution', a.id::text || ':' || b.id::text, 'delete',
+              'Removed: ' || a.canonical_name || ' for ' || b.canonical_name,
+              jsonb_build_object('source', a.id, 'target', b.id, 'both', $3::boolean)
          FROM specs a, specs b WHERE a.id = $1::uuid AND b.id = $2::uuid`,
-      [source, target, both, JSON.stringify({ source, target, both })],
+      [source, target, both],
     ],
     [
       `DELETE FROM spec_substitutions WHERE (source_spec_id = $1 AND target_spec_id = $2)
@@ -321,7 +322,7 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
   if (id) {
     stmts.push([
       `INSERT INTO change_log (entity, entity_id, action, summary, before)
-       SELECT 'recipe', $1::text, 'update', 'Edited ' || $2, ${RECIPE_JSON} FROM recipes r WHERE r.id = $1::uuid`,
+       SELECT 'recipe', r.id::text, 'update', 'Edited ' || $2, ${RECIPE_JSON} FROM recipes r WHERE r.id = $1::uuid`,
       [rid, r.name],
     ]);
     stmts.push([
@@ -346,13 +347,13 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
   if (id) {
     stmts.push([
       `UPDATE change_log SET after = (SELECT ${RECIPE_JSON} FROM recipes r WHERE r.id = $1::uuid)
-        WHERE id = (SELECT max(id) FROM change_log WHERE entity = 'recipe' AND entity_id = $1::text)`,
+        WHERE id = (SELECT max(c.id) FROM change_log c JOIN recipes r ON r.id = $1::uuid AND c.entity = 'recipe' AND c.entity_id = r.id::text)`,
       [rid],
     ]);
   } else {
     stmts.push([
       `INSERT INTO change_log (entity, entity_id, action, summary, after)
-       SELECT 'recipe', $1::text, 'create', 'Added ' || $2, ${RECIPE_JSON} FROM recipes r WHERE r.id = $1::uuid`,
+       SELECT 'recipe', r.id::text, 'create', 'Added ' || $2, ${RECIPE_JSON} FROM recipes r WHERE r.id = $1::uuid`,
       [rid, r.name],
     ]);
   }
@@ -381,7 +382,7 @@ export async function duplicateRecipe(id: string) {
     ],
     [
       `INSERT INTO change_log (entity, entity_id, action, summary, after)
-       SELECT 'recipe', $1::text, 'create', 'Duplicated as ' || $2, ${RECIPE_JSON} FROM recipes r WHERE r.id = $1::uuid`,
+       SELECT 'recipe', r.id::text, 'create', 'Duplicated as ' || $2, ${RECIPE_JSON} FROM recipes r WHERE r.id = $1::uuid`,
       [nid, name],
     ],
   ]);

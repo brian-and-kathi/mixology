@@ -206,6 +206,7 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
                       {[l.use_instead ? `use ${l.use_instead}` : null, l.optional ? "(optional)" : null, l.note].filter(Boolean).join(" · ")}
                     </small>
                   ) : null}
+                  {l.bottles ? <small className="tv-band-bottles">{l.bottles}</small> : null}
                 </span>
               </div>
             ))}

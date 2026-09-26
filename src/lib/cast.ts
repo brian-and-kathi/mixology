@@ -1,13 +1,13 @@
 import { query } from "@/lib/db";
 import { altGlassLine, cap, lineText, methodParts, serveParts, tvGlassLine } from "@/lib/format";
-import { loadPour, loadRecipe } from "@/lib/menu";
+import { bottleLine, loadPour, loadRecipe } from "@/lib/menu";
 
 // "Show on TV": one cast record (tv_cast, migration 015). A cast lasts 5 minutes, a new cast
 // replaces the old one, and anyone on that item's phone page can take it off.
 export const CAST_SECONDS = 300;
 export type CastType = "recipe" | "pour";
 
-export type CastLine = { amount: string; name: string; out: boolean; use_instead: string | null; optional: boolean; note: string | null };
+export type CastLine = { amount: string; name: string; out: boolean; use_instead: string | null; optional: boolean; note: string | null; bottles: string | null };
 export type CastPayload =
   | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; lines: CastLine[]; method_label: string; method: string[] }
   | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null };
@@ -25,7 +25,10 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
       // Same as the phone: an optional ingredient that is out with no stand-in is left off.
       lines: r.lines.filter((l) => l.required || l.available || l.use_instead).map((l) => ({
         ...lineText(l.amount, l.unit, l.name), out: !l.available,
-        use_instead: l.use_instead ? cap(l.use_instead) : null, optional: !l.required, note: l.note,
+        use_instead: l.use_instead ? cap(l.use_instead) : null, optional: !l.required,
+        // A preferred bottle is already named in the bottle line, same as the phone.
+        note: l.note && !l.preferred ? l.note : null,
+        bottles: l.bottles ? bottleLine(l.bottles, " · ", l.preferred) : null,
       })),
       method_label: methodParts(r.description, r.method_style).label,
       method: methodParts(r.description, r.method_style).paragraphs,

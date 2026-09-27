@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlassIcon } from "@/components/GlassIcon";
 import { KNOCK_PAD, knockGlass, type KnockId } from "@/lib/night-pad";
@@ -17,11 +17,26 @@ function KnockKey({ glass, disabled, onPress }: { glass: (typeof KNOCK_PAD)[numb
 /** The door's challenge: three glasses, then it either opens or forgets the attempt. */
 export function Door() {
   const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playing = useRef(false);
+  const sent = useRef(false);
   const [presses, setPresses] = useState<KnockId[]>([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(false);
   const [note, setNote] = useState("");
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const hold = () => {
+      if (playing.current) return;
+      video.pause();
+      if (video.currentTime !== 0) video.currentTime = 0;
+    };
+    video.addEventListener("loadeddata", hold);
+    return () => video.removeEventListener("loadeddata", hold);
+  }, []);
 
   async function finish(next: KnockId[]) {
     setBusy(true);
@@ -32,10 +47,25 @@ export function Door() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ glasses: next }),
       });
+      if (!res.ok) sent.current = false;
       if (res.ok) {
         setOpen(true);
-        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        window.setTimeout(() => router.push("/lounge"), reduce ? 0 : 900);
+        const video = videoRef.current;
+        const go = () => router.push("/lounge");
+        if (!video) {
+          go();
+          return;
+        }
+        playing.current = true;
+        const limit = Number.isFinite(video.duration) ? video.duration * 1000 + 800 : 12_000;
+        const timer = window.setTimeout(go, limit);
+        video.addEventListener("ended", () => { window.clearTimeout(timer); go(); }, { once: true });
+        try {
+          await video.play();
+        } catch {
+          window.clearTimeout(timer);
+          go();
+        }
         return;
       }
       setShake(true);
@@ -43,6 +73,7 @@ export function Door() {
       setNote(res.status === 503 ? "Unavailable" : "Try again");
       window.setTimeout(() => setShake(false), 450);
     } catch {
+      sent.current = false;
       setPresses([]);
       setNote("Try again");
     } finally {
@@ -51,19 +82,33 @@ export function Door() {
   }
 
   function press(id: KnockId) {
-    if (busy || open || presses.length >= 3) return;
-    const next = [...presses, id];
-    setPresses(next);
+    if (busy || open) return;
     setNote("");
-    if (next.length === 3) void finish(next);
+    setPresses((current) => (current.length >= 3 ? current : [...current, id]));
   }
+
+  useEffect(() => {
+    if (presses.length === 3 && !sent.current) {
+      sent.current = true;
+      void finish(presses);
+    }
+  }, [presses]);
 
   const keys = KNOCK_PAD.slice(0, 9);
   const last = KNOCK_PAD[9];
 
   return (
     <main className="cover door-scene">
-      <div className={open ? "door open" : "door"}>
+      <video
+        ref={videoRef}
+        className="door-video"
+        src="/heavy_door_opening.mp4"
+        muted
+        playsInline
+        preload="auto"
+        aria-hidden
+      />
+      <div className="door">
         <p className="door-knock">Knock</p>
         <div className={shake ? "door-slots shake" : "door-slots"} aria-hidden>
           {[0, 1, 2].map((index) => {
@@ -93,7 +138,6 @@ export function Door() {
             </svg>
           </button>
         </div>
-        <span className="door-knob" aria-hidden />
         <p className="door-note" role="status">{note}</p>
       </div>
     </main>

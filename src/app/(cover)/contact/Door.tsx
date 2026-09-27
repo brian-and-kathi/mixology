@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import { GlassIcon } from "@/components/GlassIcon";
 import { KNOCK_PAD, knockGlass, type KnockId } from "@/lib/night-pad";
 
+function KnockKey({ glass, disabled, onPress }: { glass: (typeof KNOCK_PAD)[number]; disabled: boolean; onPress: (id: KnockId) => void }) {
+  return (
+    <button type="button" className="knock-key" aria-label={glass.label} disabled={disabled} onClick={() => onPress(glass.id)}>
+      <GlassIcon glass={glass.name} label="" />
+      <span className="knock-tip" role="tooltip">{glass.label}</span>
+    </button>
+  );
+}
+
 /** The door's challenge: three glasses, then it either opens or forgets the attempt. */
 export function Door() {
   const router = useRouter();
@@ -68,14 +77,10 @@ export function Door() {
         </div>
         <div className="knock-pad" role="group" aria-label="Knock">
           {keys.map((glass) => (
-            <button key={glass.id} type="button" className="knock-key" aria-label={glass.label} disabled={busy || open} onClick={() => press(glass.id)}>
-              <GlassIcon glass={glass.name} label="" />
-            </button>
+            <KnockKey key={glass.id} glass={glass} disabled={busy || open} onPress={press} />
           ))}
           <span className="knock-gap" />
-          <button type="button" className="knock-key" aria-label={last.label} disabled={busy || open} onClick={() => press(last.id)}>
-            <GlassIcon glass={last.name} label="" />
-          </button>
+          <KnockKey glass={last} disabled={busy || open} onPress={press} />
           <button
             type="button"
             className="knock-key knock-undo"

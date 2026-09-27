@@ -225,6 +225,7 @@ body:has(.cover) { background: #100e0c; }
   gap: 0.7rem 0.85rem;
 }
 .knock-key {
+  position: relative;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -234,6 +235,28 @@ body:has(.cover) { background: #100e0c; }
   color: #f0e6d4;
   cursor: pointer;
   padding: 0;
+}
+.knock-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: #2a241c;
+  border: 1px solid rgba(240, 230, 212, 0.35);
+  color: #f0e6d4;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0s;
+}
+.knock-key:hover .knock-tip {
+  opacity: 1;
+  transition-delay: 1s;
 }
 .knock-key .glass { width: 1.85rem; height: 1.85rem; }
 .knock-key:disabled { opacity: 0.45; cursor: default; }

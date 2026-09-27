@@ -14,11 +14,17 @@ export function Tonight({ night }: { night: Night }) {
       <div className="a-night-glasses">
         {night.glasses.map((id, index) => {
           const glass = knockGlass(id);
-          return glass ? <GlassIcon key={`${id}-${index}`} glass={glass.name} label={glass.label} /> : null;
+          if (!glass) return null;
+          return (
+            <div key={`${id}-${index}`} className="a-night-glass">
+              <GlassIcon glass={glass.name} label="" />
+              <span>{glass.label}</span>
+            </div>
+          );
         })}
       </div>
       <p className="a-night-words">
-        {cap(night.words.color)} {cap(night.words.verb)} {cap(night.words.animal)}
+        “{cap(night.words.color)} {cap(night.words.verb)} {cap(night.words.animal)}”
       </p>
       <p className="a-quiet a-small">The knock, then the words said at the door.</p>
     </section>

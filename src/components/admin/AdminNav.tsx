@@ -8,6 +8,7 @@ const TABS = [
   { href: "/admin/bottles", label: "Bottles" },
   { href: "/admin/recipes", label: "Recipes" },
   { href: "/admin/ingredients", label: "Ingredients" },
+  { href: "/admin/establishment", label: "Establishment" },
 ];
 
 /** Bottom tab bar on phones, top bar on laptops. Hidden on add/edit pages (they have ‹ Back). */

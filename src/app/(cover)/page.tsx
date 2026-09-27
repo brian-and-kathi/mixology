@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Fraunces, Outfit } from "next/font/google";
 import Link from "next/link";
+import { commitRef } from "@/lib/version";
 
 const shopDisplay = Fraunces({
   subsets: ["latin"],
@@ -16,6 +17,24 @@ const shopSans = Outfit({
 });
 
 export const metadata: Metadata = { title: { absolute: "Hart & Ward" } };
+
+const LANES: { title: string; text: string; icon: ReactNode }[] = [
+  {
+    title: "Residential",
+    text: "Rekey the house, fit a deadbolt, or cut one key for every door. Safes opened when you can show the safe is yours.",
+    icon: <LockIcon />,
+  },
+  {
+    title: "Automotive",
+    text: "Locked out of the car you are standing beside. We come to that door and open the lock.",
+    icon: <KeyIcon />,
+  },
+  {
+    title: "Commercial",
+    text: "Storefront cylinders, panic hardware, and a small master-key system for a shop with more than one door.",
+    icon: <StoreIcon />,
+  },
+];
 
 const SERVICES: { title: string; text: string; icon: ReactNode }[] = [
   {
@@ -50,6 +69,20 @@ const SERVICES: { title: string; text: string; icon: ReactNode }[] = [
   },
 ];
 
+const LOCKOUTS: [string, string][] = [
+  ["Car lockout", "The key is inside, or gone."],
+  ["Home lockout", "Front door, side door, or a lock that failed."],
+  ["Shop lockout", "After closing, the storefront still has to open."],
+];
+
+const TRUST = [
+  "Lockouts any hour",
+  "Licensed and insured",
+  "Locally owned since 1978",
+  "Keys cut while you wait",
+  "We work on the lock you have",
+];
+
 const HOURS: [string, string][] = [
   ["Monday", "8:00 – 6:00"],
   ["Tuesday", "8:00 – 6:00"],
@@ -62,146 +95,129 @@ const HOURS: [string, string][] = [
 
 /** Public front. A locksmith's shop, with nowhere to go but the door and the office. */
 export default function ShopPage() {
+  const commit = commitRef();
   return (
     <main className={`cover shop ${shopDisplay.variable} ${shopSans.variable}`}>
-      <header className="shop-bar">
-        <div className="shop-brand">
-          <Mark />
-          <div>
-            <p className="shop-kicker">Locksmiths since 1978</p>
-            <p className="shop-brand-name">Hart &amp; Ward</p>
-          </div>
-        </div>
-      </header>
+      <div className="shop-top">
+        <p>Licensed &amp; insured · HW-1978</p>
+        <p className="shop-sha" title={commit.full ? `git ${commit.full}` : undefined}>{commit.short}</p>
+      </div>
 
-      <section className="shop-hero">
-        <div className="shop-hero-copy">
-          <div className="shop-doodles" aria-hidden>
-            <KeyRing />
-            <Padlock />
-            <Cylinder />
-            <KeyBlank />
+      <div className="shop-wrap">
+        <header className="shop-bar">
+          <div className="shop-brand">
+            <Mark />
+            <div>
+              <p className="shop-kicker">Locksmiths since 1978</p>
+              <p className="shop-brand-name">Hart &amp; Ward</p>
+            </div>
           </div>
+          <div className="shop-call">
+            <p className="shop-call-label">Telephone the shop</p>
+            <p className="shop-call-num">555-0148</p>
+            <p className="shop-call-sub">Day or night for a lockout</p>
+          </div>
+        </header>
+
+        <section className="shop-hero">
+          <div className="shop-hero-copy">
+            <div>
+              <p className="shop-eyebrow">Residential, commercial, and automotive</p>
+              <h1>Emergency locksmith. <em>At your door.</em></h1>
+              <p className="shop-lede">
+                A bench shop with a van. We cut keys, rekey cylinders, fit deadbolts, and open the lock when the key is gone.
+                Shop license HW-1978.
+              </p>
+              <ul className="shop-trust">
+                {TRUST.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          </div>
+          <figure className="shop-portrait">
+            <img src="/hart_and_ward.jpg" alt="The Hart & Ward locksmith holds out a house key in front of the shop van." />
+            <figcaption>On the van. At your door.</figcaption>
+          </figure>
+        </section>
+
+        <section className="shop-lanes" aria-label="Kinds of work">
+          {LANES.map((lane) => (
+            <article key={lane.title}>
+              <span className="shop-ico" aria-hidden>{lane.icon}</span>
+              <h2>{lane.title}</h2>
+              <p>{lane.text}</p>
+              <p className="shop-lane-call">Telephone 555-0148</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="shop-emergency">
+          <div className="shop-scene">
+            <figure>
+              <img src="/lost-key.jpg" alt="In the rain, a hand tries a locked car door while the owner waits." />
+            </figure>
+            <div>
+              <h2>When the key is gone</h2>
+              <p>Rain on the glass, and the door that will not open. Telephone the shop. Someone comes to the car, the house, or the storefront you are standing beside.</p>
+            </div>
+          </div>
+          <ul className="shop-lockouts">
+            {LOCKOUTS.map(([title, text]) => (
+              <li key={title}>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="shop-services" aria-labelledby="shop-services-title">
+          <h2 id="shop-services-title">At the bench</h2>
+          <ul>
+            {SERVICES.map((service) => (
+              <li key={service.title}>
+                <span className="shop-ico" aria-hidden>{service.icon}</span>
+                <h3>{service.title}</h3>
+                <p>{service.text}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="shop-split">
           <div>
-            <p className="shop-eyebrow">The spare is in good hands</p>
-            <h1>He&apos;ll meet you <em>at the door.</em></h1>
-            <p className="shop-lede">
-              A bench shop with a van. We cut keys, rekey cylinders, fit deadbolts, and open the lock when the key is gone.
-              Licensed and insured. Shop license HW-1978.
-            </p>
-            <ul className="shop-facts">
-              <li>Keys cut while you wait</li>
-              <li>Lockouts any hour</li>
-              <li>We work on the lock, not around it</li>
+            <h2>The shop</h2>
+            <p>14 Latch Lane. Street door, brass pull, the name in the glass. The bench is in the front window.</p>
+            <p>Telephone 555-0148. Say what the lock is, and whether you are outside it.</p>
+            <h3>On the bench</h3>
+            <ul className="shop-plain">
+              <li>Pin kits for the common house cylinders</li>
+              <li>Brass and nickel blanks, including a short run of bit keys</li>
+              <li>A code machine, impressioning files, and plug followers</li>
+              <li>Deadbolts and a few storefront cylinders in the drawer</li>
             </ul>
           </div>
-        </div>
-        <figure className="shop-portrait">
-          <img src="/hart_and_ward.jpg" alt="The Hart & Ward locksmith holds out a house key in front of the shop van." />
-          <figcaption>On the van. At your door.</figcaption>
-        </figure>
-      </section>
+          <div>
+            <h2>Hours</h2>
+            <table className="shop-hours">
+              <tbody>
+                {HOURS.map(([day, time]) => (
+                  <tr key={day}>
+                    <th scope="row">{day}</th>
+                    <td>{time}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="shop-note">Lockouts after closing: telephone the shop. Someone answers.</p>
+          </div>
+        </section>
 
-      <section className="shop-scene">
-        <figure>
-          <img src="/lost-key.jpg" alt="In the rain, a hand tries a locked car door while the owner waits." />
-        </figure>
-        <div>
-          <h2>When the key is gone</h2>
-          <p>Rain on the glass, and the door that will not open. Telephone the shop. Someone comes to the car you are standing beside.</p>
-        </div>
-      </section>
-
-      <section className="shop-services" aria-labelledby="shop-services-title">
-        <h2 id="shop-services-title">At the bench</h2>
-        <ul>
-          {SERVICES.map((service) => (
-            <li key={service.title}>
-              <span className="shop-ico" aria-hidden>{service.icon}</span>
-              <h3>{service.title}</h3>
-              <p>{service.text}</p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="shop-split">
-        <div>
-          <h2>The shop</h2>
-          <p>14 Latch Lane. Street door, brass pull, the name in the glass. The bench is in the front window.</p>
-          <p>Telephone 555-0148. Say what the lock is, and whether you are outside it.</p>
-          <h3>On the bench</h3>
-          <ul className="shop-plain">
-            <li>Pin kits for the common house cylinders</li>
-            <li>Brass and nickel blanks, including a short run of bit keys</li>
-            <li>A code machine, impressioning files, and plug followers</li>
-            <li>Deadbolts and a few storefront cylinders in the drawer</li>
-          </ul>
-        </div>
-        <div>
-          <h2>Hours</h2>
-          <table className="shop-hours">
-            <tbody>
-              {HOURS.map(([day, time]) => (
-                <tr key={day}>
-                  <th scope="row">{day}</th>
-                  <td>{time}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="shop-note">Lockouts after closing: telephone the shop. Someone answers.</p>
-        </div>
-      </section>
-
-      <footer className="shop-foot">
-        <Link href="/contact">Contact us</Link>
-        <Link href="/admin">Admin</Link>
-      </footer>
+        <footer className="shop-foot">
+          <Link href="/contact">Contact us</Link>
+          <Link href="/admin">Admin</Link>
+        </footer>
+      </div>
     </main>
-  );
-}
-
-function KeyRing() {
-  return (
-    <svg viewBox="0 0 80 80">
-      <circle cx="28" cy="30" r="10" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" />
-      <path d="M36 36l22 22M50 50l8-3M56 58l7-3" fill="none" stroke="#8a5a32" strokeWidth="1.8" strokeLinejoin="round" />
-      <circle cx="50" cy="22" r="7" fill="#fffaf3" stroke="#8a5a32" strokeWidth="1.6" />
-      <path d="M55 27l12 8" fill="none" stroke="#8a5a32" strokeWidth="1.6" />
-    </svg>
-  );
-}
-
-function Padlock() {
-  return (
-    <svg viewBox="0 0 80 80">
-      <path d="M26 36V28a14 14 0 0 1 28 0v8" fill="none" stroke="#8a5a32" strokeWidth="1.8" />
-      <rect x="20" y="34" width="40" height="30" rx="4" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" />
-      <circle cx="40" cy="48" r="3" fill="#8a5a32" />
-      <path d="M40 51v6" stroke="#8a5a32" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function Cylinder() {
-  return (
-    <svg viewBox="0 0 80 80">
-      <rect x="18" y="22" width="44" height="36" rx="4" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" />
-      <circle cx="40" cy="40" r="10" fill="#fffaf3" stroke="#8a5a32" strokeWidth="1.8" />
-      <circle cx="40" cy="40" r="3" fill="#8a5a32" />
-      <path d="M40 22v6M40 52v6M18 40h6M56 40h6" stroke="#8a5a32" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function KeyBlank() {
-  return (
-    <svg viewBox="0 0 80 80">
-      <circle cx="30" cy="26" r="12" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" />
-      <circle cx="30" cy="26" r="4" fill="#fffaf3" stroke="#8a5a32" strokeWidth="1.4" />
-      <path d="M40 32l22 28H48l-2-6h-6l-2 6" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" strokeLinejoin="round" />
-    </svg>
   );
 }
 
@@ -239,7 +255,7 @@ function PinsIcon() {
   return (
     <svg viewBox="0 0 48 48">
       <rect x="8" y="20" width="32" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M16 20v-8M24 20v-8M32 20v-8M16 12h0M24 12h0M32 12h0" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M16 20v-8M24 20v-8M32 20v-8" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }

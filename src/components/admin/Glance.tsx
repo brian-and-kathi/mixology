@@ -6,7 +6,7 @@ import type { Glance as GlanceData } from "@/lib/admin-data";
 import { cap } from "@/lib/format";
 import { Disclosure } from "./Disclosure";
 
-/** "At a glance": one compact card at the top of Stock that expands in place. */
+/** "At a glance": recipes the bar can make, and what to buy. Lives on Establishment. */
 export function Glance({ data }: { data: GlanceData }) {
   const [copied, setCopied] = useState(false);
   const label = (b: GlanceData["buy"][number]) =>

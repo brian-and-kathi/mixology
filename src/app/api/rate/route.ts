@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/db";
+import { publish } from "@/lib/relay";
 import { GUEST_COOKIE, GUEST_COOKIE_MAX_AGE, loadAverage, rateDrink, voteRateLimited, type RatingKind } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
   const result = await rateDrink(kind, id, device, stars).catch(() => undefined);
   if (result === undefined) return json({ error: "Couldn't save your rating. Try again." }, 503);
   if (result === null) return json({ error: "That drink isn't on the menu." }, 404);
+  publish("bar:menu", "rating"); // the TV board shows averages
   const res = json({ ...result, mine: stars });
   if (device !== existing) {
     res.cookies.set(GUEST_COOKIE, device, {

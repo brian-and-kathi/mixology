@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `wrangler dev` and put a random value in RELAY_SECRET
+# (e.g. `openssl rand -hex 32`). The app needs the same value in RELAY_SECRET.
+RELAY_SECRET="change-me"
+ALLOWED_ORIGINS="*"

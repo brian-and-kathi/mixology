@@ -1,0 +1,23 @@
+// Mixology realtime relay: a tiny pub/sub of "something changed" notices.
+// See README.md. Deploy: `npx wrangler deploy` (after `wrangler login` and
+// `wrangler secret put RELAY_SECRET`).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mixology-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [{ "name": "TOPIC", "class_name": "Topic" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Topic"] }],
+  "vars": {
+    // Comma-separated browser origins allowed to open a socket. Empty or "*"
+    // allows any origin (fine for dev; set the real domains in production).
+    "ALLOWED_ORIGINS": "https://speakeasy.brianandkathi.com,https://mixology-xi.vercel.app"
+  }
+  // Secret (not in this file): RELAY_SECRET, the bearer the app uses to publish.
+  //   local:  relay/.dev.vars   (gitignored)
+  //   remote: npx wrangler secret put RELAY_SECRET
+}

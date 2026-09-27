@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Geist, Geist_Mono, Rock_Salt } from "next/font/google";
 import { RegisterSW } from "@/components/RegisterSW";
 import { BAR_NAME } from "@/lib/brand";
+import { relaySocketUrl } from "@/lib/relay";
 import "./globals.css";
 
 const sans = Geist({ subsets: ["latin"], variable: "--font-sans" });
@@ -32,9 +33,13 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Realtime relay socket URL (lib/relay-client reads it); absent when RELAY_URL is unset, so
+  // pages just poll as before. React hoists the meta into <head>.
+  const relay = relaySocketUrl();
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable} ${display.variable} ${script.variable}`}>
       <body>
+        {relay ? <meta name="relay-url" content={relay} /> : null}
         {children}
         <RegisterSW />
       </body>

@@ -122,6 +122,8 @@ Names only. Never put values in the repo, tickets or chat.
 | `BAR_NAME` | optional | optional | Wordmark text (default "The Addled Cortex"). |
 | `VERCEL_GIT_COMMIT_SHA` | automatic | automatic | Set by Vercel; the TV's build hash. |
 | `GIT_SHA` | not used | not used | The commit shown on the TV outside Vercel (container build arg, local). |
+| `RELAY_URL` | optional | optional | Base URL of the realtime relay Worker ([relay/README.md](relay/README.md)). Unset (today): pages poll as before. |
+| `RELAY_SECRET` | with `RELAY_URL` | with `RELAY_URL` | Sensitive. Bearer for publishing to the relay; same value as the Worker's `RELAY_SECRET` secret. |
 
 Vercel applies env var changes only to new deployments, so redeploy after changing one.
 

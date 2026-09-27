@@ -7,4 +7,4 @@ export const POST = adminApi(async (req: Request) => {
   const u = Number(body.undo_of);
   const undo = Number.isInteger(u) && u > 0 ? u : undefined;
   return NextResponse.json(await setStock(String(body.id ?? ""), body.in_stock === true, undo));
-});
+}, { topic: "bar:menu", kind: "stock" });

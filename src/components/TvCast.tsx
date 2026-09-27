@@ -3,9 +3,12 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
 import type { Cast, CastPayload } from "@/lib/cast";
+import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
 
 // TV side of "Show on TV" (DESIGN §10). Polls /api/cast every 4 s; while something is cast,
 // a bottom band slides up and the menu above shrinks to fit, with the cast item highlighted.
+// With the realtime relay live, a "bar:cast" notice triggers the fetch instead and the poll
+// drops to a slow fallback (plus a check whenever the TV tab comes back into view).
 const POLL_MS = 4000;
 const SLIDE_MS = 400;
 
@@ -27,6 +30,7 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
   const offset = useRef(0); // server clock minus ours, so the countdown matches expires_at
 
   // Poll the single cast record. A repeat of the same cast is a 304: no new payload, just the clock.
+  const pollRef = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
     let stop = false;
     let rev = "";
@@ -48,13 +52,24 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
         // Network blip: keep showing what we have; the clock still ends it on time.
       }
     };
+    pollRef.current = poll;
     void poll();
-    const id = window.setInterval(poll, POLL_MS);
     return () => {
       stop = true;
-      window.clearInterval(id);
+      pollRef.current = async () => {};
     };
   }, []);
+  const relayLive = useRelay("bar:cast", () => void pollRef.current());
+  useEffect(() => {
+    const id = window.setInterval(() => void pollRef.current(), relayLive ? RELAY_FALLBACK_MS : POLL_MS);
+    if (!relayLive) return () => window.clearInterval(id);
+    const onVis = () => { if (!document.hidden) void pollRef.current(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [relayLive]);
 
   // One clock drives both the progress bar and the m:ss label, so they always agree.
   useEffect(() => {

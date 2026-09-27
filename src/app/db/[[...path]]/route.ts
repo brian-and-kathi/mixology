@@ -1,5 +1,6 @@
 import { isAdmin } from "@/lib/admin-guard";
 import { handleDb } from "@/lib/db-admin/handle";
+import { publish } from "@/lib/relay";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +20,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ path?: string[]
 
 export async function POST(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
   const { path = [] } = await ctx.params;
-  return gate(req, path);
+  const res = await gate(req, path);
+  // Any accepted /db write may change the menu: tell the TV (a no-op edit just costs one refresh).
+  if (res.status < 400 && (await isAdmin())) publish("bar:menu", "db");
+  return res;
 }

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import { publish, type RelayTopic } from "@/lib/relay";
 
 /** Server-side session check for admin route handlers (defense in depth behind proxy.ts). */
 export async function isAdmin(): Promise<boolean> {
@@ -10,12 +11,17 @@ export async function isAdmin(): Promise<boolean> {
 
 export const unauthorized = () => NextResponse.json({ error: "Sign in required" }, { status: 401 });
 
-/** Wraps an admin API handler: 401 without a valid session, friendly JSON errors otherwise. */
-export function adminApi<A extends unknown[]>(handler: (...args: A) => Promise<Response>) {
+/**
+ * Wraps an admin API handler: 401 without a valid session, friendly JSON errors otherwise.
+ * `notify` publishes a realtime relay notice after a successful (2xx) response (lib/relay).
+ */
+export function adminApi<A extends unknown[]>(handler: (...args: A) => Promise<Response>, notify?: { topic: RelayTopic; kind: string }) {
   return async (...args: A): Promise<Response> => {
     if (!(await isAdmin())) return unauthorized();
     try {
-      return await handler(...args);
+      const res = await handler(...args);
+      if (notify && res.ok) publish(notify.topic, notify.kind);
+      return res;
     } catch (err) {
       const message = err instanceof UserError ? err.message : dbMessage(err);
       // Known database rule violations (duplicate name, blocked pair, in use) are the user's to fix: 4xx.

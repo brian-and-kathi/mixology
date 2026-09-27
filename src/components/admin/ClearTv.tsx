@@ -2,6 +2,8 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { api } from "@/components/admin/api";
+import { subscribeRelay } from "@/lib/relay-client";
+import { RELAY_FALLBACK_MS } from "@/lib/use-relay";
 
 type Showing = { name: string; expires: number } | null;
 
@@ -21,6 +23,8 @@ let users = 0;
 let poll = 0;
 let tick = 0;
 let rev = "";
+let unsubscribeRelay: () => void = () => {};
+const POLL_MS = 10_000;
 
 function emit() {
   for (const listener of listeners) listener();
@@ -64,14 +68,23 @@ async function load() {
   }
 }
 
+function setPoll(ms: number) {
+  window.clearInterval(poll);
+  poll = window.setInterval(() => void load(), ms);
+}
+
 function start() {
   void load();
-  poll = window.setInterval(() => void load(), 10_000);
+  setPoll(POLL_MS);
+  // Relay live: a "bar:cast" notice triggers the check and the poll slows to a fallback.
+  unsubscribeRelay = subscribeRelay("bar:cast", () => void load(), (live) => setPoll(live ? RELAY_FALLBACK_MS : POLL_MS));
   document.addEventListener("visibilitychange", load);
   syncTick();
 }
 
 function stop() {
+  unsubscribeRelay();
+  unsubscribeRelay = () => {};
   window.clearInterval(poll);
   window.clearInterval(tick);
   poll = 0;

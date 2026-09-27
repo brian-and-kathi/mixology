@@ -6,4 +6,4 @@ import { clearCast } from "@/lib/cast";
 export const DELETE = adminApi(async () => {
   await clearCast();
   return NextResponse.json({ cast: null, now: new Date().toISOString() });
-});
+}, { topic: "bar:cast", kind: "clear" });

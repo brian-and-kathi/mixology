@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
 
 type CastState = { type: string; id: string; started_at: string; expires_at: string } | null;
 
@@ -74,6 +75,9 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
   }, [type, id]);
 
   // Keep in step with the TV (someone else may cast or take it off); pause when hidden.
+  // With the relay live, a "bar:cast" notice triggers the check and the poll slows to a fallback.
+  const loadRef = useRef<() => Promise<void>>(async () => {});
+  const relayLive = useRelay("bar:cast", () => void loadRef.current());
   useEffect(() => {
     let stop = false;
     let rev = "";
@@ -95,17 +99,21 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
         // Offline for a moment: keep the last known state.
       }
     };
+    loadRef.current = load;
     void load();
-    const poll = window.setInterval(load, POLL_MS);
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
     document.addEventListener("visibilitychange", load);
     return () => {
       stop = true;
-      window.clearInterval(poll);
+      loadRef.current = async () => {};
       window.clearInterval(tick);
       document.removeEventListener("visibilitychange", load);
     };
   }, [apply]);
+  useEffect(() => {
+    const poll = window.setInterval(() => void loadRef.current(), relayLive ? RELAY_FALLBACK_MS : POLL_MS);
+    return () => window.clearInterval(poll);
+  }, [relayLive]);
 
   // This tab started the cast: take it off when they leave the page, or after the page has been
   // hidden (switched apps, screen off) for a few seconds. Back within that window leaves it up.

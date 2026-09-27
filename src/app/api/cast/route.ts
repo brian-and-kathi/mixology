@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { castRateLimited, castRevision, currentCast, startCast, stopCast, type CastType } from "@/lib/cast";
 import { isUuid } from "@/lib/db";
+import { publish } from "@/lib/relay";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,8 @@ const noStore = { "cache-control": "no-store" };
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: noStore });
 
 /**
- * GET: what the TV should show right now. The TV polls this every 4 seconds.
+ * GET: what the TV should show right now. The TV polls this every 4 seconds (every 5 minutes, plus
+ * on each relay notice, while the realtime relay is live).
  * If-None-Match with the previous ETag (the cast revision, or "none") gets a 304 and does not
  * rebuild the recipe or pour. x-now is the server clock, including on a 304.
  */
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
   if (!item) return json({ error: "Send {type: 'recipe' | 'pour', id}." }, 400);
   const cast = await startCast(item.type, item.id);
   if (!cast) return json({ error: "That item isn't on the menu." }, 404);
+  publish("bar:cast", "cast"); // after the response; TVs and phones refetch GET (lib/relay)
   return json({ cast, now: new Date().toISOString() });
 }
 
@@ -47,5 +50,6 @@ export async function DELETE(req: NextRequest) {
   const item = await parse(req);
   if (!item) return json({ error: "Send {type: 'recipe' | 'pour', id}." }, 400);
   const stopped = await stopCast(item.type, item.id, item.started_at);
+  if (stopped) publish("bar:cast", "clear");
   return json({ stopped, cast: await currentCast(), now: new Date().toISOString() });
 }

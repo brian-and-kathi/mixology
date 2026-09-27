@@ -23,7 +23,7 @@ export default async function TvPage() {
     <>
     <TvCastLayer>
       <style>{"html, body { overflow: hidden; }"}</style>
-      <AutoRefresh seconds={60} />
+      <AutoRefresh seconds={60} topic="bar:menu" />
       <header className="tv-header">
         <h1 className="wordmark tv-wordmark">{BAR_NAME}</h1>
         <MenuQr above={<span className="tv-hash" aria-label={`Build ${commitHash()}`}>{commitHash()}</span>} />

@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import type { RecipeStatus } from "@/lib/admin-data";
 import { cap } from "@/lib/format";
+import { SEARCH } from "@/lib/search-cookie";
+import { useRememberedSearch } from "./useRememberedSearch";
 
 const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 
 /** Recipes tab: search by name or a missing ingredient, and narrow to on-the-menu or missing. */
 export function RecipeList({ recipes, initialQuery = "" }: { recipes: RecipeStatus[]; initialQuery?: string }) {
-  const [q, setQ] = useState(initialQuery);
+  const [q, setQ] = useRememberedSearch(SEARCH.recipes, initialQuery);
   const [mode, setMode] = useState<"all" | "on" | "missing">("all");
   const needle = fold(q.trim());
   const onCount = recipes.filter((r) => r.on_menu).length;

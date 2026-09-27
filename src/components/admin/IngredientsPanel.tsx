@@ -8,15 +8,17 @@ import { cap } from "@/lib/format";
 import { api } from "./api";
 import { SpecPicker } from "./SpecPicker";
 import { Disclosure } from "./Disclosure";
+import { useRememberedSearch } from "./useRememberedSearch";
+import { SEARCH } from "@/lib/search-cookie";
 
 const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 const VERMOUTH = new Set(["sweet vermouth", "dry vermouth"]);
 
 /** Ingredients tab: stand-ins as sentences (with the vermouth rule), then all ingredients by family. */
-export function IngredientsPanel({ specs: initialSpecs, families, subs }: { specs: SpecOption[]; families: Family[]; subs: Sub[] }) {
+export function IngredientsPanel({ specs: initialSpecs, families, subs, initialQuery = "" }: { specs: SpecOption[]; families: Family[]; subs: Sub[]; initialQuery?: string }) {
   const router = useRouter();
   const [specs, setSpecs] = useState(initialSpecs);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useRememberedSearch(SEARCH.ingredients, initialQuery);
   const [source, setSource] = useState<string | null>(null);
   const [target, setTarget] = useState<string | null>(null);
   const [both, setBoth] = useState(false);

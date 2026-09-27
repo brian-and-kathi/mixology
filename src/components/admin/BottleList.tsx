@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import type { StockItem } from "@/lib/admin-data";
 import { KindSwitch, useAdminKind } from "./KindSwitch";
+import { useRememberedSearch } from "./useRememberedSearch";
+import { SEARCH } from "@/lib/search-cookie";
 import { Disclosure } from "./Disclosure";
 import { specLabel } from "@/lib/spec-label";
 
@@ -13,8 +15,8 @@ const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\
  * Bottles, split Spirits | Wines like Stock. Wines: in-stock first, out wines folded into a quiet
  * "Out · N" section (opens by itself when a search matches one). "Add wine" preselects a wine type.
  */
-export function BottleList({ items, saved }: { items: StockItem[]; saved?: string }) {
-  const [q, setQ] = useState("");
+export function BottleList({ items, saved, initialQuery = "" }: { items: StockItem[]; saved?: string; initialQuery?: string }) {
+  const [q, setQ] = useRememberedSearch(SEARCH.bottles, initialQuery);
   const [kind, setKindRaw] = useAdminKind();
   const [outOpen, setOutOpen] = useState<boolean | null>(null);
   const setKind = (k: typeof kind) => {

@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Change, StockItem } from "@/lib/admin-data";
 import { api } from "./api";
 import { KindSwitch, useAdminKind, type Kind } from "./KindSwitch";
+import { useRememberedSearch } from "./useRememberedSearch";
+import { SEARCH } from "@/lib/search-cookie";
 import { Disclosure } from "./Disclosure";
 
 type Result = { name: string; in_stock: boolean; log_id: number | null; blocked: string[]; unlocked: string[] };
@@ -42,7 +44,7 @@ function ago(iso: string, now: number): string {
  */
 export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]; recent: Change[]; initialQuery: string }) {
   const router = useRouter();
-  const [q, setQ] = useState(initialQuery);
+  const [q, setQ] = useRememberedSearch(SEARCH.stock, initialQuery);
   const [outOnly, setOutOnly] = useState(false);
   const [kind, setKindRaw] = useAdminKind();
   // Wines keep the section they were in when first tapped this visit, so a row never jumps away under

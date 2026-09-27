@@ -245,6 +245,10 @@ body:has(.admin-root) { background: #07101c; }
 /* Sign in. Clear TV and sign out live in the header menu; the stock page only reports what is on the TV. */
 .a-login .a-main { max-width: 420px; margin: 8vh auto 0; }
 .a-tvbar { margin: 0; font-size: 0.95rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.a-night { display: flex; flex-direction: column; gap: 0.45rem; }
+.a-night-glasses { display: flex; gap: 0.8rem; align-items: center; }
+.a-night-glasses .glass { width: 2rem; height: 2rem; color: var(--cream); }
+.a-night-words { margin: 0; font-size: 1.15rem; font-weight: 600; }
 .admin-root .a-btn-primary:disabled { background: transparent; color: var(--quiet); border-color: var(--a-line); opacity: 1; }
 /* PIN keypad sign-in: four dots (outline empty, cream filled), 3x4 keys >= 64px with cream outlines,
    centred, even gaps. No text input, so the phone keyboard never opens. */

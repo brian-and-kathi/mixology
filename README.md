@@ -12,8 +12,11 @@ The product contract is `DESIGN.md` (§4 schema, §5 UX, §10 locked rules). It 
 
 | Route | What it is |
 | --- | --- |
-| `/` | **TV board.** Pours, Cocktails, Cellar in columns at full viewport height, with a QR code to `/menu`. The short commit hash sits dimly in the top-right corner. Mouse cursor hidden. |
-| `/menu` | **Phone guest menu.** Tabs in the same order (Pours / Cocktails / Cellar), one card per item. |
+| `/` | **Locksmith shop.** Public cover (Hart & Ward). Two links: Contact us, and Admin. |
+| `/contact` | **The door.** Three glass icons, no digits. The right knock opens the lounge. |
+| `/lounge` | **Tonight's password.** A color, a verb, and an animal, after a correct knock. Both change at 8:00am Eastern. |
+| `/tv` | **TV board.** Pours, Cocktails, Cellar in columns at full viewport height, with a QR code to `/menu`. The short commit hash sits dimly in the top-right corner. Mouse cursor hidden. |
+| `/menu` | **Phone guest menu.** Tabs in the same order (Pours / Cocktails / Cellar), one card per item. Not linked from the shop. |
 | `/recipe/[id]` | **Recipe card.** Glass and service style, ingredients with the in-stock bottles, method, rating. Only buildable recipes are shown. |
 | `/pour/[id]` | **Pour card.** How it's usually served, tasting note, rating. |
 | `/wine/[id]` | **Cellar wine card.** How it's served, pairings, rating. |

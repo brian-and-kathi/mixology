@@ -54,7 +54,7 @@ export function page({ title, active, body, error = null, notice = null }: { tit
 </head>
 <body>
   <header class="top">
-    <a class="mark" href="/">Database</a>
+    <a class="mark" href="/tv">Database</a>
     <nav class="sections" aria-label="Database">${nav}</nav>
     ${menu}
   </header>

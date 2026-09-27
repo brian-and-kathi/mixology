@@ -156,15 +156,16 @@ export function glassFootDrop(glass: string | null | undefined): number {
   return +((((FOOT[key] ?? 54) - 54) / 64) * 2.5).toFixed(4);
 }
 
-export function GlassIcon({ glass, className }: { glass: string | null | undefined; className?: string }) {
+export function GlassIcon({ glass, className, label }: { glass: string | null | undefined; className?: string; label?: string }) {
   const key = BY_NAME[(glass ?? "").trim().toLowerCase()] ?? "default";
   return (
     <svg
       viewBox="0 0 64 64"
       fill="none"
       className={`glass ${className ?? ""}`}
-      role="img"
-      aria-label={glass ? `Served in a ${glass}` : "Glass"}
+      role={label === "" ? undefined : "img"}
+      aria-hidden={label === "" ? true : undefined}
+      aria-label={label === "" ? undefined : (label ?? (glass ? `Served in a ${glass}` : "Glass"))}
     >
       {SHAPES[key]}
     </svg>

@@ -1,0 +1,186 @@
+/* Locksmith cover: the shop, the door, and the lounge. Not the speakeasy frame. */
+body:has(.cover) { background: #100e0c; }
+
+.cover {
+  min-height: 100dvh;
+  background: #100e0c;
+  color: #e7e0d4;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.shop {
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem;
+}
+.shop-card {
+  width: min(28rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.shop-kicker {
+  margin: 0;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: #a89880;
+}
+.shop h1 {
+  margin: 0;
+  font-family: var(--font-display), Palatino, serif;
+  font-weight: 500;
+  font-size: clamp(2.6rem, 8vw, 4rem);
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  color: #f3ecdf;
+}
+.shop-trade {
+  margin: 0.2rem 0 1.2rem;
+  max-width: 22rem;
+  color: #cbbfaa;
+  line-height: 1.45;
+}
+.shop-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+.shop-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  color: #f3ecdf;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(243, 236, 223, 0.45);
+  font-size: 1.05rem;
+}
+.shop-links a:focus-visible { outline: 2px solid #d7c4a1; outline-offset: 3px; }
+
+.door-scene {
+  display: grid;
+  place-items: center;
+  padding: 1.2rem 1rem 1.6rem;
+  perspective: 1400px;
+}
+.door {
+  position: relative;
+  width: min(24rem, 100%);
+  min-height: min(40rem, calc(100dvh - 2.4rem));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2.2rem 2.6rem 1.4rem 1.5rem;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04), transparent 18% 82%, rgba(0, 0, 0, 0.28)),
+    #1a1612;
+  border: 1px solid #3d342b;
+  border-left-width: 10px;
+  border-radius: 2px 8px 8px 2px;
+  box-shadow: inset 0 0 0 8px #241e19, 0 24px 50px rgba(0, 0, 0, 0.45);
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transition: transform 900ms ease;
+}
+.door.open { transform: rotateY(-68deg); }
+.door-knock {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-display), Palatino, serif;
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #f0e6d4;
+}
+.door-slots {
+  display: flex;
+  gap: 0.7rem;
+  min-height: 2.4rem;
+}
+.door-slot {
+  width: 2.3rem;
+  height: 2.3rem;
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid rgba(240, 230, 212, 0.35);
+}
+.door-slot .glass { width: 1.7rem; height: 1.7rem; color: #f0e6d4; }
+.door-slots.shake { animation: door-shake 420ms ease; }
+@keyframes door-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.knock-pad {
+  width: min(18rem, 100%);
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.7rem 0.85rem;
+}
+.knock-key {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(240, 230, 212, 0.38);
+  background: #120f0c;
+  color: #f0e6d4;
+  cursor: pointer;
+  padding: 0;
+}
+.knock-key .glass { width: 1.85rem; height: 1.85rem; }
+.knock-key:disabled { opacity: 0.45; cursor: default; }
+.knock-key:focus-visible { outline: 2px solid #d7c4a1; outline-offset: 3px; }
+.knock-undo { color: #cbbfaa; }
+.door-knob {
+  position: absolute;
+  right: 0.85rem;
+  top: 18%;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ead9b5, #7a6544 62%, #3e3224);
+  box-shadow: 0 0 0 4px #2a241d;
+}
+.door-note {
+  min-height: 1.2rem;
+  margin: 0;
+  color: #c4b39a;
+  font-size: 0.92rem;
+}
+.lounge {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 2rem 1.25rem;
+}
+.lounge-kicker {
+  margin: 0 0 1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: #a89880;
+}
+.lounge-words {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: var(--font-display), Palatino, serif;
+  font-size: clamp(2.4rem, 10vw, 4.2rem);
+  font-weight: 500;
+  line-height: 1.05;
+  color: #f3ecdf;
+}
+.lounge-note {
+  margin: 1.4rem 0 0;
+  color: #cbbfaa;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .door { transition: none; }
+  .door-slots.shake { animation: none; }
+}

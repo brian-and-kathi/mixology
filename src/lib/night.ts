@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { query } from "@/lib/db";
 import { type KnockId, isKnockId, KNOCK_PAD } from "@/lib/night-pad";
 
 /** Spoken-password lists. Short, ordinary words, safe to say at a door. */
@@ -11,6 +12,8 @@ export const LOUNGE_COOKIE = "mx_lounge";
 
 export type Night = {
   day: string;
+  /** 0 is the 8:00am code. Each admin roll increments it and retires the previous lounge cookies. */
+  generation: number;
   glasses: [KnockId, KnockId, KnockId];
   words: { color: string; verb: string; animal: string };
 };
@@ -85,10 +88,32 @@ export function loungeMaxAge(now = new Date()): number {
   return Math.max(1, Math.ceil((loungeExpires(now).getTime() - now.getTime()) / 1000));
 }
 
-function digest(day: string): Buffer | null {
+function missingNightRoll(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; cause?: { code?: string } };
+  return e?.code === "42P01" || e?.cause?.code === "42P01" || /night_roll/.test(e?.message ?? "") && /does not exist/i.test(e?.message ?? "");
+}
+
+/** Admin rolls for this speakeasy day. 0 when nobody has forced a new code, including before the table exists. */
+export async function nightGeneration(day: string): Promise<number> {
+  try {
+    const [row] = await query<{ generation: number | string }>(
+      "SELECT generation FROM night_roll WHERE day = $1",
+      [day],
+    );
+    const generation = Number(row?.generation ?? 0);
+    return Number.isInteger(generation) && generation >= 0 ? generation : 0;
+  } catch (err) {
+    if (missingNightRoll(err)) return 0;
+    throw err;
+  }
+}
+
+function digest(day: string, generation: number): Buffer | null {
   const secret = nightSecret();
   if (!secret) return null;
-  return createHmac("sha256", secret).update(`mixology-night-v1:${day}`).digest();
+  // Generation 0 keeps the original label so a deploy does not change tonight's code by itself.
+  const label = generation === 0 ? `mixology-night-v1:${day}` : `mixology-night-v1:${day}:${generation}`;
+  return createHmac("sha256", secret).update(label).digest();
 }
 
 function pick(buf: Buffer, offset: number, count: number): number {
@@ -96,13 +121,15 @@ function pick(buf: Buffer, offset: number, count: number): number {
 }
 
 /** Today's knock and spoken password, or null when the server has no signing secret. */
-export function tonight(now = new Date()): Night | null {
+export async function tonight(now = new Date()): Promise<Night | null> {
   const day = speakeasyDay(now);
-  const buf = digest(day);
+  const generation = await nightGeneration(day);
+  const buf = digest(day, generation);
   if (!buf) return null;
   const glass = (offset: number) => KNOCK_PAD[pick(buf, offset, KNOCK_PAD.length)]!.id;
   return {
     day,
+    generation,
     glasses: [glass(0), glass(2), glass(4)],
     words: {
       color: COLORS[pick(buf, 6, COLORS.length)]!,
@@ -112,8 +139,29 @@ export function tonight(now = new Date()): Night | null {
   };
 }
 
-export function knockMatches(given: readonly string[], now = new Date()): boolean {
-  const night = tonight(now);
+/** Replace tonight's code and phrase. Guests holding the previous lounge cookie must knock again. */
+export async function rollNight(now = new Date()): Promise<Night> {
+  const before = await tonight(now);
+  if (!before) throw new Error("no signing secret");
+  let latest = before;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    await query(
+      `INSERT INTO night_roll (day, generation) VALUES ($1, 1)
+       ON CONFLICT (day) DO UPDATE
+         SET generation = night_roll.generation + 1, rolled_at = now()`,
+      [before.day],
+    );
+    const next = await tonight(now);
+    if (!next) throw new Error("no signing secret");
+    latest = next;
+    const sameGlasses = next.glasses.every((id, i) => id === before.glasses[i]);
+    const sameWords = next.words.color === before.words.color && next.words.verb === before.words.verb && next.words.animal === before.words.animal;
+    if (!sameGlasses || !sameWords) return next;
+  }
+  return latest;
+}
+
+export function knockMatchesNight(given: readonly string[], night: Night | null): boolean {
   if (!night || given.length !== 3 || given.some((id) => !isKnockId(id))) return false;
   let bad = 0;
   for (let i = 0; i < 3; i++) {
@@ -132,22 +180,32 @@ function loungeKey(): Buffer | null {
   return createHmac("sha256", secret).update("mixology-lounge-v1").digest();
 }
 
-export function loungeToken(day: string): string | null {
+export function loungeToken(night: Night): string | null {
   const key = loungeKey();
   if (!key) return null;
-  const payload = `v1.${day}`;
+  const payload = night.generation === 0 ? `v1.${night.day}` : `v2.${night.day}.${night.generation}`;
   const sig = createHmac("sha256", key).update(payload).digest("base64url");
   return `${payload}.${sig}`;
 }
 
-export function loungeAllows(token: string | undefined | null, now = new Date()): boolean {
+export async function loungeAllows(token: string | undefined | null, now = new Date()): Promise<boolean> {
   const key = loungeKey();
   if (!key || !token) return false;
+  const day = speakeasyDay(now);
+  const generation = await nightGeneration(day);
   const parts = token.split(".");
-  if (parts.length !== 3 || parts[0] !== "v1" || parts[1] !== speakeasyDay(now)) return false;
-  const payload = `v1.${parts[1]}`;
+  let payload: string | null = null;
+  let sig = "";
+  if (generation === 0 && parts.length === 3 && parts[0] === "v1" && parts[1] === day) {
+    payload = `v1.${day}`;
+    sig = parts[2] ?? "";
+  } else if (parts.length === 4 && parts[0] === "v2" && parts[1] === day && parts[2] === String(generation)) {
+    payload = `v2.${day}.${generation}`;
+    sig = parts[3] ?? "";
+  }
+  if (!payload) return false;
   const expected = createHmac("sha256", key).update(payload).digest("base64url");
   const left = Buffer.from(expected);
-  const right = Buffer.from(parts[2] ?? "");
+  const right = Buffer.from(sig);
   return left.length === right.length && timingSafeEqual(left, right);
 }

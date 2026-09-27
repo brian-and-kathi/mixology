@@ -278,6 +278,9 @@ body:has(.admin-root) { background: #07101c; }
   color: var(--quiet);
 }
 .a-night-glasses .glass { width: 2rem; height: 2rem; color: var(--cream); }
+.a-night-roll { align-self: center; margin-top: 0.45rem; text-align: center; }
+.a-night-roll .a-btn { min-height: 40px; }
+.a-night-roll .a-error { margin: 0.4rem 0 0; }
 .a-night-words {
   margin: 0.15rem 0 0;
   width: 100%;

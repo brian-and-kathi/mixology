@@ -8,7 +8,7 @@ import { commitRef } from "@/lib/version";
 export const metadata = { title: "Establishment" };
 
 export default async function EstablishmentPage() {
-  const night = tonight();
+  const night = await tonight();
   const [glance, neon, vercel] = await Promise.all([loadGlance(), loadNeonPanel(), loadVercelPanel()]);
   const commit = commitRef();
   return (

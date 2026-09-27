@@ -1,6 +1,7 @@
 import { GlassIcon } from "@/components/GlassIcon";
 import { knockGlass } from "@/lib/night-pad";
 import type { Night } from "@/lib/night";
+import { RollNight } from "./RollNight";
 
 function cap(word: string) {
   return word.charAt(0).toUpperCase() + word.slice(1);
@@ -27,6 +28,7 @@ export function Tonight({ night }: { night: Night }) {
         “{cap(night.words.color)} {cap(night.words.verb)} {cap(night.words.animal)}”
       </p>
       <p className="a-quiet a-small">The knock, then the words said at the door.</p>
+      <RollNight />
     </section>
   );
 }

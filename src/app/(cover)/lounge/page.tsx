@@ -13,8 +13,8 @@ function cap(word: string) {
 
 export default async function LoungePage() {
   const jar = await cookies();
-  const night = tonight();
-  if (!night || !loungeAllows(jar.get(LOUNGE_COOKIE)?.value)) redirect("/contact");
+  const night = await tonight();
+  if (!night || !(await loungeAllows(jar.get(LOUNGE_COOKIE)?.value))) redirect("/contact");
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const local = host?.startsWith("localhost") || host?.startsWith("127.");

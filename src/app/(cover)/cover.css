@@ -9,44 +9,35 @@ body:has(.cover) { background: #100e0c; }
 }
 
 .shop {
-  display: grid;
-  place-items: center;
-  padding: 2rem 1.25rem;
+  width: min(68rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.25rem 0 4rem;
 }
-.shop-card {
-  width: min(28rem, 100%);
+.shop-bar {
   display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid #3a322a;
 }
+.shop-brand { display: flex; align-items: center; gap: 0.8rem; min-width: 0; }
+.shop-mark { width: 2.6rem; height: 2.6rem; color: #d7c4a1; flex-shrink: 0; }
 .shop-kicker {
   margin: 0;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   color: #a89880;
 }
-.shop h1 {
+.shop-brand-name {
   margin: 0;
   font-family: var(--font-display), Palatino, serif;
-  font-weight: 500;
-  font-size: clamp(2.6rem, 8vw, 4rem);
-  letter-spacing: -0.02em;
-  line-height: 0.95;
+  font-size: 1.35rem;
   color: #f3ecdf;
+  letter-spacing: 0.01em;
 }
-.shop-trade {
-  margin: 0.2rem 0 1.2rem;
-  max-width: 22rem;
-  color: #cbbfaa;
-  line-height: 1.45;
-}
-.shop-links {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-}
+.shop-links { display: flex; gap: 0.4rem 1.2rem; flex-wrap: wrap; }
 .shop-links a {
   display: inline-flex;
   align-items: center;
@@ -55,9 +46,122 @@ body:has(.cover) { background: #100e0c; }
   text-decoration: underline;
   text-underline-offset: 4px;
   text-decoration-color: rgba(243, 236, 223, 0.45);
-  font-size: 1.05rem;
+  font-size: 1.02rem;
 }
 .shop-links a:focus-visible { outline: 2px solid #d7c4a1; outline-offset: 3px; }
+
+.shop-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(8rem, 0.6fr);
+  gap: 2rem;
+  align-items: center;
+  padding: 2.4rem 0 2rem;
+  border-bottom: 1px solid #3a322a;
+}
+.shop h1 {
+  margin: 0;
+  font-family: var(--font-display), Palatino, serif;
+  font-weight: 500;
+  font-size: clamp(2.3rem, 5vw, 3.6rem);
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+  color: #f3ecdf;
+}
+.shop-lede {
+  margin: 1rem 0 0;
+  max-width: 38rem;
+  color: #cbbfaa;
+  line-height: 1.5;
+  font-size: 1.05rem;
+}
+.shop-facts {
+  margin: 1.1rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.shop-facts li {
+  border: 1px solid #3a322a;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  color: #e7d7b8;
+  font-size: 0.88rem;
+}
+.shop-key {
+  width: min(9rem, 100%);
+  height: auto;
+  justify-self: end;
+  color: #d7c4a1;
+}
+
+.shop-services { padding: 2rem 0; }
+.shop h2 {
+  margin: 0 0 1rem;
+  font-family: var(--font-display), Palatino, serif;
+  font-weight: 500;
+  font-size: 1.8rem;
+  color: #f3ecdf;
+}
+.shop-services ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+.shop-services li {
+  margin: 0;
+  padding: 1rem 1rem 1.1rem;
+  background: #181410;
+  border: 1px solid #3a322a;
+  border-radius: 12px;
+}
+.shop-ico { display: block; width: 2.4rem; height: 2.4rem; color: #d7c4a1; margin-bottom: 0.7rem; }
+.shop-ico svg { width: 100%; height: 100%; }
+.shop h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f3ecdf;
+}
+.shop-services p, .shop-split p { margin: 0; color: #cbbfaa; line-height: 1.45; }
+
+.shop-split {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 2.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid #3a322a;
+}
+.shop-split h2 { margin-top: 1.2rem; }
+.shop-split h3 {
+  margin: 1.2rem 0 0.4rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #a89880;
+}
+.shop-plain { margin: 0; padding-left: 1.1rem; color: #cbbfaa; }
+.shop-plain li { margin: 0.3rem 0; }
+.shop-hours { width: 100%; border-collapse: collapse; margin-top: 0.2rem; }
+.shop-hours th, .shop-hours td {
+  text-align: left;
+  font-weight: 450;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid #2c261f;
+  color: #e7e0d4;
+}
+.shop-hours th { color: #a89880; font-weight: 500; width: 8rem; }
+.shop-note { margin-top: 0.9rem !important; }
+
+@media (max-width: 800px) {
+  .shop-bar { align-items: flex-start; flex-direction: column; gap: 0.2rem; }
+  .shop-hero, .shop-split, .shop-services ul { grid-template-columns: 1fr; }
+  .shop-key { justify-self: start; width: 5.5rem; margin-top: 0.4rem; }
+}
 
 .door-scene {
   display: grid;

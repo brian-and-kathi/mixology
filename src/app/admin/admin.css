@@ -135,6 +135,13 @@ body:has(.admin-root) { background: #07101c; }
 @media (min-width: 720px) { .a-searchbar { top: calc(var(--a-head-h) + 48px); } }
 .a-search { position: relative; }
 .a-search input { padding-right: 3rem !important; }
+/* The field is type=search, so Chromium also draws its own clear control on hover. */
+.a-search input::-webkit-search-cancel-button,
+.a-search input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
 .a-clear { position: absolute; right: 0; top: 0; width: 48px; height: 48px; border: 0; background: none; font-size: 1.4rem; color: var(--quiet); cursor: pointer; }
 .a-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .a-chip { min-height: 40px; padding: 0 1rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.2); background: none; color: var(--quiet); cursor: pointer; }

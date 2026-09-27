@@ -45,6 +45,46 @@ export function speakeasyDay(now = new Date()): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+/** Milliseconds to add to a UTC instant to get its America/New_York wall clock, read as UTC. */
+function easternOffset(date: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
+  let hour = get("hour");
+  if (hour === 24) hour = 0;
+  const wall = Date.UTC(get("year"), get("month") - 1, get("day"), hour, get("minute"), get("second"));
+  return wall - date.getTime();
+}
+
+/** A wall-clock time in America/New_York, as an absolute instant. */
+function easternWallTime(year: number, month: number, day: number, hour: number): Date {
+  const utc = new Date(Date.UTC(year, month - 1, day, hour, 0, 0));
+  const offset = easternOffset(utc);
+  const first = new Date(utc.getTime() - offset);
+  const offset2 = easternOffset(first);
+  return offset2 === offset ? first : new Date(utc.getTime() - offset2);
+}
+
+/** When tonight's knock and phrase are replaced: 8:00am Eastern the next morning. */
+export function loungeExpires(now = new Date()): Date {
+  const [year, month, day] = speakeasyDay(now).split("-").map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day) + 86_400_000);
+  return easternWallTime(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), 8);
+}
+
+/** Seconds until loungeExpires, at least one so the cookie is stored. */
+export function loungeMaxAge(now = new Date()): number {
+  return Math.max(1, Math.ceil((loungeExpires(now).getTime() - now.getTime()) / 1000));
+}
+
 function digest(day: string): Buffer | null {
   const secret = nightSecret();
   if (!secret) return null;

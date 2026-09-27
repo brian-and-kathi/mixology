@@ -1,6 +1,19 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Fraunces, Outfit } from "next/font/google";
 import Link from "next/link";
+
+const shopDisplay = Fraunces({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  style: ["normal", "italic"],
+  variable: "--shop-display",
+});
+const shopSans = Outfit({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--shop-sans",
+});
 
 export const metadata: Metadata = { title: { absolute: "Hart & Ward" } };
 
@@ -50,7 +63,7 @@ const HOURS: [string, string][] = [
 /** Public front. A locksmith's shop, with nowhere to go but the door and the office. */
 export default function ShopPage() {
   return (
-    <main className="cover shop">
+    <main className={`cover shop ${shopDisplay.variable} ${shopSans.variable}`}>
       <header className="shop-bar">
         <div className="shop-brand">
           <Mark />
@@ -59,26 +72,34 @@ export default function ShopPage() {
             <p className="shop-brand-name">Hart &amp; Ward</p>
           </div>
         </div>
-        <nav className="shop-links" aria-label="Shop">
-          <Link href="/contact">Contact us</Link>
-          <Link href="/admin">Admin</Link>
-        </nav>
       </header>
 
       <section className="shop-hero">
-        <div>
-          <h1>Locks, keys, and the doors they belong to.</h1>
-          <p className="shop-lede">
-            A bench shop. We cut keys, rekey cylinders, fit deadbolts, and open locks when the key is gone.
-            Licensed and insured. Shop license HW-1978.
-          </p>
-          <ul className="shop-facts">
-            <li>Keys cut while you wait</li>
-            <li>Lockouts any hour</li>
-            <li>We work on the lock, not around it</li>
-          </ul>
+        <div className="shop-hero-copy">
+          <div className="shop-doodles" aria-hidden>
+            <KeyRing />
+            <Padlock />
+            <Cylinder />
+            <KeyBlank />
+          </div>
+          <div>
+            <p className="shop-eyebrow">The spare is in good hands</p>
+            <h1>He&apos;ll meet you <em>at the door.</em></h1>
+            <p className="shop-lede">
+              A bench shop with a van. We cut keys, rekey cylinders, fit deadbolts, and open the lock when the key is gone.
+              Licensed and insured. Shop license HW-1978.
+            </p>
+            <ul className="shop-facts">
+              <li>Keys cut while you wait</li>
+              <li>Lockouts any hour</li>
+              <li>We work on the lock, not around it</li>
+            </ul>
+          </div>
         </div>
-        <KeyHero />
+        <figure className="shop-portrait">
+          <img src="/hart_and_ward.jpg" alt="The Hart & Ward locksmith holds out a house key in front of the shop van." />
+          <figcaption>On the van. At your door.</figcaption>
+        </figure>
       </section>
 
       <section className="shop-services" aria-labelledby="shop-services-title">
@@ -122,7 +143,55 @@ export default function ShopPage() {
           <p className="shop-note">Lockouts after closing: telephone the shop. Someone answers.</p>
         </div>
       </section>
+
+      <footer className="shop-foot">
+        <Link href="/contact">Contact us</Link>
+        <Link href="/admin">Admin</Link>
+      </footer>
     </main>
+  );
+}
+
+function KeyRing() {
+  return (
+    <svg viewBox="0 0 80 80">
+      <circle cx="28" cy="30" r="10" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" />
+      <path d="M36 36l22 22M50 50l8-3M56 58l7-3" fill="none" stroke="#8a5a32" strokeWidth="1.8" strokeLinejoin="round" />
+      <circle cx="50" cy="22" r="7" fill="#fffaf3" stroke="#8a5a32" strokeWidth="1.6" />
+      <path d="M55 27l12 8" fill="none" stroke="#8a5a32" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function Padlock() {
+  return (
+    <svg viewBox="0 0 80 80">
+      <path d="M26 36V28a14 14 0 0 1 28 0v8" fill="none" stroke="#8a5a32" strokeWidth="1.8" />
+      <rect x="20" y="34" width="40" height="30" rx="4" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" />
+      <circle cx="40" cy="48" r="3" fill="#8a5a32" />
+      <path d="M40 51v6" stroke="#8a5a32" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function Cylinder() {
+  return (
+    <svg viewBox="0 0 80 80">
+      <rect x="18" y="22" width="44" height="36" rx="4" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" />
+      <circle cx="40" cy="40" r="10" fill="#fffaf3" stroke="#8a5a32" strokeWidth="1.8" />
+      <circle cx="40" cy="40" r="3" fill="#8a5a32" />
+      <path d="M40 22v6M40 52v6M18 40h6M56 40h6" stroke="#8a5a32" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function KeyBlank() {
+  return (
+    <svg viewBox="0 0 80 80">
+      <circle cx="30" cy="26" r="12" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" />
+      <circle cx="30" cy="26" r="4" fill="#fffaf3" stroke="#8a5a32" strokeWidth="1.4" />
+      <path d="M40 32l22 28H48l-2-6h-6l-2 6" fill="#f4e4cc" stroke="#8a5a32" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -133,19 +202,6 @@ function Mark() {
       <circle cx="32" cy="32" r="7" fill="none" stroke="currentColor" strokeWidth="1.6" />
       <path d="M32 10v8M32 46v8M10 32h8M46 32h8" fill="none" stroke="currentColor" strokeWidth="1.6" />
       <circle cx="32" cy="32" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
-function KeyHero() {
-  return (
-    <svg className="shop-key" viewBox="0 0 220 440" role="img" aria-label="A house key">
-      <g fill="none" stroke="currentColor" strokeWidth="3" strokeLinejoin="round">
-        <circle cx="110" cy="78" r="48" />
-        <circle cx="110" cy="78" r="18" />
-        <path d="M110 126v230" />
-        <path d="M110 250h36v18h-36M110 286h28v16h-28M110 322h42v18h-18v16h-24" />
-      </g>
     </svg>
   );
 }

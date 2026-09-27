@@ -102,6 +102,16 @@ export default function ShopPage() {
         </figure>
       </section>
 
+      <section className="shop-scene">
+        <figure>
+          <img src="/lost-key.jpg" alt="In the rain, a hand tries a locked car door while the owner waits." />
+        </figure>
+        <div>
+          <h2>When the key is gone</h2>
+          <p>Rain on the glass, and the door that will not open. Telephone the shop. Someone comes to the car you are standing beside.</p>
+        </div>
+      </section>
+
       <section className="shop-services" aria-labelledby="shop-services-title">
         <h2 id="shop-services-title">At the bench</h2>
         <ul>

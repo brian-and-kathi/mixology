@@ -135,6 +135,23 @@ body:has(.shop) { background: #f6f1e8; }
   color: #4a4036;
   font-size: 0.88rem;
 }
+.shop-scene {
+  display: grid;
+  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
+  gap: 1.5rem 2rem;
+  align-items: center;
+  padding: 1.8rem 0 0.4rem;
+}
+.shop-scene figure { margin: 0; }
+.shop-scene img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 1rem;
+  border: 1px solid #e4d7c6;
+}
+.shop-scene h2 { margin-bottom: 0.45rem; }
+.shop-scene p { margin: 0; max-width: 34rem; color: #5c5348; line-height: 1.5; font-size: 1.08rem; }
 .shop-services { padding: 2.2rem 0 1.6rem; }
 .shop h2 {
   margin: 0 0 1rem;
@@ -212,7 +229,8 @@ body:has(.shop) { background: #f6f1e8; }
 .shop-foot a:focus-visible { outline: 2px solid #8a5a32; outline-offset: 3px; }
 
 @media (max-width: 800px) {
-  .shop-hero, .shop-split, .shop-services ul { grid-template-columns: 1fr; }
+  .shop-hero, .shop-split, .shop-services ul, .shop-scene { grid-template-columns: 1fr; }
+  .shop-scene { max-width: 22rem; }
   .shop-doodles { max-width: 18rem; }
   .shop-portrait { order: -1; }
   .shop-portrait img { height: auto; aspect-ratio: 3 / 4; max-height: 32rem; }
@@ -326,32 +344,66 @@ body:has(.shop) { background: #f6f1e8; }
   font-size: 0.92rem;
 }
 .lounge {
-  display: grid;
-  place-items: center;
-  text-align: center;
-  padding: 2rem 1.25rem;
+  min-height: 100dvh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1.25rem;
+  background: #1a120c url("/lounge.png") center / cover no-repeat;
+}
+.lounge-panel {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: min(36rem, 100%);
+  box-sizing: border-box;
+  padding: 0.75rem 0.8rem 0.75rem 1rem;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.62);
+  text-align: left;
 }
 .lounge-kicker {
-  margin: 0 0 1rem;
+  margin: 0;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-size: 0.78rem;
-  color: #a89880;
+  font-size: 0.68rem;
+  color: rgba(243, 236, 223, 0.72);
 }
 .lounge-words {
-  margin: 0;
+  margin: 0.15rem 0 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.55rem;
   font-family: var(--font-display), Palatino, serif;
-  font-size: clamp(2.4rem, 10vw, 4.2rem);
+  font-size: clamp(1.7rem, 4vw, 2.35rem);
   font-weight: 500;
   line-height: 1.05;
-  color: #f3ecdf;
+  color: #f6efe4;
 }
 .lounge-note {
-  margin: 1.4rem 0 0;
-  color: #cbbfaa;
+  margin: 0.35rem 0 0;
+  color: rgba(243, 236, 223, 0.78);
+  font-size: 0.92rem;
+}
+.lounge-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+  width: 5.6rem;
+  padding: 0.35rem 0.35rem 0.3rem;
+  border-radius: 8px;
+  background: #000;
+  color: #f6efe4;
+  text-decoration: none;
+}
+.lounge-qr-code { display: block; width: 100%; }
+.lounge-qr-code svg { display: block; width: 100%; height: auto; }
+.lounge-qr-label { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.lounge-qr:focus-visible { outline: 2px solid #f6efe4; outline-offset: 3px; }
+@media (max-width: 560px) {
+  .lounge-panel { flex-direction: column; align-items: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {

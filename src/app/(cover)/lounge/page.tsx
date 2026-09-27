@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { dottedQrSvg } from "@/lib/qr-dots";
 import { LOUNGE_COOKIE, loungeAllows, tonight } from "@/lib/night";
 
 export const dynamic = "force-dynamic";
@@ -14,15 +15,30 @@ export default async function LoungePage() {
   const jar = await cookies();
   const night = tonight();
   if (!night || !loungeAllows(jar.get(LOUNGE_COOKIE)?.value)) redirect("/contact");
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const local = host?.startsWith("localhost") || host?.startsWith("127.");
+  const proto = h.get("x-forwarded-proto") ?? (local ? "http" : "https");
+  const qr = host ? dottedQrSvg(`${proto}://${host}/menu`, { dark: "#ffffff", light: "#000000" }) : null;
   return (
     <main className="cover lounge">
-      <p className="lounge-kicker">Tonight&apos;s password</p>
-      <p className="lounge-words">
-        <span>{cap(night.words.color)}</span>
-        <span>{cap(night.words.verb)}</span>
-        <span>{cap(night.words.animal)}</span>
-      </p>
-      <p className="lounge-note">Say this at the door.</p>
+      <div className="lounge-panel">
+        <div>
+          <p className="lounge-kicker">Tonight&apos;s password</p>
+          <p className="lounge-words">
+            <span>{cap(night.words.color)}</span>
+            <span>{cap(night.words.verb)}</span>
+            <span>{cap(night.words.animal)}</span>
+          </p>
+          <p className="lounge-note">Say this at the door.</p>
+        </div>
+        {qr ? (
+          <a className="lounge-qr" href="/menu" aria-label="Open the guest menu">
+            <span className="lounge-qr-code" dangerouslySetInnerHTML={{ __html: qr.svg }} />
+            <span className="lounge-qr-label">Menu</span>
+          </a>
+        ) : null}
+      </div>
     </main>
   );
 }

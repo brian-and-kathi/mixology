@@ -16,7 +16,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { open, openUntil, openedAt, closedSince } = adminStatus(await barStatus());
   return (
     <div className="admin-root">
-      {/* One Open/Closed state for the page: the ☰ menu and the Establishment switch share it. */}
+      {/* One Open/Closed state for the page: the ☰ menu and the Bar tab switch share it. */}
       <BarSwitchProvider initial={{ open, openUntil, openedAt, closedSince }}>
         <header className="a-header">
           <Link href="/admin" className="a-brand">Admin</Link>

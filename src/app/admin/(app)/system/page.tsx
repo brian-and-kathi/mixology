@@ -13,7 +13,7 @@ function where(): string {
   return "Local";
 }
 
-/** Not bar-night: what's deployed and the hosts' usage (moved from Establishment). */
+/** Not bar-night: what's deployed and the hosts' usage (moved from the Bar tab, then called Establishment). */
 export default async function SystemPage() {
   const [deploy, neon, vercel, cloudflare] = await Promise.all([
     loadDeployInfo(),

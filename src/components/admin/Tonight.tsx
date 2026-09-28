@@ -7,27 +7,34 @@ function cap(word: string) {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-/** Host copy of today's knock and the words said at the door. */
+/** Host copy of tonight's door: the Code (knock glasses) and the Phrase, as two quiet parts of one card, and one Regenerate. */
 export function Tonight({ night }: { night: Night }) {
   return (
     <section className="a-card a-night" aria-label="Tonight">
       <h2 className="a-h2">Tonight</h2>
-      <div className="a-night-glasses">
-        {night.glasses.map((id, index) => {
-          const glass = knockGlass(id);
-          if (!glass) return null;
-          return (
-            <div key={`${id}-${index}`} className="a-night-glass">
-              <GlassIcon glass={glass.name} label="" />
-              <span>{glass.label}</span>
-            </div>
-          );
-        })}
-      </div>
-      <p className="a-night-words">
-        “{cap(night.words.color)} {cap(night.words.verb)} {cap(night.words.animal)}”
-      </p>
-      <p className="a-quiet a-small">The knock, then the words said at the door.</p>
+      <section className="a-night-part" aria-labelledby="a-night-code">
+        <h3 className="a-night-h" id="a-night-code">Code</h3>
+        <div className="a-night-glasses">
+          {night.glasses.map((id, index) => {
+            const glass = knockGlass(id);
+            if (!glass) return null;
+            return (
+              <div key={`${id}-${index}`} className="a-night-glass">
+                <GlassIcon glass={glass.name} label="" />
+                <span>{glass.label}</span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="a-night-cap">The knock, tapped at the door.</p>
+      </section>
+      <section className="a-night-part" aria-labelledby="a-night-phrase">
+        <h3 className="a-night-h" id="a-night-phrase">Phrase</h3>
+        <p className="a-night-words">
+          “{cap(night.words.color)} {cap(night.words.verb)} {cap(night.words.animal)}”
+        </p>
+        <p className="a-night-cap">Said at the door after the knock.</p>
+      </section>
       <RollNight />
     </section>
   );

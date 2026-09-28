@@ -11,7 +11,7 @@ const ICON = (
   </svg>
 );
 
-/** Header menu on every signed-in admin screen. The bar's Open/Closed switch (shared with Establishment), guest menu, database, Clear TV, and sign out live here. */
+/** Header menu on every signed-in admin screen. The bar's Open/Closed switch (shared with the Bar tab), guest menu, database, Clear TV, and sign out live here. */
 export function AdminMenu() {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);

@@ -5,7 +5,7 @@ import { publish } from "@/lib/relay";
 
 export const dynamic = "force-dynamic";
 
-/** GET: the bar's status for the admin switch (menu and Establishment), with when it opened or closed. */
+/** GET: the bar's status for the admin switch (menu and Bar tab), with when it opened or closed. */
 export const GET = adminApi(async () => {
   const status = await readBarStatus();
   if (status.source === "outage") return NextResponse.json({ error: "Status unavailable." }, { status: 503 });

@@ -2,9 +2,9 @@ import { BarCard } from "@/components/admin/BarCard";
 import { Tonight } from "@/components/admin/Tonight";
 import { tonight } from "@/lib/night";
 
-export const metadata = { title: "Establishment" };
+export const metadata = { title: "Bar" };
 
-/** The bar-night page: Open/Closed, then tonight's knock and words. Usage and git live on System; At a glance is on Stock. */
+/** The Bar tab (route /admin/establishment), the bar-night page: Open/Closed, then tonight's knock and words. Usage and git live on System; At a glance is on Stock. */
 export default async function EstablishmentPage() {
   const night = await tonight();
   return (

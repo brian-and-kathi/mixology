@@ -18,7 +18,7 @@ export function barStatusLine(bar: BarState, now = Date.now()): string {
   return "Closed";
 }
 
-/** Establishment's first row: the same Open/Closed switch and state as the ☰ menu. */
+/** The Bar tab's first row: the same Open/Closed switch and state as the ☰ menu. */
 export function BarCard() {
   const bar = useBar();
   const { reload } = bar;

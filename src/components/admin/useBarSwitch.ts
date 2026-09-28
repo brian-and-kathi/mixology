@@ -17,9 +17,9 @@ export type BarState = {
 const pick = (d: BarState): BarState => ({ open: d.open, openUntil: d.openUntil, openedAt: d.openedAt ?? null, closedSince: d.closedSince ?? null });
 
 /**
- * The admin Open/Closed switch (DESIGN §3.1), shared by the ☰ menu and the Establishment tab through
+ * The admin Open/Closed switch (DESIGN §3.1), shared by the ☰ menu and the Bar tab through
  * BarSwitchProvider, so there is one state per page. Starts from the server's answer, stays current through
- * the bar:status relay topic, reload() (the menu calls it when it opens, Establishment when it mounts), and a
+ * the bar:status relay topic, reload() (the menu calls it when it opens, the Bar tab when it mounts), and a
  * re-read just after the 2:00 AM self-close. toggle() is optimistic and rolls back if the save fails.
  */
 export function useBarSwitch(initial: BarState) {

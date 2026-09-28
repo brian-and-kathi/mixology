@@ -6,7 +6,7 @@ import { useBarSwitch, type BarState } from "@/components/admin/useBarSwitch";
 type Bar = ReturnType<typeof useBarSwitch>;
 const BarContext = createContext<Bar | null>(null);
 
-/** One Open/Closed state for the whole admin page: the ☰ menu and the Establishment switch both read it. */
+/** One Open/Closed state for the whole admin page: the ☰ menu and the Bar tab switch both read it. */
 export function BarSwitchProvider({ initial, children }: { initial: BarState; children: React.ReactNode }) {
   const bar = useBarSwitch(initial);
   return <BarContext.Provider value={bar}>{children}</BarContext.Provider>;

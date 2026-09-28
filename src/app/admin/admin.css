@@ -66,7 +66,7 @@ body:has(.admin-root) { background: #07101c; }
 
 /* Tabs: bottom bar on phones, top bar on laptops */
 .a-tabs {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(6, 1fr);
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
   height: calc(var(--a-tabs-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
   background: var(--a-header); border-top: 1px solid var(--a-line);
 }
@@ -261,7 +261,12 @@ body:has(.admin-root) { background: #07101c; }
 /* Sign in. Clear TV and sign out live in the header menu; the stock page only reports what is on the TV. */
 .a-login .a-main { max-width: 420px; margin: 8vh auto 0; }
 .a-tvbar { margin: 0; font-size: 0.95rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.a-night { display: flex; flex-direction: column; gap: 0.45rem; }
+.a-night { display: flex; flex-direction: column; gap: 0.6rem; }
+.a-night > .a-h2 { margin: 0; }
+/* Code and Phrase: a quieter tier inside Tonight, a hairline and no fill of their own, so not boxes in boxes. */
+.a-night-part { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.65rem 0.75rem 0.7rem; border: 1px solid var(--a-line); border-radius: 10px; }
+.a-night-h { align-self: flex-start; margin: 0; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; color: var(--quiet); }
+.a-night-cap { margin: 0; font-size: 0.82rem; color: var(--quiet); text-align: center; }
 .a-night-glasses {
   display: flex;
   justify-content: center;
@@ -283,11 +288,11 @@ body:has(.admin-root) { background: #07101c; }
   color: var(--quiet);
 }
 .a-night-glasses .glass { width: 2rem; height: 2rem; color: var(--cream); }
-.a-night-roll { align-self: center; margin-top: 0.45rem; text-align: center; }
+.a-night-roll { align-self: center; margin-top: 0.15rem; text-align: center; }
 .a-night-roll .a-btn { min-height: 40px; }
 .a-night-roll .a-error { margin: 0.4rem 0 0; }
 .a-night-words {
-  margin: 0.15rem 0 0;
+  margin: 0;
   width: 100%;
   text-align: center;
   font-family: var(--font-script), cursive;
@@ -386,7 +391,7 @@ body:has(.admin-root) { background: #07101c; }
 .a-bar-row[aria-checked="true"] .a-switch { background: var(--a-accent); box-shadow: none; }
 .a-bar-row[aria-checked="true"] .a-switch i { transform: translateX(18px); background: #07101c; }
 @media (prefers-reduced-motion: reduce) { .a-switch, .a-switch i { transition: none; } }
-/* Establishment: the same switch as the first card, and one plain status line under it (no gold). */
+/* Bar tab (/admin/establishment): the same switch as the first card, and one plain status line under it (no gold). */
 .a-barcard { padding: 0.35rem 0 0.8rem; }
 .admin-root .a-bar-row-card {
   display: flex; align-items: center; width: 100%; min-height: 60px; padding: 0.45rem 1rem;

@@ -1,7 +1,6 @@
 /** Names of the admin list-search cookies. One box, one cookie, kept on this device. */
 export const SEARCH = {
   stock: "mx_q_stock",
-  bottles: "mx_q_bottles",
   recipes: "mx_q_recipes",
   ingredients: "mx_q_ingredients",
 } as const;

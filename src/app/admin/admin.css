@@ -378,8 +378,6 @@ body:has(.admin-root) { background: #07101c; }
 .a-seg button:focus-visible { outline: 2px solid var(--cream); outline-offset: -2px; }
 /* Wines: the out ones, folded into one quiet section at the bottom. */
 /* Sits right under the list: its top border overlaps the last row's bottom border, so one divider line. */
-.a-outsec { margin-top: -1px; position: relative; }
-.a-outsec-head { min-height: 48px; padding: 0 0.2rem; border-top: 1px solid var(--a-line); border-bottom: 1px solid var(--a-line); color: var(--quiet); font-size: 0.9rem; font-weight: 600; letter-spacing: 0.04em; }
 
 /* Bar Open/Closed switch: the first row of the header menu (DESIGN §3.1). The whole row is one switch. */
 .admin-root .a-bar-row { min-height: 60px; gap: 0.9rem; justify-content: space-between; padding: 0.45rem 0.9rem; }

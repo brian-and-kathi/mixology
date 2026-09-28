@@ -7,7 +7,6 @@ import { api } from "./api";
 import { KindSwitch, useAdminKind, type Kind } from "./KindSwitch";
 import { useRememberedSearch } from "./useRememberedSearch";
 import { SEARCH } from "@/lib/search-cookie";
-import { Disclosure } from "./Disclosure";
 import { StockRow } from "./StockToggle";
 import { specLabel } from "@/lib/spec-label";
 
@@ -41,24 +40,17 @@ function ago(iso: string, now: number): string {
 /**
  * Stock: one tap on the row's In/Out toggle (left edge) flips a bottle (optimistic), with an undo toast
  * that shows the menu impact. The rest of the row opens the bottle; the type is a quiet second line.
- * Spirits | Wines switch: Spirits is the short list whose outs matter ("Out only", counts).
- * Wines (the guest Cellar's bottles) lists in-stock wines by type, with the out ones folded into a
- * quiet "Out · N" section at the bottom; wine outs never count as shopping or "out" numbers.
+ * Spirits | Wines switch: both list every bottle by family with All / Out only chips (counted per view),
+ * so an out bottle stays in its group with the amber Out toggle. Wine outs are never shopping items
+ * (Glance counts spirits only); the Wines chip counts just the wines.
  */
 export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]; recent: Change[]; initialQuery: string }) {
   const router = useRouter();
   const [q, setQ] = useRememberedSearch(SEARCH.stock, initialQuery);
   const [outOnly, setOutOnly] = useState(false);
   const [kind, setKindRaw] = useAdminKind();
-  // Wines keep the section they were in when first tapped this visit, so a row never jumps away under
-  // your thumb (marking a wine out leaves it in place with a gray Out until the next visit).
-  const [pinned, setPinned] = useState<Record<string, boolean>>({});
-  // Out section: null = automatic (collapsed, or open while a search matches out wines); true/false = the user's choice.
-  const [outOpen, setOutOpen] = useState<boolean | null>(null);
   const setKind = (k: Kind) => {
     setKindRaw(k);
-    setPinned({});
-    setOutOpen(null);
     setOutOnly(false);
   };
   const [override, setOverride] = useState<Record<string, boolean>>({});
@@ -76,9 +68,9 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  // Group headers stick right under the search bar. Its height differs (Spirits has the All / Out only
-  // chips, Wines doesn't), so measure it instead of assuming 104px: a header parked too high tucked
-  // under the bar, and one parked too low let rows show between them.
+  // Group headers stick right under the search bar. Measure it instead of assuming a height (the chips
+  // can wrap, fonts vary): a header parked too high tucked under the bar, and one parked too low let
+  // rows show between them.
   const rootRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -97,7 +89,6 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
   }
 
   async function flip(it: StockItem, to: boolean, undoOf?: number | null) {
-    if (it.wine) setPinned((p) => (it.id in p ? p : { ...p, [it.id]: stockOf(it) }));
     setOverride((o) => ({ ...o, [it.id]: to }));
     setTouched((t) => new Set(t).add(it.id));
     setRowError(({ [it.id]: _gone, ...rest }) => rest);
@@ -121,24 +112,16 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
   const wines = kind === "wines";
   const matches = (it: StockItem) => !needle || fold(it.name).includes(needle) || fold(it.spec ?? "").includes(needle);
   const inView = items.filter((it) => it.wine === wines);
-  const shelf = (it: StockItem) => pinned[it.id] ?? stockOf(it); // wines: which section the row sits in
-  const visible = inView.filter((it) => {
-    if (!matches(it)) return false;
-    if (wines) return shelf(it);
-    if (outOnly && stockOf(it) && !touched.has(it.id)) return false;
-    return true;
-  });
-  const outWines = wines ? inView.filter((it) => !shelf(it) && matches(it)) : [];
-  const outWinesCount = outWines.filter((it) => !stockOf(it)).length;
-  const outExpanded = outOpen ?? (needle !== "" && outWines.length > 0);
+  // Out only: a row tapped this visit stays put (in or out), so nothing jumps away under your thumb.
+  const visible = inView.filter((it) => matches(it) && !(outOnly && stockOf(it) && !touched.has(it.id)));
   const groups: { family: string; items: StockItem[] }[] = [];
   for (const it of visible) {
     const g = groups[groups.length - 1];
     if (g && g.family === it.family) g.items.push(it);
     else groups.push({ family: it.family, items: [it] });
   }
-  // Out counts are spirits only: wines are routinely out and never a shopping item.
-  const outTotal = items.filter((i) => !i.wine && !stockOf(i)).length;
+  // Counted per view: the Spirits chip counts spirits, the Wines chip counts wines.
+  const outTotal = inView.filter((i) => !stockOf(i)).length;
   // Latest stock change per bottle that hasn't been undone. Undo entries themselves are not listed
   // (undoing puts things back, so there is nothing new to show or to undo again).
   const seen = new Set<string>();
@@ -156,15 +139,13 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
       <KindSwitch kind={kind} onChange={setKind} />
       <div className="a-searchbar" ref={barRef}>
         <div className="a-search">
-          <input type="search" value={q} onChange={(e) => { setQ(e.target.value); if (outOpen === false) setOutOpen(null); }} placeholder={wines ? "Search wines" : "Search spirits"} aria-label={wines ? "Search wines" : "Search spirits"} enterKeyHint="search" />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={wines ? "Search wines" : "Search spirits"} aria-label={wines ? "Search wines" : "Search spirits"} enterKeyHint="search" />
           {q ? <button type="button" className="a-clear" onClick={() => setQ("")} aria-label="Clear search">×</button> : null}
         </div>
-        {!wines ? (
-          <div className="a-chips" role="group" aria-label="Filter">
-            <button type="button" className={outOnly ? "a-chip" : "a-chip on"} onClick={() => setOutOnly(false)} aria-pressed={!outOnly}>All</button>
-            <button type="button" className={outOnly ? "a-chip on" : "a-chip"} onClick={() => setOutOnly(true)} aria-pressed={outOnly}>Out only · {outTotal}</button>
-          </div>
-        ) : null}
+        <div className="a-chips" role="group" aria-label="Filter">
+          <button type="button" className={outOnly ? "a-chip" : "a-chip on"} onClick={() => setOutOnly(false)} aria-pressed={!outOnly}>All</button>
+          <button type="button" className={outOnly ? "a-chip on" : "a-chip"} onClick={() => setOutOnly(true)} aria-pressed={outOnly}>Out only · {outTotal}</button>
+        </div>
       </div>
 
       {/* Hidden while the toast is up, so the same Undo never shows twice at once. */}
@@ -187,14 +168,14 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
         </section>
       ) : null}
 
-      {groups.length === 0 && !(wines && outWines.length) ? (
-        <p className="a-quiet a-empty">{wines ? (needle ? "No wines match." : "No wines yet.") : outOnly ? "Nothing is out." : "No bottles match."}</p>
+      {groups.length === 0 ? (
+        <p className="a-quiet a-empty">{outOnly ? (needle ? (wines ? "No out wines match." : "No out bottles match.") : "Nothing is out.") : wines ? (needle ? "No wines match." : "No wines yet.") : "No bottles match."}</p>
       ) : null}
       {groups.map((g) => {
         const out = g.items.filter((i) => !stockOf(i)).length;
         return (
           <section key={g.family} className="a-group">
-            <h2 className="a-group-head">{g.family.replace(/^./, (c) => c.toUpperCase())}<span className="a-quiet"> · {g.items.length}{out && !wines ? ` · ${out} out` : ""}</span></h2>
+            <h2 className="a-group-head">{g.family.replace(/^./, (c) => c.toUpperCase())}<span className="a-quiet"> · {g.items.length}{out ? ` · ${out} out` : ""}</span></h2>
             <ul className="a-rows">
               {g.items.map((it) => <StockRow key={it.id} id={it.id} name={it.name} sub={specLabel(it.spec, it.label)} inStock={stockOf(it)} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
             </ul>
@@ -202,15 +183,6 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
         );
       })}
 
-      {wines && outWines.length > 0 ? (
-        <section className="a-outsec" aria-label="Out wines">
-          <Disclosure headClassName="a-outsec-head" id="out-wines" open={outExpanded} onOpenChange={setOutOpen} summary={<>Out · {outWinesCount}</>}>
-            <ul className="a-rows">
-              {outWines.map((it) => <StockRow key={it.id} id={it.id} name={it.name} sub={specLabel(it.spec, it.label)} inStock={stockOf(it)} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
-            </ul>
-          </Disclosure>
-        </section>
-      ) : null}
 
       <div className="a-toast-wrap" aria-live="polite">
         {toast ? (

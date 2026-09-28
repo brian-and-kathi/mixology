@@ -78,7 +78,7 @@ Direct branch pages:
 ### Migrations and acceptance
 
 - `db/migrations/` holds numbered SQL files, `010_glassware.sql` through `028_bar_versions.sql`. Each runs in one transaction and records itself in the `schema_migrations` table. Migrations 001–009 were applied before this repo existed; their files aren't here, but both branches record them.
-- **Current state (checked 2026-09-27):** `main` and `dev` both have 001–027. 028 (`bar_versions`, branch `menu-events`) is not on either yet; the code works without it. Each has fallen behind once and was brought up to date without a reset: `dev` missed 023 and 024, and `main` missed 025 and 026 until 2026-09-27. Keep them in step: every migration that goes to `main` goes to `dev` too, or previews and local runs break when the code starts using the new schema. To check a branch: `SELECT version FROM schema_migrations ORDER BY version;`.
+- **Current state (checked 2026-09-28):** `main` and `dev` both have 001–028 (028 `bar_versions` applied 2026-09-28 after backup branch `pre-028-bar-versions`; acceptance 25/25 on both). Each has fallen behind once and was brought up to date without a reset: `dev` missed 023 and 024, and `main` missed 025 and 026 until 2026-09-27. Keep them in step: every migration that goes to `main` goes to `dev` too, or previews and local runs break when the code starts using the new schema. To check a branch: `SELECT version FROM schema_migrations ORDER BY version;`.
 - Apply a migration with `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0NN_name.sql`, on `dev` first, then on `main`.
 - `db/acceptance.sql` is the acceptance suite: 25 numbered checks covering buildability, substitutions, the neat/mixed/wine lists, stock toggles, the vermouth rule, recipe units and method styles, the PIN throttle, the Cellar rule, bottle supply, ratings, short names, the 024 renames and the 028 change signal. It runs inside `BEGIN … ROLLBACK`, so its fixtures never persist. Run it with `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/acceptance.sql`. Each check prints `check N passed` and the run ends with `all acceptance checks passed`. The first failure raises an error and stops. It needs every migration applied, so it also catches a branch that has fallen behind.
 
@@ -90,7 +90,12 @@ Database triggers (migration 028) count every change the TV board, phone menu or
 npm run notify            # production; or: npm run notify -- http://localhost:3000
 ```
 
-It tells open TVs and phones to refresh (about 2.5 s later) and only announces what changed since the last announcement, so running it twice is harmless. If you forget, screens catch up at their next 15-minute check or when they're reopened. Previews sit behind Vercel sign-in, so the script can't reach them.
+It tells open TVs and phones to refresh (about 2.5 s later; measured 2.5–2.6 s in production) and only announces what changed since the last announcement, so running it twice is harmless ("nothing new to announce"). If you forget, screens catch up at their next 15-minute check or when they're reopened.
+
+- Run it once after the whole batch of edits, not after each statement.
+- An UPDATE that sets the same values changes nothing and announces nothing. A tasting note, serve note or method change refreshes only an open Show on TV pop-up; stock, names, badges, ABV, serve flags, ingredients, recipes, glasses and ratings refresh the board.
+- Edits on `dev` go with `npm run notify -- http://localhost:3000` against a local app on `dev`. Previews sit behind Vercel sign-in, so the script can't reach them.
+- App edits (admin, `/db`, ratings) announce themselves; no script is needed.
 
 ### Getting a connection string
 

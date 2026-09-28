@@ -61,10 +61,10 @@ export function altGlassLine(alt: string, altService: string | null, service: st
   return `Or ${SERVICE[altService] ?? altService} in ${article(noun)} ${noun}`;
 }
 
-/** Plain serve text for a pour, e.g. "Usually neat or on the rocks · water on request". */
+/** Plain serve text for a pour, e.g. "Usually neat or on the rocks · best chilled". Water is not listed: guests can always ask. */
 export function serveLine(neat: boolean, rocks: boolean, chilled: boolean): string {
   const ways = [neat && "neat", rocks && "on the rocks"].filter(Boolean).join(" or ");
-  const parts = [ways ? `Usually ${ways}` : "Neat or on the rocks", chilled && "best chilled", "water on request"];
+  const parts = [ways ? `Usually ${ways}` : "Neat or on the rocks", chilled && "best chilled"];
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -88,7 +88,7 @@ export function tvGlassLine(glass: string, service: string | null, note: string 
 /** Pour serve text split for the TV: main line plus quiet lines. */
 export function serveParts(neat: boolean, rocks: boolean, chilled: boolean): { main: string; quiet: string[] } {
   const ways = [neat && "neat", rocks && "on the rocks"].filter(Boolean).join(" or ");
-  return { main: ways ? cap(ways) : "Neat or on the rocks", quiet: [chilled ? "Best chilled" : null, "Water on request"].filter((x): x is string => !!x) };
+  return { main: ways ? cap(ways) : "Neat or on the rocks", quiet: chilled ? ["Best chilled"] : [] };
 }
 
 // A method often opens with its style ("Stirred.", "Shaken.", "Warm, in a mug.") and then says it

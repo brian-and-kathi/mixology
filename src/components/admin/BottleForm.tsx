@@ -153,7 +153,6 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
               <label key={k} className="a-check"><input type="checkbox" checked={f[k]} onChange={(e) => setServe(k, e.target.checked)} /><span>{label}</span></label>
             ))}
           </div>
-          {isWine ? null : <p className="a-quiet a-small">Water is always offered on request.</p>}
         </fieldset>
       ) : null}
 

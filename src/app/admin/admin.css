@@ -171,7 +171,7 @@ body:has(.admin-root) { background: #07101c; }
 /* Stock measures its search bar (StockBoard sets --a-search-h), so headers sit exactly under it. */
 .a-stock .a-group-head { top: calc(var(--a-head-h) + var(--a-search-h, 104px)); }
 @media (min-width: 720px) { .a-stock .a-group-head { top: calc(var(--a-head-h) + 48px + var(--a-search-h, 104px)); } }
-/* Ingredients: the search bar is shorter (no Glance/Recently changed above), so headers stick right under it. */
+/* Specs (.a-ingredients): the search bar is shorter (no Glance/Recently changed above), so headers stick right under it. */
 .a-ingredients .a-group-head { top: calc(var(--a-head-h) + 108px); }
 @media (min-width: 720px) { .a-ingredients .a-group-head { top: calc(var(--a-head-h) + 48px + 108px); } }
 .a-rows, .a-list { list-style: none; margin: 0; padding: 0; }
@@ -240,7 +240,7 @@ body:has(.admin-root) { background: #07101c; }
 .a-preview-method { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.6rem; }
 .a-preview-method p { margin: 0; line-height: 1.5; }
 
-/* Ingredients */
+/* Specs tab (.a-ingredients) */
 .a-ingredients { display: flex; flex-direction: column; gap: 0.6rem; }
 .a-standins { border-top: 1px solid var(--a-line); margin-top: 0.6rem; }
 /* Right under the last ingredient row, whose own bottom rule already separates them. */

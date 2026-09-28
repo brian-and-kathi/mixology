@@ -3,7 +3,7 @@ import { SpecForm } from "@/components/admin/SpecForm";
 import { loadFamilies, loadSpec } from "@/lib/admin-data";
 import { isUuid } from "@/lib/db";
 
-export const metadata = { title: "Ingredient" };
+export const metadata = { title: "Spec" };
 
 export default async function IngredientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

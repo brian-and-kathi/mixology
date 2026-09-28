@@ -14,7 +14,7 @@ import { SEARCH } from "@/lib/search-cookie";
 const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 const VERMOUTH = new Set(["sweet vermouth", "dry vermouth"]);
 
-/** Ingredients tab: all ingredients by family, then stand-ins as sentences (with the vermouth rule). New ingredients are added in /db (Specs). */
+/** Specs tab (route /admin/ingredients): all specs by family, then stand-ins as sentences (with the vermouth rule). New ingredients are added in /db (Specs). */
 export function IngredientsPanel({ specs, families, subs, initialQuery = "" }: { specs: SpecOption[]; families: Family[]; subs: Sub[]; initialQuery?: string }) {
   const router = useRouter();
   const [q, setQ] = useRememberedSearch(SEARCH.ingredients, initialQuery);
@@ -83,7 +83,7 @@ export function IngredientsPanel({ specs, families, subs, initialQuery = "" }: {
     <div className="a-ingredients">
       <div className="a-searchbar">
         <div className="a-search">
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ingredients" aria-label="Search ingredients" enterKeyHint="search" />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search specs" aria-label="Search specs" enterKeyHint="search" />
           {q ? <button type="button" className="a-clear" onClick={() => setQ("")} aria-label="Clear search">×</button> : null}
         </div>
         <div className="a-chips" role="group" aria-label="Filter">
@@ -112,7 +112,7 @@ export function IngredientsPanel({ specs, families, subs, initialQuery = "" }: {
           </section>
         );
       })}
-      {groups.size === 0 ? <p className="a-quiet a-empty">{outOnly ? "Nothing is out." : "No ingredients match."}</p> : null}
+      {groups.size === 0 ? <p className="a-quiet a-empty">{outOnly ? "Nothing is out." : "No specs match."}</p> : null}
 
       <Disclosure className="a-more a-standins" headClassName="a-more-head" bodyClassName="a-more-body" summary={<>Stand-ins <span className="a-quiet">· {subs.length}</span></>}>
         {subs.length === 0 ? <p className="a-quiet">No stand-ins yet.</p> : (

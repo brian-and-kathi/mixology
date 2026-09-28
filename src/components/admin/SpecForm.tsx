@@ -47,7 +47,7 @@ export function SpecForm({ spec, families }: { spec: SpecRow; families: Family[]
 
   return (
     <form className="a-form" onSubmit={submit}>
-      <BackLink href="/admin/ingredients" label="Ingredients" dirty={dirty} />
+      <BackLink href="/admin/ingredients" label="Specs" dirty={dirty} />
       <h1 className="a-h1">{cap(spec.name)}</h1>
       <label className="a-field"><span className="a-label">Name</span>
         <input value={f.name} onChange={(e) => set("name", e.target.value)} required maxLength={80} />

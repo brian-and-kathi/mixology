@@ -14,7 +14,10 @@ function MeterRow({ meter }: { meter: Meter }) {
     <li className={`a-meter${level(meter.ratio)}`}>
       <div className="a-meter-top">
         <span>{meter.label}</span>
-        <span>{meter.limit ? `${meter.used} / ${meter.limit}` : meter.used}</span>
+        <span>
+          {meter.unavailable ? <span className="a-meter-na">{meter.used}</span> : meter.used}
+          {meter.limit ? ` / ${meter.limit}` : null}
+        </span>
       </div>
       {meter.ratio != null ? (
         <div className="a-meter-bar" aria-hidden>
@@ -53,7 +56,17 @@ export function HostCard({ panel }: { panel: HostPanel }) {
           </ul>
         </Disclosure>
       ) : null}
-      {panel.note ? <p className="a-quiet a-host-note">{panel.note}</p> : null}
+      {panel.note || panel.link ? (
+        <p className="a-quiet a-host-note">
+          {panel.note}
+          {panel.note && panel.link ? " " : null}
+          {panel.link ? (
+            <a className="a-host-link" href={panel.link.href} target="_blank" rel="noopener noreferrer">
+              {panel.link.label}
+            </a>
+          ) : null}
+        </p>
+      ) : null}
     </section>
   );
 }

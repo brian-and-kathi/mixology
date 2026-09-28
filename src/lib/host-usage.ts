@@ -12,6 +12,8 @@ const VERCEL_HOBBY = [
 const NEON_PROJECT = process.env.NEON_PROJECT_ID?.trim() || "green-snow-21814330";
 const VERCEL_TEAM = process.env.VERCEL_TEAM_ID?.trim() || "team_tiRwsxJAo2wmRvzJ2GToaYnZ";
 const VERCEL_PROJECT = process.env.VERCEL_PROJECT_ID?.trim() || "prj_BQ8ioCaCKTUz0pnMFW0SlGw9l5IZ";
+/** Team usage page on the Vercel dashboard (the team is brianandkathi). */
+const VERCEL_USAGE_URL = process.env.VERCEL_USAGE_URL?.trim() || "https://vercel.com/brianandkathi/~/usage";
 
 export type Meter = {
   label: string;
@@ -21,12 +23,16 @@ export type Meter = {
   ratio: number | null;
   /** Shown while the card is collapsed; the rest wait under "All limits" unless they reach 80%. */
   tight?: boolean;
+  /** The host doesn't report this figure (not an error): `used` is drawn muted. */
+  unavailable?: boolean;
 };
 
 export type HostPanel = {
   title: string;
   detail: string | null;
   note: string | null;
+  /** Optional link after the note, opened in a new tab. */
+  link?: { href: string; label: string };
   meters: Meter[];
 };
 
@@ -159,8 +165,9 @@ function chargeUsed(rows: Charge[], service: string): number | null {
 /** This month's Vercel usage for the mixology project, against Hobby allowances. */
 export async function loadVercelPanel(): Promise<HostPanel> {
   // Local screenshots only: `USAGE_MOCK=1 next dev`. Production builds drop this branch and the module.
-  if (process.env.NODE_ENV === "development" && process.env.USAGE_MOCK === "1") {
-    return (await import("@/lib/usage-mock")).mockVercelPanel();
+  if (process.env.NODE_ENV === "development" && (process.env.USAGE_MOCK === "1" || process.env.USAGE_MOCK === "vercel-hobby")) {
+    const mock = await import("@/lib/usage-mock");
+    return process.env.USAGE_MOCK === "vercel-hobby" ? mock.mockVercelHobbyPanel() : mock.mockVercelPanel();
   }
   const token = process.env.VERCEL_TOKEN?.trim();
   const from = new Date();
@@ -182,6 +189,10 @@ export async function loadVercelPanel(): Promise<HostPanel> {
         signal: AbortSignal.timeout(8000),
         cache: "no-store",
       });
+      if (res.status === 404) {
+        // Hobby teams have no billing subscription, so the charges API has nothing to return.
+        return vercelHobbyPanel();
+      }
       if (!res.ok) {
         note =
           res.status === 401 || res.status === 403
@@ -203,6 +214,17 @@ export async function loadVercelPanel(): Promise<HostPanel> {
     }
   }
   return vercelPanel(rows, note);
+}
+
+/** Hobby: Vercel keeps usage on its dashboard only. Same five rows, marked "not shared", and a link there. */
+export function vercelHobbyPanel(): HostPanel {
+  return {
+    title: "Vercel · Hobby",
+    detail: "This month",
+    note: "Vercel doesn't share live usage on the Hobby plan.",
+    link: { href: VERCEL_USAGE_URL, label: "See usage on vercel.com" },
+    meters: VERCEL_HOBBY.map((item) => ({ label: item.label, used: "not shared", limit: item.limitLabel, ratio: null, unavailable: true })),
+  };
 }
 
 /** Five rows in every state; "—" where the charges have no matching line. */

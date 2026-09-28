@@ -1,5 +1,5 @@
 import { panel, type CloudflareUsage } from "@/lib/cloudflare-usage";
-import { vercelPanel, type Charge, type HostPanel } from "@/lib/host-usage";
+import { vercelHobbyPanel, vercelPanel, type Charge, type HostPanel } from "@/lib/host-usage";
 
 /**
  * Made-up readings for local screenshots of the amber (80%) and red (100%) bars.
@@ -40,4 +40,9 @@ export function mockVercelPanel(): HostPanel {
     LABEL,
   );
   return { ...p, title: `${p.title} · MOCK` };
+}
+
+/** `USAGE_MOCK=vercel-hobby`: what the card draws when the charges API answers 404 (Hobby, no subscription). */
+export function mockVercelHobbyPanel(): HostPanel {
+  return vercelHobbyPanel();
 }

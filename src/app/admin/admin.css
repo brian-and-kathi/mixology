@@ -320,6 +320,9 @@ body:has(.admin-root) { background: #07101c; }
 .a-meter.is-warn .a-meter-bar span { background: var(--a-amber); }
 .a-meter.is-over .a-meter-bar span { background: var(--a-red); }
 .a-meter.is-over .a-meter-top span:last-child { color: var(--a-red); }
+.a-meter-na { opacity: 0.62; }
+.a-host-link { color: var(--a-accent); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.a-host-link:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; border-radius: 2px; }
 .a-host-more { margin-top: 0.35rem; }
 .a-host-more-head { min-height: 44px; font-size: 0.88rem; color: var(--quiet); }
 .a-host-more .a-meters { margin-top: 0.1rem; }

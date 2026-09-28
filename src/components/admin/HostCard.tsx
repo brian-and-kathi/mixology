@@ -14,10 +14,7 @@ function MeterRow({ meter }: { meter: Meter }) {
     <li className={`a-meter${level(meter.ratio)}`}>
       <div className="a-meter-top">
         <span>{meter.label}</span>
-        <span>
-          {meter.unavailable ? <span className="a-meter-na">{meter.used}</span> : meter.used}
-          {meter.limit ? ` / ${meter.limit}` : null}
-        </span>
+        <span>{meter.limit ? `${meter.used} / ${meter.limit}` : meter.used}</span>
       </div>
       {meter.ratio != null ? (
         <div className="a-meter-bar" aria-hidden>

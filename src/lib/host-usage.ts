@@ -23,8 +23,6 @@ export type Meter = {
   ratio: number | null;
   /** Shown while the card is collapsed; the rest wait under "All limits" unless they reach 80%. */
   tight?: boolean;
-  /** The host doesn't report this figure (not an error): `used` is drawn muted. */
-  unavailable?: boolean;
 };
 
 export type HostPanel = {
@@ -216,14 +214,14 @@ export async function loadVercelPanel(): Promise<HostPanel> {
   return vercelPanel(rows, note);
 }
 
-/** Hobby: Vercel keeps usage on its dashboard only. Same five rows, marked "not shared", and a link there. */
+/** Hobby: Vercel keeps usage on its dashboard only. Same five rows showing just the plan limit, and a link there. */
 export function vercelHobbyPanel(): HostPanel {
   return {
     title: "Vercel · Hobby",
-    detail: "This month",
+    detail: "Monthly limits",
     note: "Vercel doesn't share live usage on the Hobby plan.",
     link: { href: VERCEL_USAGE_URL, label: "See usage on vercel.com" },
-    meters: VERCEL_HOBBY.map((item) => ({ label: item.label, used: "not shared", limit: item.limitLabel, ratio: null, unavailable: true })),
+    meters: VERCEL_HOBBY.map((item) => ({ label: item.label, used: item.limitLabel, limit: null, ratio: null })),
   };
 }
 

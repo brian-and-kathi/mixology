@@ -1,13 +1,7 @@
-import { cookies } from "next/headers";
-import { loadStock } from "@/lib/admin-data";
-import { BottleList } from "@/components/admin/BottleList";
-import { SEARCH, cleanSearch } from "@/lib/search-cookie";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Bottles" };
-
-export default async function BottlesPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
+/** The Bottles list is gone (its rows live on Stock): old links land on Stock, keeping a "Saved X." notice. */
+export default async function BottlesRedirect({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
   const { saved } = await searchParams;
-  const query = cleanSearch((await cookies()).get(SEARCH.bottles)?.value);
-  const items = await loadStock();
-  return <BottleList items={items} saved={saved} initialQuery={query} />;
+  redirect(saved ? `/admin?saved=${encodeURIComponent(saved)}` : "/admin");
 }

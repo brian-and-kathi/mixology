@@ -66,7 +66,7 @@ body:has(.admin-root) { background: #07101c; }
 
 /* Tabs: bottom bar on phones, top bar on laptops */
 .a-tabs {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
   height: calc(var(--a-tabs-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
   background: var(--a-header); border-top: 1px solid var(--a-line);
 }
@@ -181,6 +181,10 @@ body:has(.admin-root) { background: #07101c; }
 .a-srow-link { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; padding: 0.5rem 0.2rem 0.5rem 0; font-size: 1.05rem; color: var(--text); }
 .a-srow-link:active { background: var(--a-raised); }
 .a-srow-name { min-width: 0; }
+/* Stock rows: the bottle's type as a second, quiet line (skipped when there is none). Tight lines keep the row at 56px. */
+.a-srow-text { display: flex; flex-direction: column; min-width: 0; }
+.a-srow-text .a-srow-name { line-height: 1.2; }
+.a-srow-sub { margin-top: 1px; font-size: 0.8rem; line-height: 1.2; color: var(--quiet); }
 /* In is the usual state, so it stays calm: an 18% accent tint with accent text (6.3:1). Out is what the
    eye should find: the admin amber as outline and text (9.3:1 on the page). Both 68px wide, 44px tall. */
 .admin-root .a-stock-toggle { flex: none; width: 4.25rem; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 10px; border: 1.5px solid color-mix(in srgb, var(--a-amber) 62%, transparent); background: transparent; color: var(--a-amber); font: inherit; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.01em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }

@@ -85,7 +85,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
       const body = { ...f, family_id: f.family_id || spec?.family_id || null };
       if (product) await api(`/api/admin/products/${product.id}`, "PUT", body);
       else await api("/api/admin/products", "POST", body);
-      router.push(`/admin/bottles?saved=${encodeURIComponent(f.display_name)}`);
+      router.push(`/admin?saved=${encodeURIComponent(f.display_name)}`); // Stock (the Bottles list is gone)
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save.");
@@ -95,7 +95,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
 
   return (
     <form className="a-form" onSubmit={submit}>
-      <BackLink href="/admin/bottles" label="Bottles" dirty={dirty} />
+      <BackLink href="/admin" label="Stock" dirty={dirty} />
       <h1 className="a-h1">{product ? "Edit bottle" : wine ? "Add wine" : "Add bottle"}</h1>
       {!product ? <SharedPhoto fromShare={shared === true} /> : null}
       {shared === false ? <p className="a-quiet a-small">The photo couldn&apos;t be kept this time (the app wasn&apos;t ready). Share it again if you want it as a reference.</p> : null}

@@ -9,6 +9,7 @@ import { useRememberedSearch } from "./useRememberedSearch";
 import { SEARCH } from "@/lib/search-cookie";
 import { Disclosure } from "./Disclosure";
 import { StockRow } from "./StockToggle";
+import { specLabel } from "@/lib/spec-label";
 
 type Result = { name: string; in_stock: boolean; log_id: number | null; blocked: string[]; unlocked: string[] };
 type Toast = { text: string; undo?: { id: string; to: boolean; logId: number | null } };
@@ -39,7 +40,7 @@ function ago(iso: string, now: number): string {
 
 /**
  * Stock: one tap on the row's In/Out toggle (left edge) flips a bottle (optimistic), with an undo toast
- * that shows the menu impact. The rest of the row opens the bottle, like Bottles.
+ * that shows the menu impact. The rest of the row opens the bottle; the type is a quiet second line.
  * Spirits | Wines switch: Spirits is the short list whose outs matter ("Out only", counts).
  * Wines (the guest Cellar's bottles) lists in-stock wines by type, with the out ones folded into a
  * quiet "Out · N" section at the bottom; wine outs never count as shopping or "out" numbers.
@@ -195,7 +196,7 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
           <section key={g.family} className="a-group">
             <h2 className="a-group-head">{g.family.replace(/^./, (c) => c.toUpperCase())}<span className="a-quiet"> · {g.items.length}{out && !wines ? ` · ${out} out` : ""}</span></h2>
             <ul className="a-rows">
-              {g.items.map((it) => <StockRow key={it.id} id={it.id} name={it.name} inStock={stockOf(it)} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
+              {g.items.map((it) => <StockRow key={it.id} id={it.id} name={it.name} sub={specLabel(it.spec, it.label)} inStock={stockOf(it)} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
             </ul>
           </section>
         );
@@ -205,7 +206,7 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
         <section className="a-outsec" aria-label="Out wines">
           <Disclosure headClassName="a-outsec-head" id="out-wines" open={outExpanded} onOpenChange={setOutOpen} summary={<>Out · {outWinesCount}</>}>
             <ul className="a-rows">
-              {outWines.map((it) => <StockRow key={it.id} id={it.id} name={it.name} inStock={stockOf(it)} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
+              {outWines.map((it) => <StockRow key={it.id} id={it.id} name={it.name} sub={specLabel(it.spec, it.label)} inStock={stockOf(it)} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
             </ul>
           </Disclosure>
         </section>

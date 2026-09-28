@@ -7,7 +7,7 @@ const KEY = "mx-admin-kind";
 const EVENT = "mx-admin-kind";
 
 /**
- * Spirits | Wines view for Stock and Bottles. Defaults to Spirits; the last choice is remembered on
+ * Spirits | Wines view for Stock. Defaults to Spirits; the last choice is remembered on
  * this device (localStorage, shared by both pages). Wines = what the guest Cellar shows (is_cellar_wine).
  */
 export function useAdminKind(): [Kind, (k: Kind) => void] {

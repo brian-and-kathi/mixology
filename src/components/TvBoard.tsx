@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon } from "@/components/GlassIcon";
 
 import { useCastHighlight } from "@/components/TvCast";
@@ -19,22 +18,37 @@ const MIN_SUBCOL_PX = 420;
 /**
  * Assign each row to a "virtual column" so no column is taller than `available` px. `gaps[i]`: the extra space
  * above row i when it starts a new spirit family (Pours), which only counts when the row isn't first in its column.
+ * `reserve(col)`: height already taken at the top of a virtual column (featured rows pinned to the first
+ * sub-column of every page, migration 030); 0 by default.
  */
-function pack(heights: number[], gaps: number[], available: number): number[] {
+function pack(heights: number[], gaps: number[], available: number, reserve: (col: number) => number = () => 0): number[] {
   const out: number[] = [];
   let col = 0;
-  let used = 0;
+  let used = reserve(0);
   heights.forEach((h, i) => {
     const gap = used > 0 ? gaps[i] ?? 0 : 0;
     if (used > 0 && used + gap + h > available) {
       col += 1;
-      used = h;
+      used = reserve(col);
+      used += (used > 0 ? gaps[i] ?? 0 : 0) + h;
     } else {
       used += gap + h;
     }
     out[i] = col;
   });
   return out;
+}
+
+/**
+ * How featured rows (migration 030) look on the TV board. "tag": the copper "Featured" tag, the same size as the
+ * gold type badge, at the end of the line under the name ("Gin London Featured"). "star": no tag, a small copper
+ * star before the name. Both keep the copper name. Vincent chose between them from the v2 comparison shots.
+ */
+const TV_FEATURED: "tag" | "star" = "star";
+
+/** Total height of the featured rows (migration 030), pinned to the top of every page's first sub-column. */
+function pinnedHeight(items: MenuItem[], heights: number[]): number {
+  return items.reduce((sum, it, i) => sum + (it.featured ? heights[i] ?? 0 : 0), 0);
 }
 
 /** Unrounded row heights (offsetHeight rounds, and 8 x 0.5px can cost a row at 1024x576). */
@@ -99,15 +113,17 @@ let fitCanvas: HTMLCanvasElement | null = null;
 function FitLine({ fit, badge = null, origin = null, featured = false }: { fit: string[]; badge?: string | null; origin?: string | null; featured?: boolean }) {
   const ref = useRef<HTMLSpanElement>(null);
   const badgeRef = useRef<HTMLSpanElement>(null);
+  const tagRef = useRef<HTMLSpanElement>(null);
   const [text, setText] = useState(fit[0]);
   useLayoutEffect(() => {
     const el = ref.current;
     const box = el?.parentElement;
     if (!el || !box) return;
     const run = () => {
-      // Featured tag (migration 030) and the Pours spec badge lead this line; the region gets the room after them.
-      const reserved = [...(badgeRef.current?.querySelectorAll(".feat-tag, .spec-badge") ?? [])].reduce((w, n) => w + n.getBoundingClientRect().width + parseFloat(getComputedStyle(n).marginRight || "0"), 0);
-      const width = box.clientWidth - reserved;
+      // The Pours spec badge is always first on this line and a featured tag (migration 030) last; the text
+      // between them gets the room that is left.
+      const room = (n: HTMLElement | null) => (n ? n.getBoundingClientRect().width + parseFloat(getComputedStyle(n).marginRight || "0") + parseFloat(getComputedStyle(n).marginLeft || "0") : 0);
+      const width = box.clientWidth - room(badgeRef.current) - room(tagRef.current);
       if (!box.clientWidth) return;
       fitCanvas ??= document.createElement("canvas");
       const ctx = fitCanvas.getContext("2d");
@@ -126,12 +142,10 @@ function FitLine({ fit, badge = null, origin = null, featured = false }: { fit: 
   const place = origin && text.startsWith(origin) ? origin : "";
   return (
     <span ref={ref} className="tv-detail">
-      <span ref={badgeRef}>
-        {featured ? <FeaturedTag /> : null}
-        {badge ? <span className="spec-badge">{badge}</span> : null}
-      </span>
+      {badge ? <span ref={badgeRef} className="spec-badge">{badge}</span> : null}
       {place ? <span className="tv-origin">{place}</span> : null}
       {place ? text.slice(place.length) : text}
+      {featured ? <span ref={tagRef} className="feat-tag tv-feat-tag">Featured</span> : null}
     </span>
   );
 }
@@ -160,17 +174,21 @@ function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on
   // Pours are grouped by spirit family: the first bottle of a family gets a small gap above it (.fam-start).
   const cls = "tv-row" + (on ? " on" : "") + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "");
   // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name.
-  // Featured (migration 030): the tag leads that line even when there is no other subtext.
-  const below = !!item.spec || !!item.fit?.length || !!item.featured;
+  // Featured (migration 030): copper name, plus the tag at the end of the line under it ("tag") or a star
+  // before the name ("star"); see TV_FEATURED.
+  const tag = !!item.featured && TV_FEATURED === "tag";
+  const star = !!item.featured && TV_FEATURED === "star";
+  const below = !!item.spec || !!item.fit?.length || tag;
   return (
     <li className={cls}>
       <Lead glass={item.glass} rating={rating} />
       <span className="tv-text">
-        <span className="tv-name" data-measure={item.measure}>
+        <span className="tv-name" data-measure={star && item.measure ? `\u2605\u00a0${item.measure}` : item.measure}>
+          {star ? <span className="tv-feat-star" role="img" aria-label="Featured">★</span> : null}
           {item.name}
           {item.abv ? <sup className="tv-abv">{item.abv}</sup> : null}
         </span>
-        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={!!item.featured} /> : null}
+        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={tag} /> : null}
       </span>
     </li>
   );
@@ -213,13 +231,16 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
       const box = viewports.current[ci];
       const ruler = rulers.current[ci];
       if (!box || !ruler || box.clientHeight < 40) return c.items.map(() => 0);
-      // Featured rows (migration 030) live in the pinned list above the viewport; pack only the rest.
+      // Featured rows (migration 030) are the first cells of every page (top of its first sub-column), so
+      // pack only the rest, with that room reserved on each page (-1 marks a pinned row).
       const heights = rowHeights(ruler);
       const gaps = rowGaps(ruler);
       const keep: number[] = [];
       c.items.forEach((it, i) => { if (!it.featured) keep.push(i); });
-      const subPacked = pack(keep.map((i) => heights[i]), keep.map((i) => gaps[i]), box.getBoundingClientRect().height);
-      return c.items.map((_, i) => { const k = keep.indexOf(i); return k < 0 ? -1 : subPacked[k]; });
+      const pinnedH = pinnedHeight(c.items, heights);
+      const k = split[ci] ?? 1;
+      const subPacked = pack(keep.map((i) => heights[i]), keep.map((i) => gaps[i]), box.getBoundingClientRect().height, (v) => (v % k === 0 ? pinnedH : 0));
+      return c.items.map((_, i) => { const at = keep.indexOf(i); return at < 0 ? -1 : subPacked[at]; });
     });
     const needed = packed.map((p) => { const live = p.filter((v) => v >= 0); return live.length ? Math.max(...live) + 1 : 1; });
     const next = allocate(needed, budget);
@@ -246,23 +267,35 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
       const k = split[ci] ?? 1;
       const box = viewports.current[ci];
       const ruler = rulers.current[ci];
-      const liveCount = p.filter((v) => v >= 0).length;
-      const slots = Math.min(liveCount, Math.ceil(needed[ci] / k) * k);
-      if (slots < 2 || !box || !ruler || liveCount === 0) return p;
-      const base = Math.floor(liveCount / slots);
-      const long = (liveCount % slots) * (base + 1); // rows in the sub-columns that take an extra one
-      // Featured rows stay at -1 (pinned, not paged). Balance only the live ones.
+      // Featured rows (migration 030) stay at -1: they are the first cells of every page's first sub-column,
+      // and count as rows there, so a page with pinned rows gives its first sub-column fewer paged rows.
       const live = p.map((v, i) => (v < 0 ? -1 : i)).filter((i) => i >= 0);
-      const evenLive = live.map((_, i) => (i < long ? Math.floor(i / (base + 1)) : long / (base + 1) + Math.floor((i - long) / base)));
-      const even = p.map((v, i) => { const k = live.indexOf(i); return k < 0 ? -1 : evenLive[k]; });
+      const pc = p.length - live.length;
+      const pages = Math.ceil(needed[ci] / k);
+      const units = live.length + pages * pc;
+      const slots = Math.min(units, pages * k);
+      if (slots < 2 || !box || !ruler || live.length === 0) return p;
+      const base = Math.floor(units / slots);
+      const extra = units % slots; // the first `extra` sub-columns take one more row
+      const caps = Array.from({ length: slots }, (_, v) => Math.max(0, base + (v < extra ? 1 : 0) - (v % k === 0 ? pc : 0)));
+      const even = p.map(() => -1);
+      let v = 0;
+      for (const i of live) {
+        while (v < slots && caps[v] === 0) v++;
+        if (v >= slots) return p;
+        even[i] = v;
+        caps[v]--;
+      }
       const heights = rowHeights(ruler);
       const gaps = rowGaps(ruler);
-      // A family gap counts unless its row is first in its sub-column (among live rows).
-      const tallest = Math.max(0, ...Array.from({ length: slots }, (_, c) => heights.reduce((sum, h, i) => {
-        if (even[i] !== c) return sum;
-        const prev = even.slice(0, i).lastIndexOf(c);
-        return sum + h + (prev >= 0 ? gaps[i] : 0);
-      }, 0)));
+      const pinnedH = pinnedHeight(columns[ci].items, heights);
+      // A family gap counts unless its row is first in its sub-column (pinned rows come first on each page).
+      const tallest = Math.max(0, ...Array.from({ length: slots }, (_, c) => {
+        let sum = c % k === 0 ? pinnedH : 0;
+        let first = sum === 0;
+        heights.forEach((h, i) => { if (even[i] === c) { sum += h + (first ? 0 : gaps[i]); first = false; } });
+        return sum;
+      }));
       return tallest <= box.getBoundingClientRect().height ? even : p;
     });
     setAssign(balanced);
@@ -316,20 +349,16 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
             <h2 className="tv-heading">{col.label}</h2>
             {/* Only a column that has its own second page says so (all columns turn together; a shorter one holds its last page). */}
             <p className="tv-pageno">{colPages[ci] > 1 ? `${shownPage + 1} / ${colPages[ci]}` : "\u00a0"}</p>
-            {/* Guaranteed slot (migration 030): featured rows stay at the top of the section on every page. */}
-            {col.items.some((i) => i.featured) ? (
-              <ul className="tv-list tv-pinned">
-                {col.items.filter((i) => i.featured).map((item) => <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} on={cast?.id === item.id} />)}
-              </ul>
-            ) : null}
             <div className="tv-viewport" ref={(el) => { viewports.current[ci] = el; }}>
               {/* Invisible full list at sub-column width, used only to measure row heights. */}
               <ul className="tv-list tv-ruler" aria-hidden style={{ width: `${100 / n}%` }} ref={(el) => { rulers.current[ci] = el; }}>
                 {col.items.map((item) => <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} />)}
               </ul>
               <div className={`tv-subcols ${visible ? "" : "tv-fading"}`}>
-                {subcols.map((v) => (
+                {subcols.map((v, sc) => (
                   <ul key={v} className="tv-list">
+                    {/* Guaranteed slot (migration 030): featured rows are the first cells of every page, in normal flow. */}
+                    {sc === 0 ? col.items.map((item) => (item.featured ? <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} on={cast?.id === item.id} /> : null)) : null}
                     {col.items.map((item, i) => (!item.featured && (assign[ci]?.[i] ?? 0) === v ? <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} on={cast?.id === item.id} /> : null))}
                   </ul>
                 ))}

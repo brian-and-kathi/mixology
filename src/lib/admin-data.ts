@@ -241,6 +241,6 @@ export async function loadSpec(id: string): Promise<SpecRow | null> {
   return s ?? null;
 }
 
-/** How many products are currently flagged Featured (the switch, including out-of-stock). Soft warning above 3. */
+/** How many products are Featured right now: flagged AND in stock (what guests see). Soft warning above 3. */
 export const countFeatured = () =>
-  query<{ n: string }>("SELECT count(*)::text AS n FROM products WHERE featured").then(([r]) => Number(r?.n ?? 0));
+  query<{ n: string }>("SELECT count(*)::text AS n FROM featured_product_ids()").then(([r]) => Number(r?.n ?? 0));

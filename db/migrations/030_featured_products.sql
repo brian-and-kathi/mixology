@@ -5,8 +5,9 @@
 -- out at read time, never stored, so an out-of-stock featured product features nothing:
 --   featured_product_ids()  the products that count right now: featured AND in stock. Their pour (Pours)
 --                           or Cellar entry is featured, and so is their name in a recipe's bottle line.
---   featured_recipe_ids()   recipes with a line whose ingredient (spec) is one of those products' specs
---                           (product_specs, the same match the bottle line uses).
+--   featured_recipe_ids()   recipes with a REQUIRED line whose ingredient (spec) is one of those products'
+--                           specs (product_specs, the same match the bottle line uses). Optional lines
+--                           never feature a drink (Brian via Vincent, 2026-09-28).
 -- The change signal needs nothing new: the products UPDATE trigger from 028 compares whole rows, so
 -- flipping featured bumps menu_version and cast_version like any other edit the board shows.
 -- Idempotent; one transaction; recorded once.
@@ -29,7 +30,7 @@ LANGUAGE sql STABLE SET search_path = public AS $$
     FROM recipe_lines rl
     JOIN product_specs ps ON ps.spec_id = rl.spec_id
     JOIN products p ON p.id = ps.product_id
-   WHERE p.featured AND p.in_stock;
+   WHERE rl.required AND p.featured AND p.in_stock;
 $$;
 
 INSERT INTO schema_migrations (version) VALUES ('030_featured_products.sql')

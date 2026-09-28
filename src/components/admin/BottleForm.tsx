@@ -147,9 +147,10 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
           <span>Featured</span>
         </label>
       </div>
-      {/* Soft warning (migration 030): more than 3 products flagged Featured. Non-blocking. */}
-      {(featuredCount + (f.featured ? 1 : 0) - (product?.featured ? 1 : 0)) > 3 ? (
-        <p className="a-warn" role="status">More than 3 bottles are Featured. Guests will see them all; three or fewer usually works best.</p>
+      {/* Soft warning (migration 030): more than 3 bottles Featured and in stock (what guests see). Non-blocking.
+          featuredCount is the saved total; this bottle counts as it is on the form. */}
+      {(featuredCount + (f.featured && f.in_stock ? 1 : 0) - (product?.featured && product.in_stock ? 1 : 0)) > 3 ? (
+        <p className="a-warn" role="status">More than 3 in-stock bottles are Featured. Guests will see them all; three or fewer usually works best.</p>
       ) : null}
       <label className="a-check">
         <input type="checkbox" checked={f.pourable} onChange={(e) => set("pourable", e.target.checked)} />

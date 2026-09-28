@@ -393,8 +393,9 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     const names = bottleNames(!line.available && line.use_instead ? line.use_instead : line.name, { own, kind, has_bottles, stock });
     const { bottles, preferred } = preferFirst(names, line.note);
     const shown = shownNames(bottles, stock);
-    // Featured bottles (migration 030), by the name the guest reads.
-    const featured = shownNames(stock.filter((b) => b.featured).map((b) => b.name.trim()), stock)!.filter((n) => shown?.includes(n));
+    // Featured bottles (migration 030), by the name the guest reads. Required lines only: an optional line
+    // never features the drink (featured_recipe_ids), so its bottle line stays plain too.
+    const featured = line.required ? shownNames(stock.filter((b) => b.featured).map((b) => b.name.trim()), stock)!.filter((n) => shown?.includes(n)) : [];
     return { ...line, bottles: featuredBottlesFirst(shown, featured, preferred), preferred, featured };
   });
   return { ...recipe, lines };

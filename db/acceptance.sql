@@ -1259,7 +1259,7 @@ BEGIN
 END $$;
 
 -- 27. Featured (030): a product counts only while featured AND in stock; its recipes follow through the
--- spec match; the flag defaults off; flipping it bumps the change signal like any board edit.
+-- spec match on REQUIRED lines only; the flag defaults off; flipping it bumps the change signal like any board edit.
 DO $$
 DECLARE
   v_product uuid;
@@ -1272,6 +1272,7 @@ BEGIN
   END IF;
   SELECT p.id, rl.recipe_id INTO v_product, v_recipe
     FROM products p JOIN product_specs ps ON ps.product_id = p.id JOIN recipe_lines rl ON rl.spec_id = ps.spec_id
+   WHERE rl.required
    ORDER BY p.id LIMIT 1;
   IF v_product IS NULL THEN RAISE EXCEPTION 'check 27 failed: no product is used by a recipe'; END IF;
   UPDATE products SET featured = false WHERE featured;
@@ -1289,6 +1290,13 @@ BEGIN
   UPDATE products SET in_stock = false WHERE id = v_product;
   IF v_product IN (SELECT featured_product_ids()) OR v_recipe IN (SELECT featured_recipe_ids()) THEN
     RAISE EXCEPTION 'check 27 failed: an out-of-stock featured product still features something';
+  END IF;
+  -- Optional lines never feature a drink: back in stock, but its lines on that recipe made optional.
+  UPDATE products SET in_stock = true WHERE id = v_product;
+  UPDATE recipe_lines SET required = false
+   WHERE recipe_id = v_recipe AND spec_id IN (SELECT spec_id FROM product_specs WHERE product_id = v_product);
+  IF v_recipe IN (SELECT featured_recipe_ids()) THEN
+    RAISE EXCEPTION 'check 27 failed: an optional line featured a drink';
   END IF;
   RAISE NOTICE 'check 27 passed';
 END $$;

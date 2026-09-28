@@ -10,8 +10,8 @@ const VERCEL_HOBBY = [
 ];
 
 const NEON_PROJECT = process.env.NEON_PROJECT_ID?.trim() || "green-snow-21814330";
-const VERCEL_TEAM = process.env.VERCEL_TEAM_ID?.trim() || "team_tiRwsxJAo2wmRvzJ2GToaYnZ";
-const VERCEL_PROJECT = process.env.VERCEL_PROJECT_ID?.trim() || "prj_BQ8ioCaCKTUz0pnMFW0SlGw9l5IZ";
+export const VERCEL_TEAM = process.env.VERCEL_TEAM_ID?.trim() || "team_tiRwsxJAo2wmRvzJ2GToaYnZ";
+export const VERCEL_PROJECT = process.env.VERCEL_PROJECT_ID?.trim() || "prj_BQ8ioCaCKTUz0pnMFW0SlGw9l5IZ";
 /** Team usage page on the Vercel dashboard (the team is brianandkathi). */
 const VERCEL_USAGE_URL = process.env.VERCEL_USAGE_URL?.trim() || "https://vercel.com/brianandkathi/~/usage";
 

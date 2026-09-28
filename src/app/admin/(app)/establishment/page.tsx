@@ -1,35 +1,16 @@
-import { Glance } from "@/components/admin/Glance";
-import { HostCard } from "@/components/admin/HostCard";
+import { BarCard } from "@/components/admin/BarCard";
 import { Tonight } from "@/components/admin/Tonight";
-import { loadGlance } from "@/lib/admin-data";
-import { loadCloudflarePanel } from "@/lib/cloudflare-usage";
-import { loadNeonPanel, loadVercelPanel } from "@/lib/host-usage";
 import { tonight } from "@/lib/night";
-import { commitRef } from "@/lib/version";
 
 export const metadata = { title: "Establishment" };
 
+/** The bar-night page: Open/Closed, then tonight's knock and words. Usage, git and the glance live on System. */
 export default async function EstablishmentPage() {
   const night = await tonight();
-  const [glance, neon, vercel, cloudflare] = await Promise.all([
-    loadGlance(),
-    loadNeonPanel(),
-    loadVercelPanel(),
-    loadCloudflarePanel(),
-  ]);
-  const commit = commitRef();
   return (
     <div className="a-establish">
+      <BarCard />
       {night ? <Tonight night={night} /> : <p className="a-card a-quiet">Tonight&apos;s code needs a signing secret on the server.</p>}
-      <Glance data={glance} />
-      <section className="a-card a-git" aria-label="Git">
-        <h2 className="a-h2">Git</h2>
-        <p className="a-git-short" title={commit.full || undefined}>{commit.short}</p>
-        {commit.full ? <p className="a-git-full">{commit.full}</p> : null}
-      </section>
-      <HostCard panel={neon} />
-      <HostCard panel={vercel} />
-      <HostCard panel={cloudflare} />
     </div>
   );
 }

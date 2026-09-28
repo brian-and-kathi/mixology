@@ -20,19 +20,30 @@ export type BarStatus = {
   openUntil: string | null;
   /** ISO time it last became closed (only while closed; null when unknown). */
   closedSince: string | null;
+  /** ISO time it was opened (only while open; bar_status.changed_at, which only moves when the state changes). */
+  openedAt: string | null;
   /** db: read now; grace: last good read (within GRACE_MS); outage: couldn't read, failing closed. */
   source: "db" | "grace" | "outage";
 };
 
-type Row = { is_open: boolean; open_until: string | Date | null; closed_since: string | Date | null };
+type Row = { is_open: boolean; open_until: string | Date | null; closed_since: string | Date | null; changed_at: string | Date | null };
 const iso = (v: string | Date | null) => (v == null ? null : new Date(v).toISOString());
+// bar_state() is the rule; changed_at rides along only for the admin's "Open since" line.
+const READ = "SELECT s.is_open, s.open_until, s.closed_since, b.changed_at FROM bar_state() s LEFT JOIN bar_status b ON b.id = 1";
+const fromRow = (row: Row): BarStatus => ({
+  open: row.is_open,
+  openUntil: iso(row.open_until),
+  closedSince: iso(row.closed_since),
+  openedAt: row.is_open ? iso(row.changed_at) : null,
+  source: "db",
+});
 
 let lastGood: { at: number; status: BarStatus } | null = null;
 
 async function readOnce(): Promise<BarStatus> {
-  const [row] = await query<Row>("SELECT is_open, open_until, closed_since FROM bar_state()");
-  if (!row) return { open: false, openUntil: null, closedSince: null, source: "db" };
-  return { open: row.is_open, openUntil: iso(row.open_until), closedSince: iso(row.closed_since), source: "db" };
+  const [row] = await query<Row>(READ);
+  if (!row) return { open: false, openUntil: null, closedSince: null, openedAt: null, source: "db" };
+  return fromRow(row);
 }
 
 /** Uncached read with the retry and the grace window. */
@@ -49,10 +60,17 @@ export async function readBarStatus(now = () => Date.now()): Promise<BarStatus> 
       if (kept) {
         // Still honor the 2:00 AM close while running on the kept answer.
         const open = kept.open && kept.openUntil !== null && Date.parse(kept.openUntil) > now();
-        return { ...kept, open, openUntil: open ? kept.openUntil : null, closedSince: open ? null : kept.closedSince ?? kept.openUntil, source: "grace" };
+        return {
+          ...kept,
+          open,
+          openUntil: open ? kept.openUntil : null,
+          closedSince: open ? null : kept.closedSince ?? kept.openUntil,
+          openedAt: open ? kept.openedAt : null,
+          source: "grace",
+        };
       }
       console.error("bar status: unreadable, failing closed", (err as { code?: string })?.code ?? err);
-      return { open: false, openUntil: null, closedSince: null, source: "outage" };
+      return { open: false, openUntil: null, closedSince: null, openedAt: null, source: "outage" };
     }
   }
   lastGood = { at: now(), status };
@@ -104,13 +122,16 @@ export async function setBarOpen(open: boolean, now = new Date()): Promise<{ sta
        RETURNING id`,
       [open, until],
     ),
-    t.query("SELECT is_open, open_until, closed_since FROM bar_state()"),
+    t.query(READ),
   ])) as unknown[][];
   const [row] = results[2] as Row[];
-  const status: BarStatus = { open: row.is_open, openUntil: iso(row.open_until), closedSince: iso(row.closed_since), source: "db" };
+  const status = fromRow(row);
   lastGood = { at: Date.now(), status };
   return { status, castCleared: (results[0] as unknown[]).length > 0 };
 }
 
 /** What the browser gets (GET /api/bar/status and the first render): no internals. */
 export const publicStatus = (s: BarStatus, serverNow = new Date()) => ({ open: s.open, openUntil: s.openUntil, now: serverNow.toISOString() });
+
+/** What an admin screen gets (GET/PATCH /api/admin/bar, the admin layout): adds when it opened or closed. */
+export const adminStatus = (s: BarStatus, serverNow = new Date()) => ({ ...publicStatus(s, serverNow), openedAt: s.openedAt, closedSince: s.closedSince });

@@ -1,12 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminApi, UserError } from "@/lib/admin-guard";
-import { publicStatus, readBarStatus, setBarOpen } from "@/lib/bar-status";
+import { adminStatus, readBarStatus, setBarOpen } from "@/lib/bar-status";
 import { publish } from "@/lib/relay";
 
 export const dynamic = "force-dynamic";
 
-/** GET: the bar's status for the admin menu. */
-export const GET = adminApi(async () => NextResponse.json(publicStatus(await readBarStatus())));
+/** GET: the bar's status for the admin switch (menu and Establishment), with when it opened or closed. */
+export const GET = adminApi(async () => {
+  const status = await readBarStatus();
+  if (status.source === "outage") return NextResponse.json({ error: "Status unavailable." }, { status: 503 });
+  return NextResponse.json(adminStatus(status));
+});
 
 /**
  * PATCH {open: boolean}: the admin menu's switch. Opening runs until the next 2:00 AM Eastern; closing
@@ -19,5 +23,5 @@ export const PATCH = adminApi(async (req: NextRequest) => {
   const { status, castCleared } = await setBarOpen(body.open);
   publish("bar:status", status.open ? "open" : "close");
   if (castCleared) publish("bar:cast", "clear");
-  return NextResponse.json({ ...publicStatus(status), castCleared });
+  return NextResponse.json({ ...adminStatus(status), castCleared });
 });

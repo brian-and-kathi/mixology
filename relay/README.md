@@ -65,12 +65,22 @@ npm run typecheck                    # wrangler types + tsc
 Run the app against it with `RELAY_URL=http://127.0.0.1:8795` and `RELAY_SECRET=<same value>`
 in the app's environment.
 
-## Deploy (one time)
+## Deployed
+
+Live since 2026-09-27 at `https://mixology-relay.brian-952.workers.dev` (Brian's Cloudflare
+account; wrangler is logged in on the box). `RELAY_URL` and `RELAY_SECRET` are set in Vercel for
+Production and Preview. Previews aren't in `ALLOWED_ORIGINS`, so their sockets are refused (403)
+and they fall back to polling. They still publish to the same topics, which only makes production
+screens refetch once. Redeploy after changing the Worker: `npx wrangler deploy` (clients reconnect).
+To rotate the secret, `npx wrangler secret put RELAY_SECRET`, then update `RELAY_SECRET` in Vercel
+and redeploy the app.
+
+## Deploy (one time, done)
 
 1. `npx wrangler login` (Brian's Cloudflare account). Check with `npx wrangler whoami`.
 2. `npx wrangler secret put RELAY_SECRET` and paste a fresh random value (`openssl rand -hex 32`).
 3. `npx wrangler deploy`. This prints the URL, e.g. `https://mixology-relay.<account>.workers.dev`.
-4. Optional: a custom domain (e.g. `relay.brianandkathi.com`) under Workers → mixology-relay → Settings → Domains & Routes, if the zone is on Cloudflare. Otherwise the workers.dev URL is fine.
+4. Optional: a custom domain such as `relay.brianandkathi.com`. Workers custom domains need the zone on Cloudflare, and brianandkathi.com DNS is at Network Solutions, so this is skipped. The workers.dev URL is fine.
 5. In Vercel (project `mixology`), set `RELAY_URL` (the URL from step 3 or 4) and `RELAY_SECRET` (the same value as step 2) for Production, and Preview if wanted. Then redeploy.
 6. `ALLOWED_ORIGINS` in `wrangler.jsonc` lists the production domains. Add any preview origin that should connect.
 

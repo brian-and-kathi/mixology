@@ -77,8 +77,8 @@ Direct branch pages:
 
 ### Migrations and acceptance
 
-- `db/migrations/` holds numbered SQL files, `010_glassware.sql` through `024_bottle_name_fixes.sql`. Each runs in one transaction and records itself in the `schema_migrations` table. Migrations 001–009 were applied before this repo existed; their files aren't here, but both branches record them.
-- **Current state (checked 2026-09-25):** `main` and `dev` both have 001–024. `dev` fell behind once (023 and 024 went to `main` only) and was brought up to date without a reset, so it keeps its own data. Keep them in step: every migration that goes to `main` goes to `dev` too, or previews and local runs break when the code starts using the new schema. To check a branch: `SELECT version FROM schema_migrations ORDER BY version;`.
+- `db/migrations/` holds numbered SQL files, `010_glassware.sql` through `027_night_roll.sql`. Each runs in one transaction and records itself in the `schema_migrations` table. Migrations 001–009 were applied before this repo existed; their files aren't here, but both branches record them.
+- **Current state (checked 2026-09-27):** `main` and `dev` both have 001–027. Each has fallen behind once and was brought up to date without a reset: `dev` missed 023 and 024, and `main` missed 025 and 026 until 2026-09-27. Keep them in step: every migration that goes to `main` goes to `dev` too, or previews and local runs break when the code starts using the new schema. To check a branch: `SELECT version FROM schema_migrations ORDER BY version;`.
 - Apply a migration with `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/0NN_name.sql`, on `dev` first, then on `main`.
 - `db/acceptance.sql` is the acceptance suite: 24 numbered checks covering buildability, substitutions, the neat/mixed/wine lists, stock toggles, the vermouth rule, recipe units and method styles, the PIN throttle, the Cellar rule, bottle supply, ratings, short names and the 024 renames. It runs inside `BEGIN … ROLLBACK`, so its fixtures never persist. Run it with `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/acceptance.sql`. Each check prints `check N passed` and the run ends with `all acceptance checks passed`. The first failure raises an error and stops. It needs every migration applied, so it also catches a branch that has fallen behind.
 
@@ -122,8 +122,8 @@ Names only. Never put values in the repo, tickets or chat.
 | `BAR_NAME` | optional | optional | Wordmark text (default "The Addled Cortex"). |
 | `VERCEL_GIT_COMMIT_SHA` | automatic | automatic | Set by Vercel; the TV's build hash. |
 | `GIT_SHA` | not used | not used | The commit shown on the TV outside Vercel (container build arg, local). |
-| `RELAY_URL` | optional | optional | Base URL of the realtime relay Worker ([relay/README.md](relay/README.md)). Unset (today): pages poll as before. |
-| `RELAY_SECRET` | with `RELAY_URL` | with `RELAY_URL` | Sensitive. Bearer for publishing to the relay; same value as the Worker's `RELAY_SECRET` secret. |
+| `RELAY_URL` | set | set | Base URL of the realtime relay Worker, `https://mixology-relay.brian-952.workers.dev` ([relay/README.md](relay/README.md)). Unset: pages poll as before. |
+| `RELAY_SECRET` | set | set | Sensitive. Bearer for publishing to the relay; same value as the Worker's `RELAY_SECRET` secret. |
 
 Vercel applies env var changes only to new deployments, so redeploy after changing one.
 

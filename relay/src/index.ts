@@ -16,7 +16,7 @@
 import { DurableObject } from "cloudflare:workers";
 
 /** Topics the relay accepts. Anything else is rejected before a DO is touched. */
-export const TOPICS = new Set(["bar:cast", "bar:menu"]);
+export const TOPICS = new Set(["bar:cast", "bar:menu", "bar:status"]);
 
 const KIND_RE = /^[a-z][a-z0-9_-]{0,31}$/;
 const MAX_PUBLISH_BYTES = 1024;

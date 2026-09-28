@@ -14,7 +14,7 @@ import { claimBarVersions, type BarClaim } from "@/lib/bar-versions";
 // direct-SQL edit made before it, and the fallback sync (publishChanges) never re-announces a change
 // the app already published.
 
-export type RelayTopic = "bar:cast" | "bar:menu";
+export type RelayTopic = "bar:cast" | "bar:menu" | "bar:status";
 
 const TIMEOUT_MS = 1500;
 

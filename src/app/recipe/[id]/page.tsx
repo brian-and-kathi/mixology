@@ -1,3 +1,5 @@
+import { ClosedPage } from "@/components/ClosedPage";
+import { guestGate, publicStatus } from "@/lib/bar-status";
 import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
 import { DrinkLead } from "@/components/DrinkLead";
@@ -13,6 +15,10 @@ export const dynamic = "force-dynamic";
 /** Recipe card: glass + service, ingredients, method, then guest rating. */
 export default async function RecipePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // Open/Closed (DESIGN §3.1): while Closed, guests get the closed page (admins get the page and the pill).
+  const gate = await guestGate();
+  const bar = publicStatus(gate);
+  if (!gate.allowed) return <ClosedPage bar={bar} />;
   const recipe = await loadRecipe(id);
   if (!recipe) notFound();
   // Only a link goes to the client, and only for a signed-in admin device.
@@ -22,7 +28,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const { label: methodLabel, paragraphs: method } = methodParts(recipe.description, recipe.method_style);
 
   return (
-    <PhoneShell
+    <PhoneShell bar={bar}
       title={recipe.name}
       editHref={editHref}
       back={{ href: "/menu?tab=cocktails", label: "Cocktails" }}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
+import { BarWatch, type BarView } from "@/components/BarWatch";
 
 /**
  * Guest phone chrome (DESIGN §5.2): an always-visible frame drawn as fixed overlays over the page's
@@ -9,8 +10,10 @@ import { useEffect, useId, useRef, useState } from "react";
  * scroll restore all keep working), top/bottom fades that appear only when there is content under
  * them, solid edges from a few px inside the frame line out to the screen edge, and the floating
  * menu button. Decorative parts are aria-hidden and ignore pointer events.
+ * `bar`: the Open/Closed status this page was rendered with; keeps the page in step with it (BarWatch), and a
+ * signed-in admin on a guest page while Closed gets the "Closed · admin view" pill on the frame's top line.
  */
-export function GuestChrome({ editHref, admin = false }: { editHref?: string; admin?: boolean }) {
+export function GuestChrome({ editHref, admin = false, bar }: { editHref?: string; admin?: boolean; bar?: BarView }) {
   const [top, setTop] = useState(false);
   const [bottom, setBottom] = useState(false);
 
@@ -56,6 +59,8 @@ export function GuestChrome({ editHref, admin = false }: { editHref?: string; ad
         </div>
       </div>
       <GuestMenu editHref={editHref} admin={admin || !!editHref} />
+      {bar ? <BarWatch {...bar} /> : null}
+      {bar && !bar.open && (admin || editHref) ? <p className="admin-view-pill" role="status">Closed · admin view</p> : null}
     </>
   );
 }

@@ -139,3 +139,8 @@ export function ClearTv() {
     </p>
   );
 }
+
+/** Re-read the cast now, e.g. after closing the bar took it down (the relay also says so when it's on). */
+export function refreshTvCast() {
+  if (users > 0) void load();
+}

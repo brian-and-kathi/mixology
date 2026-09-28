@@ -134,6 +134,12 @@ test("hello on connect, notice on publish, catch-up on reconnect", async () => {
   await m.next((x) => x.type === "hello");
   await publish({ topic: "bar:menu", kind: "stock" });
   await m.next((x) => x.type === "notice" && x.kind === "stock");
+  // bar:status (Open/Closed) is on the allowlist too.
+  const s = await connect("bar:status");
+  await s.next((x) => x.type === "hello");
+  assert.equal((await publish({ topic: "bar:status", kind: "close" })).status, 200);
+  await s.next((x) => x.type === "notice" && x.topic === "bar:status" && x.kind === "close");
+  s.ws.close();
   await new Promise((r) => setTimeout(r, 200));
   assert.equal(a.messages.filter((x) => x.type === "notice").length, 0);
 

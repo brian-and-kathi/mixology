@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { BarWatch } from "@/components/BarWatch";
+import { guestGate, publicStatus } from "@/lib/bar-status";
 import { dottedQrSvg } from "@/lib/qr-dots";
 import { LOUNGE_COOKIE, loungeAllows, tonight } from "@/lib/night";
 
@@ -12,6 +14,9 @@ function cap(word: string) {
 }
 
 export default async function LoungePage() {
+  // Closed (DESIGN §3.1): guests go back to the door, the same as with no lounge cookie (no hint). Admins stay.
+  const gate = await guestGate();
+  if (!gate.allowed) redirect("/contact");
   const jar = await cookies();
   const night = await tonight();
   if (!night || !(await loungeAllows(jar.get(LOUNGE_COOKIE)?.value))) redirect("/contact");
@@ -22,6 +27,7 @@ export default async function LoungePage() {
   const qr = host ? dottedQrSvg(`${proto}://${host}/menu`, { dark: "#ffffff", light: "#000000" }) : null;
   return (
     <main className="cover lounge">
+      <BarWatch {...publicStatus(gate)} />
       <div className="lounge-panel">
         <div>
           <p className="lounge-kicker">Tonight&apos;s password</p>

@@ -22,6 +22,7 @@ nothing connects to it at all.
 
 - `bar:cast`: cast started, replaced or cleared. Heard by the TV, pour and recipe pages, and the admin Clear TV status.
 - `bar:menu`: stock, bottles, recipes, specs, substitutions, `/db` edits and ratings. Heard by the TV board.
+- `bar:status`: the bar opened or closed (kind `open` / `close`). Heard by guest phone pages, the TV, the knock page, the lounge and the admin menu's switch; they refetch `GET /api/bar/status`. (Adding a topic needs a Worker redeploy; `bar:status` has been live since 2026-09-28.)
 
 **Limits:**
 - Publish bodies are at most 1 KB, and `kind` must match `^[a-z][a-z0-9_-]{0,31}$`.

@@ -1,4 +1,7 @@
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { BarWatch } from "@/components/BarWatch";
+import { ClosedWatermark } from "@/components/ClosedWatermark";
+import { barStatus, publicStatus } from "@/lib/bar-status";
 import { barVersions } from "@/lib/bar-versions";
 import { Frame } from "@/components/Frame";
 import { MenuQr } from "@/components/MenuQr";
@@ -16,7 +19,9 @@ export default async function TvPage() {
   // Guest ratings for the board, one query; refreshed with the page (AutoRefresh). Never blocks the menu.
   // The menu version is read first, so any change that lands during the render counts as newer (AutoRefresh).
   const version = await barVersions().catch(() => null);
-  const [menu, ratings] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch(() => ({}))]);
+  // Open/Closed (DESIGN §3.1): the TV keeps showing the board; while Closed it gets the watermark and a dimmed QR.
+  // No admin bypass here: the TV is a display, it always shows the guest state.
+  const [menu, ratings, bar] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch(() => ({})), barStatus()]);
   // Empty sections are omitted entirely (DESIGN §5.1).
   const columns = menu
     ? SECTIONS.map((s) => ({ id: s.id, label: s.label, items: menu[s.id] })).filter((c) => c.items.length > 0)
@@ -29,7 +34,7 @@ export default async function TvPage() {
       <AutoRefresh seconds={60} topic="bar:menu" version={version?.menu ?? null} />
       <header className="tv-header">
         <h1 className="wordmark tv-wordmark">{BAR_NAME}</h1>
-        <MenuQr above={<span className="tv-hash" aria-label={`Build ${commitHash()}`}>{commitHash()}</span>} />
+        <MenuQr dim={!bar.open} above={<span className="tv-hash" aria-label={`Build ${commitHash()}`}>{commitHash()}</span>} />
       </header>
       {!menu ? (
         <p className="tv-empty">Menu unavailable</p>
@@ -39,6 +44,8 @@ export default async function TvPage() {
         <TvBoard columns={columns} ratings={ratings} />
       )}
     </TvCastLayer>
+    {bar.open ? null : <ClosedWatermark />}
+    <BarWatch {...publicStatus(bar)} />
     <Frame />
     </>
   );

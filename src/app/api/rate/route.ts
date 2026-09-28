@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
+import { guestGate } from "@/lib/bar-status";
 import { isUuid } from "@/lib/db";
 import { publish } from "@/lib/relay";
 import { GUEST_COOKIE, GUEST_COOKIE_MAX_AGE, loadAverage, rateDrink, voteRateLimited, type RatingKind } from "@/lib/ratings";
@@ -25,9 +26,10 @@ export async function GET(req: NextRequest) {
 /**
  * POST {kind: "product" | "recipe", id, stars: 1-5 | null}: this device's vote for a drink on the
  * guest menu (null clears it). Sets the anonymous guest cookie on the first vote. Answers the new
- * average and count, and this device's vote.
+ * average and count, and this device's vote. While the bar is Closed, admins only (403).
  */
 export async function POST(req: NextRequest) {
+  if (!(await guestGate()).allowed) return json({ error: "The bar is closed." }, 403);
   const origin = req.headers.get("origin");
   if (origin && new URL(origin).host !== req.headers.get("host")) return json({ error: "Cross-site votes aren't accepted." }, 403);
   if (voteRateLimited(ip(req))) return json({ error: "Too many votes. Try again in a minute." }, 429);

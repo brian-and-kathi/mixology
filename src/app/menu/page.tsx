@@ -1,3 +1,5 @@
+import { ClosedPage } from "@/components/ClosedPage";
+import { guestGate, publicStatus } from "@/lib/bar-status";
 import Link from "next/link";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import type { CSSProperties } from "react";
@@ -15,13 +17,17 @@ export const metadata = { title: "Menu" };
 /** Phone guest menu: same sections and order as the TV, one tab per non-empty section. */
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams;
+  // Open/Closed (DESIGN §3.1): while Closed, guests get the closed page (admins get the page and the pill).
+  const gate = await guestGate();
+  const bar = publicStatus(gate);
+  if (!gate.allowed) return <ClosedPage bar={bar} />;
   // Read before the menu, so a change during the render counts as newer (AutoRefresh).
   const version = await barVersions().catch(() => null);
   // Guest ratings, the TV board's single query and rounding; a failure just shows no ratings.
   const [menu, ratings, admin] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch((): Record<string, number> => ({})), isAdmin()]);
   if (!menu) {
     return (
-      <PhoneShell admin={admin}>
+      <PhoneShell bar={bar} admin={admin}>
         <p className="notice">The menu can't be loaded right now. Try again in a minute.</p>
       </PhoneShell>
     );
@@ -29,7 +35,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const tabs = SECTIONS.filter((s) => menu[s.id].length > 0);
   if (tabs.length === 0) {
     return (
-      <PhoneShell admin={admin}>
+      <PhoneShell bar={bar} admin={admin}>
         <p className="notice">Nothing available tonight.</p>
       </PhoneShell>
     );
@@ -37,7 +43,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   const current: SectionId = tabs.find((t) => t.id === tab)?.id ?? tabs[0].id;
 
   return (
-    <PhoneShell admin={admin}>
+    <PhoneShell bar={bar} admin={admin}>
       {/* Live updates only while the relay is on (no polling from phones otherwise). */}
       <AutoRefresh topic="bar:menu" version={version?.menu ?? null} />
       <nav className="tabs" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>

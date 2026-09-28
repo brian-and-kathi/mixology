@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { castRateLimited, castRevision, currentCast, startCast, stopCast, type CastType } from "@/lib/cast";
+import { guestGate } from "@/lib/bar-status";
 import { isUuid } from "@/lib/db";
 import { publish } from "@/lib/relay";
 
@@ -34,8 +35,9 @@ async function parse(req: NextRequest): Promise<{ type: CastType; id: string; st
 
 const ip = (req: NextRequest) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
 
-/** POST {type, id}: show a cocktail or pour on the TV (replaces whatever is showing). */
+/** POST {type, id}: show a cocktail or pour on the TV (replaces whatever is showing). While the bar is Closed, admins only (403). */
 export async function POST(req: NextRequest) {
+  if (!(await guestGate()).allowed) return json({ error: "The bar is closed." }, 403);
   if (castRateLimited(ip(req))) return json({ error: "Too many requests. Try again in a minute." }, 429);
   const item = await parse(req);
   if (!item) return json({ error: "Send {type: 'recipe' | 'pour', id}." }, 400);

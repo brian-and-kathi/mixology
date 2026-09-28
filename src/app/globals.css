@@ -349,3 +349,40 @@ a.card:active { background: #202020; }
 .rate-meta { font-size: 0.9rem; min-height: 2.75rem; display: flex; align-items: center; flex-wrap: wrap; white-space: pre; }
 .rate-clear { border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; padding: 0.75rem 0.1rem; cursor: pointer; }
 .rate-error { color: #e8a0a0; white-space: normal; }
+
+/* ---- Bar Open/Closed (DESIGN §3.1) ---- */
+/* TV while Closed: the board stays underneath a big diagonal "Closed" (light blue, 28%), a sad face on each side.
+   Above the board, below the gold frame; it never reaches the QR corner. Only the code and its caption dim; the hash doesn't. */
+.tv-closed { position: fixed; inset: 0; z-index: 8; pointer-events: none; display: grid; place-items: center; overflow: hidden; }
+.tv-closed-band {
+  display: flex; align-items: center; gap: 0.18em;
+  transform: rotate(-29.36deg); /* atan(1080 / 1920): corner to corner on a 16:9 screen */
+  color: #a8d4ff; opacity: 0.28;
+  font-family: var(--font-display), Georgia, serif; font-weight: 600; font-size: 30vh; line-height: 1; letter-spacing: 0.01em; white-space: nowrap;
+}
+.tv-closed-band span { transform: translateY(-0.04em); }
+.tv-closed-face { width: 0.66em; height: 0.66em; flex-shrink: 0; }
+.tv-qr-dim .tv-qr-code, .tv-qr-dim p { opacity: 0.28; }
+
+/* Guest closed page: wordmark, a gold rule, "The bar is closed" in gold. Vertically centered inside the frame. */
+.closed-page {
+  min-height: calc(100dvh - var(--ft) - var(--fb) - 10px - var(--fade) - 2rem);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1.6rem; text-align: center; padding-bottom: 3rem;
+}
+.closed-page .wordmark { font-size: 2.7rem; line-height: 1.25; text-wrap: balance; }
+.closed-rule { display: flex; align-items: center; gap: 0.6rem; width: 11rem; }
+.closed-rule::before, .closed-rule::after { content: ""; flex: 1; border-top: 1px solid var(--gold-line); }
+.closed-rule i { width: 7px; height: 7px; border: 1px solid var(--gold-line); transform: rotate(45deg); }
+.closed-text { font-family: var(--font-display), Georgia, serif; font-style: italic; font-weight: 500; font-size: 2rem; line-height: 1.2; color: var(--gold); }
+
+/* "Closed · admin view": a signed-in admin on a guest page while Closed. A pill centered on the frame's top line,
+   fixed (stays put while scrolling), above the frame and fades. Admin palette, never gold. */
+.admin-view-pill {
+  position: fixed; z-index: 45; left: 50%; transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top, 0px) + 12px - 11px);
+  height: 22px; padding: 0 11px; display: flex; align-items: center; gap: 6px;
+  border-radius: 999px; background: #132844; border: 1px solid rgba(150, 186, 240, 0.5);
+  color: #d5e4ff; font-size: 12px; font-weight: 500; letter-spacing: 0.03em; white-space: nowrap; pointer-events: none;
+}
+.admin-view-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #f0a8a0; }

@@ -49,7 +49,22 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
 
 type Row = { item_type: CastType; item_id: string; started_at: string; expires_at: string };
 
-const CAST_ROW = "SELECT item_type, item_id, started_at, expires_at FROM tv_cast WHERE id = 1 AND expires_at > now()";
+const CAST_ROW_PLAIN = "SELECT item_type, item_id, started_at, expires_at FROM tv_cast WHERE id = 1 AND expires_at > now()";
+// Open/Closed (migration 029): a cast started before the bar closed is over (closing deletes it; at the
+// 2:00 AM self-close this hides it). Casts an admin starts while Closed still show.
+const CAST_ROW_GATED = `SELECT t.item_type, t.item_id, t.started_at, t.expires_at
+  FROM tv_cast t LEFT JOIN bar_state() b ON true
+ WHERE t.id = 1 AND t.expires_at > now() AND (b.closed_since IS NULL OR t.started_at >= b.closed_since)`;
+
+/** The live cast row, if any. Before migration 029 (no bar_state()), the plain rule. */
+async function castRow(): Promise<Row | undefined> {
+  try {
+    return (await query<Row>(CAST_ROW_GATED))[0];
+  } catch (err) {
+    if (["42P01", "42883"].includes((err as { code?: string })?.code ?? "")) return (await query<Row>(CAST_ROW_PLAIN))[0];
+    throw err;
+  }
+}
 
 /**
  * Stable token for the current cast row: "none", or type, id, started_at and the database's
@@ -57,7 +72,7 @@ const CAST_ROW = "SELECT item_type, item_id, started_at, expires_at FROM tv_cast
  * also changes the ETag and the TV refetches the pop-up. No recipe or pour load.
  */
 export async function castRevision(): Promise<string> {
-  const [row] = await query<Row>(CAST_ROW);
+  const row = await castRow();
   if (!row) return "none";
   const started = new Date(row.started_at);
   const stamp = Number.isNaN(started.getTime()) ? String(row.started_at) : started.toISOString();
@@ -67,7 +82,7 @@ export async function castRevision(): Promise<string> {
 
 /** The current cast, or null when nothing is showing (expired casts count as nothing). */
 export async function currentCast(): Promise<Cast | null> {
-  const [row] = await query<Row>(CAST_ROW);
+  const row = await castRow();
   if (!row) return null;
   const payload = await castPayload(row.item_type, row.item_id);
   if (!payload) return null; // e.g. the cocktail went off the menu mid-cast

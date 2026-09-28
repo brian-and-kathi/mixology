@@ -1,3 +1,5 @@
+import { ClosedPage } from "@/components/ClosedPage";
+import { guestGate, publicStatus } from "@/lib/bar-status";
 import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
 import { DrinkLead } from "@/components/DrinkLead";
@@ -13,6 +15,10 @@ export const dynamic = "force-dynamic";
 /** Pour serve card (DESIGN §3.5): how it is usually served, as plain text (not a choice). */
 export default async function PourPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // Open/Closed (DESIGN §3.1): while Closed, guests get the closed page (admins get the page and the pill).
+  const gate = await guestGate();
+  const bar = publicStatus(gate);
+  if (!gate.allowed) return <ClosedPage bar={bar} />;
   const pour = await loadPour(id);
   if (!pour) notFound();
   // Only a link goes to the client, and only for a signed-in admin device.
@@ -23,7 +29,7 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
 
   return (
     // Title: the short name; the type badge always sits on its own line under it, so the title keeps the full width.
-    <PhoneShell title={pour.name} titleBadge={pour.spec ? <span className="spec-badge title-badge">{pour.spec}</span> : undefined} editHref={editHref} back={{ href: "/menu?tab=pours", label: "Pours" }} lead={<DrinkLead glass="rocks" kind="product" id={pour.id} rating={rating} />}>
+    <PhoneShell bar={bar} title={pour.name} titleBadge={pour.spec ? <span className="spec-badge title-badge">{pour.spec}</span> : undefined} editHref={editHref} back={{ href: "/menu?tab=pours", label: "Pours" }} lead={<DrinkLead glass="rocks" kind="product" id={pour.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
       <CastButton type="pour" id={pour.id} />
       <section>

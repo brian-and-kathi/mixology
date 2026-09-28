@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BAR_NAME } from "@/lib/brand";
+import type { BarView } from "./BarWatch";
 import { GuestChrome } from "./GuestChrome";
 
 /** Phone page chrome: frame and menu button, pinned wordmark (or a back button that scrolls), and a title row with an optional glass icon. */
@@ -11,6 +12,7 @@ export function PhoneShell({
   back,
   editHref,
   admin = false,
+  bar,
   children,
 }: {
   title?: string;
@@ -22,11 +24,13 @@ export function PhoneShell({
   editHref?: string;
   /** Signed-in admin: the menu shows the database link. */
   admin?: boolean;
+  /** Open/Closed status the page was rendered with (lib/bar-status guestGate). */
+  bar?: BarView;
   children: ReactNode;
 }) {
   return (
     <div className="phone">
-      <GuestChrome editHref={editHref} admin={admin || !!editHref} />
+      <GuestChrome editHref={editHref} admin={admin || !!editHref} bar={bar} />
       {back ? null : (
         // Pinned wordmark: sticky at exactly its resting position (the .phone top padding), so it never
         // moves or resizes; it sits in the solid part of the top band beside the fixed menu button.

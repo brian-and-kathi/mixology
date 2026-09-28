@@ -1183,6 +1183,81 @@ BEGIN
   RAISE NOTICE 'check 25 passed';
 END $$;
 
+-- 26. Bar Open/Closed (migration 029): one row; Open always carries a closing time within 25 hours; the bar is
+--     open only before open_until, closes itself when that passes and stays closed; a cast started before the
+--     bar closed is hidden, one an admin starts while Closed shows; opens and closes can be logged.
+DO $$
+DECLARE
+  s record;
+  n integer;
+  v_recipe uuid;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = '029_bar_status.sql') THEN
+    RAISE EXCEPTION 'check 26 failed: 029_bar_status.sql is not recorded';
+  END IF;
+  IF (SELECT count(*) FROM bar_status) <> 1 OR (SELECT count(*) FROM bar_state()) <> 1 THEN
+    RAISE EXCEPTION 'check 26 failed: bar_status must have exactly one row and bar_state() one answer';
+  END IF;
+  BEGIN
+    INSERT INTO bar_status (id, is_open) VALUES (2, false);
+    RAISE EXCEPTION 'check 26 failed: a second status row was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE bar_status SET is_open = true, open_until = NULL, changed_at = now();
+    RAISE EXCEPTION 'check 26 failed: Open without a closing time was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE bar_status SET is_open = false, open_until = now() + interval '1 hour', changed_at = now();
+    RAISE EXCEPTION 'check 26 failed: Closed with a closing time was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE bar_status SET is_open = true, open_until = now() + interval '26 hours', changed_at = now();
+    RAISE EXCEPTION 'check 26 failed: a closing time more than 25 hours out was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE bar_status SET is_open = true, open_until = now() - interval '1 minute', changed_at = now();
+    RAISE EXCEPTION 'check 26 failed: a closing time before the change was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+
+  -- Open until later: open, no closed_since.
+  UPDATE bar_status SET is_open = true, open_until = now() + interval '3 hours', changed_at = now() - interval '1 hour';
+  SELECT * INTO s FROM bar_state();
+  IF NOT s.is_open OR s.open_until IS NULL OR s.closed_since IS NOT NULL THEN RAISE EXCEPTION 'check 26 failed: an open bar reads as %', s; END IF;
+
+  -- The closing time passed (2:00 AM came): closed by itself, closed since open_until, and it stays that way.
+  UPDATE bar_status SET is_open = true, open_until = now() - interval '5 minutes', changed_at = now() - interval '6 hours';
+  SELECT * INTO s FROM bar_state();
+  IF s.is_open OR s.open_until IS NOT NULL OR s.closed_since <> now() - interval '5 minutes' THEN
+    RAISE EXCEPTION 'check 26 failed: a bar past its closing time reads as %', s;
+  END IF;
+
+  -- Casts: one started before the self-close is hidden; one started after (an admin, while Closed) shows.
+  SELECT recipe_id INTO v_recipe FROM (SELECT id AS recipe_id FROM recipes LIMIT 1) r;
+  DELETE FROM tv_cast;
+  INSERT INTO tv_cast (id, item_type, item_id, started_at, expires_at) VALUES (1, 'recipe', v_recipe, now() - interval '7 minutes', now() + interval '1 minute');
+  SELECT count(*) INTO n FROM tv_cast t LEFT JOIN bar_state() b ON true
+   WHERE t.id = 1 AND t.expires_at > now() AND (b.closed_since IS NULL OR t.started_at >= b.closed_since);
+  IF n <> 0 THEN RAISE EXCEPTION 'check 26 failed: a cast from before the close is still shown'; END IF;
+  UPDATE tv_cast SET started_at = now() - interval '1 minute', expires_at = now() + interval '4 minutes';
+  SELECT count(*) INTO n FROM tv_cast t LEFT JOIN bar_state() b ON true
+   WHERE t.id = 1 AND t.expires_at > now() AND (b.closed_since IS NULL OR t.started_at >= b.closed_since);
+  IF n <> 1 THEN RAISE EXCEPTION 'check 26 failed: a cast started while Closed is hidden'; END IF;
+
+  -- Closed by an admin: closed since the change.
+  UPDATE bar_status SET is_open = false, open_until = NULL, changed_at = now();
+  SELECT * INTO s FROM bar_state();
+  IF s.is_open OR s.closed_since <> now() THEN RAISE EXCEPTION 'check 26 failed: a closed bar reads as %', s; END IF;
+
+  INSERT INTO change_log (entity, entity_id, action, summary, before, after)
+  VALUES ('bar', 'status', 'update', 'Bar closed', '{"open": true}', '{"open": false}');
+  RAISE NOTICE 'check 26 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

@@ -1,6 +1,7 @@
 import { Glance } from "@/components/admin/Glance";
 import { Tonight } from "@/components/admin/Tonight";
 import { loadGlance } from "@/lib/admin-data";
+import { loadCloudflarePanel } from "@/lib/cloudflare-usage";
 import { loadNeonPanel, loadVercelPanel, type HostPanel } from "@/lib/host-usage";
 import { tonight } from "@/lib/night";
 import { commitRef } from "@/lib/version";
@@ -9,7 +10,12 @@ export const metadata = { title: "Establishment" };
 
 export default async function EstablishmentPage() {
   const night = await tonight();
-  const [glance, neon, vercel] = await Promise.all([loadGlance(), loadNeonPanel(), loadVercelPanel()]);
+  const [glance, neon, vercel, cloudflare] = await Promise.all([
+    loadGlance(),
+    loadNeonPanel(),
+    loadVercelPanel(),
+    loadCloudflarePanel(),
+  ]);
   const commit = commitRef();
   return (
     <div className="a-establish">
@@ -22,6 +28,7 @@ export default async function EstablishmentPage() {
       </section>
       <HostCard panel={neon} />
       <HostCard panel={vercel} />
+      <HostCard panel={cloudflare} />
     </div>
   );
 }

@@ -38,7 +38,7 @@ type NeonProject = {
   owner?: { subscription_type?: string; branches_limit?: number };
 };
 
-function bytes(n: number): string {
+export function bytes(n: number): string {
   if (n < 1024) return `${Math.round(n)} B`;
   const units = ["KB", "MB", "GB", "TB"];
   let v = n / 1024;
@@ -55,11 +55,11 @@ function hours(seconds: number): string {
   return `${h >= 10 ? h.toFixed(0) : h.toFixed(1)} hr`;
 }
 
-function count(n: number): string {
+export function count(n: number): string {
   return new Intl.NumberFormat("en-US").format(Math.round(n));
 }
 
-function meter(label: string, used: number, limit: number | null, format: (n: number) => string): Meter {
+export function meter(label: string, used: number, limit: number | null, format: (n: number) => string): Meter {
   return {
     label,
     used: format(used),
@@ -193,6 +193,9 @@ export async function loadVercelPanel(): Promise<HostPanel> {
     if (used == null) return { label: item.label, used: "—", limit: item.limitLabel, ratio: null };
     return meter(item.label, used, item.limit, (n) => formatUnit(n, item.unit));
   });
+  if (rows && rows.length > 0 && meters.every((m) => m.ratio == null)) {
+    note = "Vercel returned charges, but none matched these meters.";
+  }
   return { title: "Vercel · Hobby", detail: "This month", note, meters };
 }
 

@@ -10,6 +10,10 @@
   /* Gold accent, shared by the TV and the guest phone (admin never uses it): text, and a dimmer tone for lines. */
   --gold: #b8903c;
   --gold-line: #95753d;
+  /* Featured (migration 030): warm copper, distinct from gold. 7.6:1 on #000, 6.6:1 on the #151515 card (AA).
+     Never used alone: anything featured carries the "Featured" tag (components/FeaturedTag). */
+  --featured: #e8804a;
+  --featured-line: rgba(232, 128, 74, 0.6);
   --radius: 14px;
   color-scheme: dark;
 }
@@ -386,3 +390,25 @@ a.card:active { background: #202020; }
   color: #d5e4ff; font-size: 12px; font-weight: 500; letter-spacing: 0.03em; white-space: nowrap; pointer-events: none;
 }
 .admin-view-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #f0a8a0; }
+
+/* ---------- Featured (migration 030; DESIGN §5.5) ----------
+   A small copper pill reading "Featured", on guest pages and the TV. Phone cards also get a copper hairline;
+   TV rows a copper name. The tag always comes with the color. */
+.feat-tag { display: inline-block; margin-left: 0.45em; padding: 2px 7px 3px; border: 1px solid var(--featured); border-radius: 999px; font-size: 0.68em; font-weight: 600; line-height: 1; letter-spacing: 0.03em; color: var(--featured); white-space: nowrap; vertical-align: 0.14em; }
+.card.is-featured { box-shadow: inset 0 0 0 1px var(--featured-line); }
+.phone-title-text .feat-tag { margin-left: 0; font-size: calc(1.6rem * 0.52); vertical-align: baseline; }
+.title-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.5rem; }
+.ingredient .bottles .feat-name { color: var(--featured); }
+.ingredient .bottles .feat-tag { font-size: 0.75em; margin-left: 0.35em; vertical-align: 0.08em; }
+/* TV board: copper name; the tag leads the line under it (before the Pours type badge). */
+.tv-row.is-featured .tv-name { color: var(--featured); }
+.tv-row.is-featured.on .tv-name { color: var(--cream); }
+.tv-detail > .feat-tag { margin: -2px 0.45em -2px 0; font-size: 1.375vh; padding: 0.25vh 0.7vh 0.3vh; vertical-align: 0; }
+/* The guaranteed slot: featured rows pinned at the top of their section, on every page of a paging board. */
+.tv-pinned { flex: none; margin-top: 1vh; }
+.tv-pinned + .tv-viewport { margin-top: 0; }
+/* Show on TV band: tag under the name, and a featured bottle in copper in the bottle line. */
+.tv-band-feat { margin: -0.8vh 0 1.4vh; }
+.tv-band-feat .feat-tag { margin-left: 0; font-size: calc(1.85vh * var(--s)); padding: 0.35vh 1vh 0.45vh; }
+.tv-band-line .what .tv-band-bottles .feat-name { color: var(--featured); }
+.tv-band-bottles .feat-tag { font-size: 0.8em; margin-left: 0.4em; padding: 0.15vh 0.7vh 0.25vh; vertical-align: 0.05em; }

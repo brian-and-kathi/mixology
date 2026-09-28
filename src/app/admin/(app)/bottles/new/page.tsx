@@ -1,12 +1,12 @@
 import { BottleForm } from "@/components/admin/BottleForm";
-import { loadDefaultWineSpec, loadFamilies, loadSpecOptions } from "@/lib/admin-data";
+import { countFeatured, loadDefaultWineSpec, loadFamilies, loadSpecOptions } from "@/lib/admin-data";
 
 export const metadata = { title: "Add bottle" };
 
 export default async function NewBottlePage({ searchParams }: { searchParams: Promise<{ shared?: string; kind?: string }> }) {
   const { shared, kind } = await searchParams;
   const wine = kind === "wine";
-  const [specs, families, wineSpec] = await Promise.all([loadSpecOptions(), loadFamilies(), wine ? loadDefaultWineSpec() : null]);
+  const [specs, families, wineSpec, featuredCount] = await Promise.all([loadSpecOptions(), loadFamilies(), wine ? loadDefaultWineSpec() : null, countFeatured()]);
   return (
     <BottleForm
       product={null}
@@ -15,6 +15,7 @@ export default async function NewBottlePage({ searchParams }: { searchParams: Pr
       shared={shared === "1" ? true : shared === "0" ? false : null}
       wine={wine}
       presetSpecId={wineSpec}
+      featuredCount={featuredCount}
     />
   );
 }

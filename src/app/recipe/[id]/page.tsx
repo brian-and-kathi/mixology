@@ -3,11 +3,12 @@ import { guestGate, publicStatus } from "@/lib/bar-status";
 import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
 import { DrinkLead } from "@/components/DrinkLead";
+import { FeaturedTag } from "@/components/FeaturedTag";
 import { PhoneShell } from "@/components/PhoneShell";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { altGlassLine, cap, glassLine, lineText, methodParts } from "@/lib/format";
-import { bottleLine, loadRecipe, PHONE_DOT } from "@/lib/menu";
+import { bottleParts, loadRecipe, PHONE_DOT } from "@/lib/menu";
 import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   return (
     <PhoneShell bar={bar}
       title={recipe.name}
+      titleBadge={recipe.featured ? <FeaturedTag /> : undefined}
       editHref={editHref}
       back={{ href: "/menu?tab=cocktails", label: "Cocktails" }}
       lead={<DrinkLead glass={recipe.glass ?? ""} kind="recipe" id={recipe.id} rating={rating} />}
@@ -57,7 +59,13 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
                 {!line.available ? <span className="tag-out">out tonight</span> : null}
                 {line.use_instead ? <strong> (use {cap(line.use_instead)})</strong> : null}
                 {!line.required ? <span className="quiet"> (optional)</span> : null}
-                {line.bottles ? <span className="quiet bottles">{bottleLine(line.bottles, PHONE_DOT, line.preferred)}</span> : null}
+                {line.bottles ? (
+                  <span className="quiet bottles">
+                    {/* A featured bottle (migration 030) is copper with the tag, and listed first. */}
+                    {bottleParts(line.bottles, PHONE_DOT, line.preferred, 3, line.featured).map((part, i) =>
+                      part.featured ? <span key={i}><span className="feat-name">{part.text}</span><FeaturedTag /></span> : part.text)}
+                  </span>
+                ) : null}
                 {/* A "Grand Marnier preferred" note is already in the bottle line as "Grand Marnier (preferred)". */}
                 {line.note && !line.preferred ? <span className="quiet note">{line.note}</span> : null}
               </span>

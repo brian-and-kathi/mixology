@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon } from "@/components/GlassIcon";
 
 import { useCastHighlight } from "@/components/TvCast";
@@ -95,7 +96,7 @@ let fitCanvas: HTMLCanvasElement | null = null;
  * whole items or words, e.g. "Rye · sweet vermouth · …") that fits the row. Re-measures when the
  * row or the text size changes (column widths, cast shrink, web fonts).
  */
-function FitLine({ fit, badge = null, origin = null }: { fit: string[]; badge?: string | null; origin?: string | null }) {
+function FitLine({ fit, badge = null, origin = null, featured = false }: { fit: string[]; badge?: string | null; origin?: string | null; featured?: boolean }) {
   const ref = useRef<HTMLSpanElement>(null);
   const badgeRef = useRef<HTMLSpanElement>(null);
   const [text, setText] = useState(fit[0]);
@@ -104,9 +105,9 @@ function FitLine({ fit, badge = null, origin = null }: { fit: string[]; badge?: 
     const box = el?.parentElement;
     if (!el || !box) return;
     const run = () => {
-      // The Pours spec badge is always first on this line; the region gets the room after it.
-      const b = badgeRef.current;
-      const width = box.clientWidth - (b ? b.getBoundingClientRect().width + parseFloat(getComputedStyle(b).marginRight || "0") : 0);
+      // Featured tag (migration 030) and the Pours spec badge lead this line; the region gets the room after them.
+      const reserved = [...(badgeRef.current?.querySelectorAll(".feat-tag, .spec-badge") ?? [])].reduce((w, n) => w + n.getBoundingClientRect().width + parseFloat(getComputedStyle(n).marginRight || "0"), 0);
+      const width = box.clientWidth - reserved;
       if (!box.clientWidth) return;
       fitCanvas ??= document.createElement("canvas");
       const ctx = fitCanvas.getContext("2d");
@@ -121,11 +122,14 @@ function FitLine({ fit, badge = null, origin = null }: { fit: string[]; badge?: 
     ro.observe(el);
     void document.fonts?.ready.then(run);
     return () => ro.disconnect();
-  }, [fit, badge]);
+  }, [fit, badge, featured]);
   const place = origin && text.startsWith(origin) ? origin : "";
   return (
     <span ref={ref} className="tv-detail">
-      {badge ? <span ref={badgeRef} className="spec-badge">{badge}</span> : null}
+      <span ref={badgeRef}>
+        {featured ? <FeaturedTag /> : null}
+        {badge ? <span className="spec-badge">{badge}</span> : null}
+      </span>
       {place ? <span className="tv-origin">{place}</span> : null}
       {place ? text.slice(place.length) : text}
     </span>
@@ -154,9 +158,10 @@ function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
 
 function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on?: boolean }) {
   // Pours are grouped by spirit family: the first bottle of a family gets a small gap above it (.fam-start).
-  const cls = "tv-row" + (on ? " on" : "") + (item.famStart ? " fam-start" : "");
+  const cls = "tv-row" + (on ? " on" : "") + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "");
   // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name.
-  const below = !!item.spec || !!item.fit?.length;
+  // Featured (migration 030): the tag leads that line even when there is no other subtext.
+  const below = !!item.spec || !!item.fit?.length || !!item.featured;
   return (
     <li className={cls}>
       <Lead glass={item.glass} rating={rating} />
@@ -165,7 +170,7 @@ function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on
           {item.name}
           {item.abv ? <sup className="tv-abv">{item.abv}</sup> : null}
         </span>
-        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} /> : null}
+        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={!!item.featured} /> : null}
       </span>
     </li>
   );
@@ -208,9 +213,15 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
       const box = viewports.current[ci];
       const ruler = rulers.current[ci];
       if (!box || !ruler || box.clientHeight < 40) return c.items.map(() => 0);
-      return pack(rowHeights(ruler), rowGaps(ruler), box.getBoundingClientRect().height);
+      // Featured rows (migration 030) live in the pinned list above the viewport; pack only the rest.
+      const heights = rowHeights(ruler);
+      const gaps = rowGaps(ruler);
+      const keep: number[] = [];
+      c.items.forEach((it, i) => { if (!it.featured) keep.push(i); });
+      const subPacked = pack(keep.map((i) => heights[i]), keep.map((i) => gaps[i]), box.getBoundingClientRect().height);
+      return c.items.map((_, i) => { const k = keep.indexOf(i); return k < 0 ? -1 : subPacked[k]; });
     });
-    const needed = packed.map((p) => (p.length ? Math.max(...p) + 1 : 1));
+    const needed = packed.map((p) => { const live = p.filter((v) => v >= 0); return live.length ? Math.max(...live) + 1 : 1; });
     const next = allocate(needed, budget);
     // Sub-columns only ever grow while measuring (narrower columns can only need more room),
     // so this settles in a couple of passes.
@@ -235,15 +246,23 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
       const k = split[ci] ?? 1;
       const box = viewports.current[ci];
       const ruler = rulers.current[ci];
-      const slots = Math.min(p.length, Math.ceil(needed[ci] / k) * k);
-      if (slots < 2 || !box || !ruler) return p;
-      const base = Math.floor(p.length / slots);
-      const long = (p.length % slots) * (base + 1); // rows in the sub-columns that take an extra one
-      const even = p.map((_, i) => (i < long ? Math.floor(i / (base + 1)) : long / (base + 1) + Math.floor((i - long) / base)));
+      const liveCount = p.filter((v) => v >= 0).length;
+      const slots = Math.min(liveCount, Math.ceil(needed[ci] / k) * k);
+      if (slots < 2 || !box || !ruler || liveCount === 0) return p;
+      const base = Math.floor(liveCount / slots);
+      const long = (liveCount % slots) * (base + 1); // rows in the sub-columns that take an extra one
+      // Featured rows stay at -1 (pinned, not paged). Balance only the live ones.
+      const live = p.map((v, i) => (v < 0 ? -1 : i)).filter((i) => i >= 0);
+      const evenLive = live.map((_, i) => (i < long ? Math.floor(i / (base + 1)) : long / (base + 1) + Math.floor((i - long) / base)));
+      const even = p.map((v, i) => { const k = live.indexOf(i); return k < 0 ? -1 : evenLive[k]; });
       const heights = rowHeights(ruler);
       const gaps = rowGaps(ruler);
-      // A family gap counts unless its row is first in its sub-column.
-      const tallest = Math.max(...Array.from({ length: slots }, (_, c) => heights.reduce((sum, h, i) => sum + (even[i] === c ? h + (i > 0 && even[i - 1] === c ? gaps[i] : 0) : 0), 0)));
+      // A family gap counts unless its row is first in its sub-column (among live rows).
+      const tallest = Math.max(0, ...Array.from({ length: slots }, (_, c) => heights.reduce((sum, h, i) => {
+        if (even[i] !== c) return sum;
+        const prev = even.slice(0, i).lastIndexOf(c);
+        return sum + h + (prev >= 0 ? gaps[i] : 0);
+      }, 0)));
       return tallest <= box.getBoundingClientRect().height ? even : p;
     });
     setAssign(balanced);
@@ -261,7 +280,7 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
     return () => ro.disconnect();
   }, [measure]);
 
-  const needed = assign.map((a) => (a.length ? Math.max(...a) + 1 : 1));
+  const needed = assign.map((a) => { const live = a.filter((v) => v >= 0); return live.length ? Math.max(...live) + 1 : 1; });
   const colPages = needed.map((n, i) => Math.ceil(n / (split[i] ?? 1)));
   const pageCount = Math.max(1, ...colPages);
 
@@ -297,6 +316,12 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
             <h2 className="tv-heading">{col.label}</h2>
             {/* Only a column that has its own second page says so (all columns turn together; a shorter one holds its last page). */}
             <p className="tv-pageno">{colPages[ci] > 1 ? `${shownPage + 1} / ${colPages[ci]}` : "\u00a0"}</p>
+            {/* Guaranteed slot (migration 030): featured rows stay at the top of the section on every page. */}
+            {col.items.some((i) => i.featured) ? (
+              <ul className="tv-list tv-pinned">
+                {col.items.filter((i) => i.featured).map((item) => <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} on={cast?.id === item.id} />)}
+              </ul>
+            ) : null}
             <div className="tv-viewport" ref={(el) => { viewports.current[ci] = el; }}>
               {/* Invisible full list at sub-column width, used only to measure row heights. */}
               <ul className="tv-list tv-ruler" aria-hidden style={{ width: `${100 / n}%` }} ref={(el) => { rulers.current[ci] = el; }}>
@@ -305,7 +330,7 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
               <div className={`tv-subcols ${visible ? "" : "tv-fading"}`}>
                 {subcols.map((v) => (
                   <ul key={v} className="tv-list">
-                    {col.items.map((item, i) => ((assign[ci]?.[i] ?? 0) === v ? <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} on={cast?.id === item.id} /> : null))}
+                    {col.items.map((item, i) => (!item.featured && (assign[ci]?.[i] ?? 0) === v ? <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} on={cast?.id === item.id} /> : null))}
                   </ul>
                 ))}
               </div>

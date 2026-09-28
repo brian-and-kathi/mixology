@@ -2,6 +2,7 @@ import { ClosedPage } from "@/components/ClosedPage";
 import { guestGate, publicStatus } from "@/lib/bar-status";
 import { notFound } from "next/navigation";
 import { DrinkLead } from "@/components/DrinkLead";
+import { FeaturedTag } from "@/components/FeaturedTag";
 import { PhoneShell } from "@/components/PhoneShell";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
@@ -33,7 +34,7 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
   const serve = wineServeLine(wine.serves_chilled, wine.serves_neat, wine.serves_rocks);
 
   return (
-    <PhoneShell bar={bar} title={wine.name} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}
+    <PhoneShell bar={bar} title={wine.name} titleBadge={wine.featured ? <FeaturedTag /> : undefined} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}
       lead={<DrinkLead glass={wineGlass(wine.sparkling, wine.type)} kind="product" id={wine.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
       {serve ? (

@@ -28,8 +28,9 @@ export function StockToggle({ name, inStock, onToggle }: { name: string; inStock
   );
 }
 
-/** A stock row: the toggle, then the rest of the row opens the bottle's edit page (no chevron). `sub` is a quiet second line (Stock: the type). */
-export function StockRow({ id, name, inStock, onToggle, children, error, sub }: { id: string; name: string; inStock: boolean; onToggle: (to: boolean) => void; children?: ReactNode; error?: string; sub?: string | null }) {
+/** A stock row: the toggle, then the rest of the row opens the bottle's edit page (no chevron). `sub` is a quiet second line (Stock: the type). `featured` adds a small non-interactive star by the name (migration 030). */
+export function StockRow({ id, name, inStock, onToggle, children, error, sub, featured = false }: { id: string; name: string; inStock: boolean; onToggle: (to: boolean) => void; children?: ReactNode; error?: string; sub?: string | null; featured?: boolean }) {
+  const star = featured ? <span className="a-feat-star" title="Featured" aria-label="Featured">★</span> : null;
   return (
     <li>
       <div className="a-srow">
@@ -37,11 +38,11 @@ export function StockRow({ id, name, inStock, onToggle, children, error, sub }: 
         <Link href={`/admin/bottles/${id}`} className="a-srow-link">
           {sub ? (
             <span className="a-srow-text">
-              <span className="a-srow-name">{name}{children}</span>
+              <span className="a-srow-name">{name}{star}{children}</span>
               <span className="a-srow-sub">{sub}</span>
             </span>
           ) : (
-            <span className="a-srow-name">{name}{children}</span>
+            <span className="a-srow-name">{name}{star}{children}</span>
           )}
         </Link>
       </div>

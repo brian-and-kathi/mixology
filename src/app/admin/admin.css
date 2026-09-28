@@ -403,3 +403,9 @@ body:has(.admin-root) { background: #07101c; }
 .a-bar-row-card:focus-visible { outline: 2px solid var(--cream); outline-offset: -2px; }
 .a-barcard .a-menu-note { padding: 0 1rem 0.3rem; }
 .a-barcard-status { margin: 0; padding: 0 1rem; font-size: 0.85rem; color: var(--quiet); }
+
+/* Featured (migration 030): small non-interactive star by the Stock name; soft warn on Stock and the bottle form. */
+.a-feat-star { display: inline-block; margin-left: 0.35rem; color: #e8804a; font-size: 0.85em; line-height: 1; vertical-align: 0.05em; pointer-events: none; }
+.a-checks-row { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
+.a-checks-row .a-check { flex: 0 0 auto; }
+.a-warn { color: var(--a-amber); font-size: 0.9rem; margin: 0.4rem 0 0.6rem; padding: 0.55rem 0.75rem; border: 1px solid rgba(244, 162, 97, 0.45); border-radius: 8px; background: rgba(244, 162, 97, 0.08); }

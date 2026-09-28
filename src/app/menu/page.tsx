@@ -3,6 +3,7 @@ import { guestGate, publicStatus } from "@/lib/bar-status";
 import Link from "next/link";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import type { CSSProperties } from "react";
+import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
 import { isAdmin } from "@/lib/admin-guard";
@@ -77,6 +78,8 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
                       the corner badge takes, plus 8px, so the name wraps before it and never runs under it. */}
                   {item.spec ? <span className="spec-badge badge-reserve" aria-hidden>{item.spec}</span> : null}
                   {item.name}
+                  {/* Featured (migration 030): sorted first (lib/menu.ts), copper hairline and this tag. */}
+                  {item.featured ? <FeaturedTag /> : null}
                 </span>
                 {item.detail ? <ItemDetail text={item.detail} origin={item.origin} /> : null}
               </span>
@@ -84,7 +87,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
               {item.spec ? <span className="spec-badge corner-badge">{item.spec}</span> : null}
             </>
           );
-          const two = (item.detail ? " two-line" : "") + (item.spec ? " has-badge" : "");
+          const two = (item.detail ? " two-line" : "") + (item.spec ? " has-badge" : "") + (item.featured ? " is-featured" : "");
           return (
             // Pours: a little extra space above the first bottle of each spirit family (lib/spirit-family.ts).
             <li key={item.id} className={item.famStart ? "fam-start" : undefined}>

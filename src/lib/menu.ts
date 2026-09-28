@@ -22,7 +22,7 @@ export type Sub = { detail: string; fit: string[]; /** Place name as it appears 
  * widths are exactly what they were before short names and badges). `famStart` (Pours): the first bottle of a
  * spirit family after another family (lib/spirit-family.ts); the phone and TV add a small gap above it.
  */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40% abv" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean };
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40% abv" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -33,11 +33,20 @@ const cmp = (a: string, b: string) => a.localeCompare(b, "en", { sensitivity: "b
 /**
  * Pours in spirit-family order (Whiskey … Liqueurs, lib/spirit-family.ts), then by badge text (the would-be
  * badge when it's hidden because the name already says it), then by the shown name. Marks each family's first row.
+ * Featured pours (migration 030) come first, in the same order; the first family after them gets the gap too.
  */
 function byFamily(rows: (MenuItem & { family: number; sortBadge: string })[]): MenuItem[] {
-  const sorted = [...rows].sort((a, b) => a.family - b.family || cmp(a.sortBadge, b.sortBadge) || cmp(a.name, b.name));
-  return sorted.map(({ family, sortBadge: _badge, ...item }, i) => ({ ...item, famStart: i > 0 && family !== sorted[i - 1].family }));
+  const sorted = [...rows].sort((a, b) => Number(!!b.featured) - Number(!!a.featured) || a.family - b.family || cmp(a.sortBadge, b.sortBadge) || cmp(a.name, b.name));
+  return sorted.map(({ family, sortBadge: _badge, ...item }, i) => {
+    const prev = sorted[i - 1];
+    const famStart = !!prev && !item.featured && (!!prev.featured || family !== prev.family);
+    return { ...item, famStart };
+  });
 }
+
+/** Phone and TV: featured items (migration 030) first, then the list's own order. Stable. */
+export const featuredFirst = <T extends { featured?: boolean }>(items: T[]): T[] =>
+  [...items.filter((i) => i.featured), ...items.filter((i) => !i.featured)];
 
 /**
  * The three guest sections come straight from the existing database views:
@@ -45,24 +54,25 @@ function byFamily(rows: (MenuItem & { family: number; sortBadge: string })[]): M
  */
 export async function loadMenu(): Promise<Menu> {
   const [pours, cocktails, cellar, lines] = await Promise.all([
-    query<{ id: string; name: string; full: string; origin: string | null; abv: string | null; type: string | null; label: string | null; family: string | null }>(
+    query<{ id: string; name: string; full: string; origin: string | null; abv: string | null; type: string | null; label: string | null; family: string | null; featured: boolean }>(
       // Pours show the bottle's short name (migration 023; NULL = the full name) with a badge: its own badge
       // label, or else its type (spec_label is display only; the subtext's type fallback stays the ingredient).
       `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full, n.origin, n.abv::text AS abv, n.primary_spec_name AS type,
-              p.spec_label AS label,
+              p.spec_label AS label, (p.id IN (SELECT featured_product_ids())) AS featured,
               -- The primary ingredient's family, for grouping (lib/spirit-family.ts). Ingredient names are unique.
               (SELECT f.slug FROM specs s JOIN spec_families sf ON sf.spec_id = s.id AND sf.is_primary
                  JOIN families f ON f.id = sf.family_id WHERE s.canonical_name = n.primary_spec_name) AS family
          FROM menu_neat n JOIN products p ON p.id = n.id`,
     ),
-    query<{ id: string; name: string; glass: string | null }>(
-      `SELECT m.id, m.name, g.name AS glass
+    query<{ id: string; name: string; glass: string | null; featured: boolean }>(
+      `SELECT m.id, m.name, g.name AS glass, (m.id IN (SELECT featured_recipe_ids())) AS featured
          FROM menu_mixed m
          JOIN recipes r ON r.id = m.id
          LEFT JOIN glassware g ON g.id = r.glass_id`,
     ),
-    query<{ id: string; name: string; origin: string | null; type: string | null; sparkling: boolean }>(
+    query<{ id: string; name: string; origin: string | null; type: string | null; sparkling: boolean; featured: boolean }>(
       `SELECT w.id, w.display_name AS name, w.origin, (w.wine_effervescence = 'sparkling') AS sparkling,
+              (w.id IN (SELECT featured_product_ids())) AS featured,
               (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
                 WHERE ps.product_id = w.id AND ps.is_primary) AS type
          FROM menu_wines w`,
@@ -74,11 +84,11 @@ export async function loadMenu(): Promise<Menu> {
     pours: byFamily(pours.map((p) => {
       const badge = specLabel(p.type, p.label);
       return { id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, badge), measure: p.full, ...pourLine(p),
-        abv: p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% abv` : null,
+        abv: p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% abv` : null, featured: p.featured,
         family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" };
     })),
-    cocktails: cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName),
-    cellar: cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: badgeFor(w.name, specLabel(w.type)), ...wineLine(w) })).sort(byName),
+    cocktails: featuredFirst(cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName)),
+    cellar: featuredFirst(cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: badgeFor(w.name, specLabel(w.type)), featured: w.featured, ...wineLine(w) })).sort(byName)),
   };
 }
 
@@ -196,6 +206,8 @@ export type RecipeLine = {
   bottles: string[] | null;
   /** The note names a preferred bottle that is in the list: it is listed first as "(preferred)" and the phone drops the note. */
   preferred: boolean;
+  /** Shown names in `bottles` that are featured (migration 030; in stock by definition). */
+  featured: string[];
 };
 
 export type Recipe = {
@@ -210,11 +222,13 @@ export type Recipe = {
   alt_service_style: string | null;
   glass_note: string | null;
   method_style: string | null;
+  /** Uses a featured product (featured_recipe_ids(), migration 030). */
+  featured: boolean;
   lines: RecipeLine[];
 };
 
 /** `short`: the name shown for the bottle (short name, or the full name; Cellar wines always the full name). */
-type BottleFacts = { own: boolean | null; kind: string; has_bottles: boolean; stock: { name: string; brand: string | null; short?: string | null }[] };
+type BottleFacts = { own: boolean | null; kind: string; has_bottles: boolean; stock: { name: string; brand: string | null; short?: string | null; featured?: boolean }[] };
 
 /** Ingredient families that are bottles a guest would recognise; citrus, juice, syrups, garnishes, ice and water are not. */
 const BOTTLE_KINDS = new Set(["spirit", "modifier", "wine", "mixer"]);
@@ -274,10 +288,38 @@ export function preferFirst(names: string[] | null, note: string | null): { bott
  * line never starts with a dot); "(preferred)" stays with its bottle.
  */
 export function bottleLine(names: string[], sep = " · ", preferred = false, max = 3): string {
-  if (!names.length) return "None in stock";
-  const list = preferred ? [`${names[0]}\u00a0(preferred)`, ...names.slice(1)] : names;
-  const shown = list.slice(0, max).join(sep);
-  return list.length > max ? `${shown}${sep}+${list.length - max}\u00a0more` : shown;
+  return bottleParts(names, sep, preferred, max).map((p) => p.text).join("");
+}
+
+/** A piece of a bottle line: a bottle (maybe featured), a separator, "+N more" or "None in stock". */
+export type BottlePart = { text: string; featured?: boolean };
+
+/**
+ * bottleLine as pieces, so a featured bottle (migration 030) can carry the copper "Featured" tag.
+ * `featured`: shown names that are featured. Same text as bottleLine when joined.
+ */
+export function bottleParts(names: string[], sep = " · ", preferred = false, max = 3, featured: string[] = []): BottlePart[] {
+  if (!names.length) return [{ text: "None in stock" }];
+  const feat = new Set(featured);
+  const list = names.map((n, i) => ({ text: preferred && i === 0 ? `${n}\u00a0(preferred)` : n, featured: feat.has(n) }));
+  const parts: BottlePart[] = [];
+  list.slice(0, max).forEach((b, i) => {
+    if (i) parts.push({ text: sep });
+    parts.push(b.featured ? b : { text: b.text });
+  });
+  if (list.length > max) parts.push({ text: `${sep}+${list.length - max}\u00a0more` });
+  return parts;
+}
+
+/**
+ * Featured bottles move to the front of the line (after a preferred bottle, which stays first), so the
+ * tag is never lost behind "+N more".
+ */
+export function featuredBottlesFirst(names: string[] | null, featured: string[], preferred: boolean): string[] | null {
+  if (!names || !featured.length) return names;
+  const head = preferred ? names.slice(0, 1) : [];
+  const rest = preferred ? names.slice(1) : names;
+  return [...head, ...rest.filter((n) => featured.includes(n)), ...rest.filter((n) => !featured.includes(n))];
 }
 export const PHONE_DOT = DOT;
 
@@ -287,7 +329,8 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   const [recipe] = await query<Omit<Recipe, "lines">>(
     `SELECT r.id, r.name, r.description, r.rating,
             g.name AS glass, g.description AS glass_description, r.service_style,
-            ag.name AS alt_glass, r.alt_service_style, r.glass_note, r.method_style
+            ag.name AS alt_glass, r.alt_service_style, r.glass_note, r.method_style,
+            (r.id IN (SELECT featured_recipe_ids())) AS featured
        FROM recipes r
        LEFT JOIN glassware g ON g.id = r.glass_id
        LEFT JOIN glassware ag ON ag.id = r.alt_glass_id
@@ -301,7 +344,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   // 021), the same function available_spec_ids() and so menu_mixed are built on: hops 0 is the shelf.
   // Bottles listed: the ingredient's own when it is in; else the named stand-in's; else the nearest
   // stand-in chain that makes the recipe buildable.
-  const rows = await query<Omit<RecipeLine, "bottles"> & BottleFacts>(
+  const rows = await query<Omit<RecipeLine, "bottles" | "featured"> & BottleFacts>(
     `WITH supply AS MATERIALIZED (SELECT * FROM spec_supply()),
      shelf AS (SELECT DISTINCT spec_id AS id FROM supply WHERE hops = 0),
      base AS (
@@ -337,7 +380,8 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
                        ORDER BY sf.is_primary DESC LIMIT 1), 'other') AS kind,
             EXISTS (SELECT 1 FROM product_specs ps WHERE ps.spec_id = s.spec_id) AS has_bottles,
             COALESCE((SELECT json_agg(json_build_object('name', p.display_name, 'brand', p.brand,
-                                                        'short', CASE WHEN is_cellar_wine(p.id) THEN NULL ELSE p.short_name END))
+                                                        'short', CASE WHEN is_cellar_wine(p.id) THEN NULL ELSE p.short_name END,
+                                                        'featured', p.id IN (SELECT featured_product_ids())))
                         FROM supply x JOIN products p ON p.id = x.product_id
                        WHERE x.spec_id = s.from_spec AND x.hops = 0), '[]'::json) AS stock
        FROM src s
@@ -348,7 +392,10 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     // The name the guest reads next to the bottles: the ingredient, or the stand-in it says to use.
     const names = bottleNames(!line.available && line.use_instead ? line.use_instead : line.name, { own, kind, has_bottles, stock });
     const { bottles, preferred } = preferFirst(names, line.note);
-    return { ...line, bottles: shownNames(bottles, stock), preferred };
+    const shown = shownNames(bottles, stock);
+    // Featured bottles (migration 030), by the name the guest reads.
+    const featured = shownNames(stock.filter((b) => b.featured).map((b) => b.name.trim()), stock)!.filter((n) => shown?.includes(n));
+    return { ...line, bottles: featuredBottlesFirst(shown, featured, preferred), preferred, featured };
   });
   return { ...recipe, lines };
 }
@@ -371,6 +418,7 @@ export type Wine = {
   serves_chilled: boolean;
   serves_neat: boolean;
   serves_rocks: boolean;
+  featured: boolean;
 };
 
 /** A Cellar wine's detail page: only while it's in the guest Cellar (menu_wines). */
@@ -379,6 +427,7 @@ export async function loadWine(id: string): Promise<Wine | null> {
   const [wine] = await query<Wine>(
     `SELECT w.id, w.display_name AS name, p.brand, w.origin, p.abv::text AS abv, w.description, w.serve_note, w.pairing_notes,
             (w.wine_effervescence = 'sparkling') AS sparkling, p.serves_chilled, p.serves_neat, p.serves_rocks,
+            (w.id IN (SELECT featured_product_ids())) AS featured,
             (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
               WHERE ps.product_id = w.id ORDER BY ps.is_primary DESC LIMIT 1) AS type
        FROM menu_wines w JOIN products p ON p.id = w.id
@@ -404,6 +453,7 @@ export type Pour = {
   serves_neat: boolean;
   serves_rocks: boolean;
   serves_chilled: boolean;
+  featured: boolean;
 };
 
 export async function loadPour(id: string): Promise<Pour | null> {
@@ -411,7 +461,7 @@ export async function loadPour(id: string): Promise<Pour | null> {
   const [pour] = await query<Pour & { label: string | null }>(
     `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full_name, n.brand, n.origin,
             n.description, n.serve_note, n.rating, n.abv::text AS abv, n.serves_neat, n.serves_rocks, n.serves_chilled,
-            n.primary_spec_name AS spec, p.spec_label AS label
+            n.primary_spec_name AS spec, p.spec_label AS label, (n.id IN (SELECT featured_product_ids())) AS featured
        FROM menu_neat n JOIN products p ON p.id = n.id WHERE n.id = $1`,
     [id],
   );

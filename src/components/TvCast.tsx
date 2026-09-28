@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon } from "@/components/GlassIcon";
 import type { Cast, CastPayload } from "@/lib/cast";
 import { onBarStatus } from "@/lib/bar-events";
@@ -203,6 +204,7 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
             </div>
           ) : null}
           <h3 className="tv-band-name">{payload.name}</h3>
+          {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
           {payload.serve ? <p className="tv-band-serve">{payload.serve}</p> : null}
           {payload.alt ? <p className="tv-band-note">{payload.alt}</p> : null}
         </>
@@ -224,7 +226,12 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
                       {[l.use_instead ? `use ${l.use_instead}` : null, l.optional ? "(optional)" : null, l.note].filter(Boolean).join(" · ")}
                     </small>
                   ) : null}
-                  {l.bottles ? <small className="tv-band-bottles">{l.bottles}</small> : null}
+                  {l.bottle_parts ? (
+                    <small className="tv-band-bottles">
+                      {l.bottle_parts.map((part, j) =>
+                        part.featured ? <span key={j}><span className="feat-name">{part.text}</span><FeaturedTag /></span> : part.text)}
+                    </small>
+                  ) : l.bottles ? <small className="tv-band-bottles">{l.bottles}</small> : null}
                 </span>
               </div>
             ))}
@@ -249,6 +256,7 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
             <BandStars avg={avg} />
           </div>
           <h3 className="tv-band-name">{payload.name}</h3>
+          {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
           {payload.detail ? <p className="tv-band-serve">{payload.detail}</p> : null}
         </>
       ),

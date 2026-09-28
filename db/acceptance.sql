@@ -1258,6 +1258,41 @@ BEGIN
   RAISE NOTICE 'check 26 passed';
 END $$;
 
+-- 27. Featured (030): a product counts only while featured AND in stock; its recipes follow through the
+-- spec match; the flag defaults off; flipping it bumps the change signal like any board edit.
+DO $$
+DECLARE
+  v_product uuid;
+  v_recipe  uuid;
+  v_before  bigint;
+  v_after   bigint;
+BEGIN
+  IF (SELECT column_default FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'featured') IS DISTINCT FROM 'false' THEN
+    RAISE EXCEPTION 'check 27 failed: products.featured is missing or not default false';
+  END IF;
+  SELECT p.id, rl.recipe_id INTO v_product, v_recipe
+    FROM products p JOIN product_specs ps ON ps.product_id = p.id JOIN recipe_lines rl ON rl.spec_id = ps.spec_id
+   ORDER BY p.id LIMIT 1;
+  IF v_product IS NULL THEN RAISE EXCEPTION 'check 27 failed: no product is used by a recipe'; END IF;
+  UPDATE products SET featured = false WHERE featured;
+  UPDATE products SET in_stock = true WHERE id = v_product;
+  IF EXISTS (SELECT featured_product_ids()) OR EXISTS (SELECT featured_recipe_ids()) THEN
+    RAISE EXCEPTION 'check 27 failed: something is featured with every flag off';
+  END IF;
+  SELECT menu_version INTO v_before FROM bar_versions WHERE id = 1;
+  UPDATE products SET featured = true WHERE id = v_product;
+  SELECT menu_version INTO v_after FROM bar_versions WHERE id = 1;
+  IF v_after <= v_before THEN RAISE EXCEPTION 'check 27 failed: featuring a product did not bump menu_version'; END IF;
+  IF v_product NOT IN (SELECT featured_product_ids()) THEN RAISE EXCEPTION 'check 27 failed: a featured, in-stock product is not featured'; END IF;
+  IF v_recipe NOT IN (SELECT featured_recipe_ids()) THEN RAISE EXCEPTION 'check 27 failed: a recipe using a featured product is not featured'; END IF;
+  -- Out of stock: features nothing (the flag stays on).
+  UPDATE products SET in_stock = false WHERE id = v_product;
+  IF v_product IN (SELECT featured_product_ids()) OR v_recipe IN (SELECT featured_recipe_ids()) THEN
+    RAISE EXCEPTION 'check 27 failed: an out-of-stock featured product still features something';
+  END IF;
+  RAISE NOTICE 'check 27 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

@@ -11,7 +11,7 @@ import { specLabel } from "@/lib/spec-label";
 import { Disclosure } from "./Disclosure";
 
 type Form = {
-  display_name: string; short_name: string; spec_label: string; spec_id: string | null; family_id: string; in_stock: boolean; pourable: boolean;
+  display_name: string; short_name: string; spec_label: string; spec_id: string | null; family_id: string; in_stock: boolean; featured: boolean; pourable: boolean;
   serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean; description: string;
   brand: string; origin: string; abv: string; serve_note: string; upc: string; fortified: boolean;
   wine_color: string; wine_effervescence: string;
@@ -20,7 +20,7 @@ type Form = {
 function initial(p: ProductRow | null): Form {
   return {
     display_name: p?.display_name ?? "", short_name: p?.short_name ?? "", spec_label: p?.spec_label ?? "", spec_id: p?.spec_id ?? null, family_id: p?.family_id ?? "",
-    in_stock: p?.in_stock ?? true, pourable: p ? !p.mix_only : true, serves_neat: p?.serves_neat ?? false,
+    in_stock: p?.in_stock ?? true, featured: p?.featured ?? false, pourable: p ? !p.mix_only : true, serves_neat: p?.serves_neat ?? false,
     serves_rocks: p?.serves_rocks ?? false, serves_chilled: p?.serves_chilled ?? false, description: p?.description ?? "",
     brand: p?.brand ?? "", origin: p?.origin ?? "", abv: p?.abv ? String(Number(p.abv)) : "", serve_note: p?.serve_note ?? "",
     upc: p?.upc ?? "", fortified: p?.fortified ?? false, wine_color: p?.wine_color ?? "not_applicable",
@@ -30,7 +30,7 @@ function initial(p: ProductRow | null): Form {
 
 /** Add / edit a bottle. Short form first; rarer fields under "More details". */
 /** `wine` + `presetSpecId`: "Add wine" from the Wines view, with a wine type already chosen in "What is it?". */
-export function BottleForm({ product, specs: initialSpecs, families, shared, wine = false, presetSpecId = null }: { product: ProductRow | null; specs: SpecOption[]; families: Family[]; shared: boolean | null; wine?: boolean; presetSpecId?: string | null }) {
+export function BottleForm({ product, specs: initialSpecs, families, shared, wine = false, presetSpecId = null, featuredCount = 0 }: { product: ProductRow | null; specs: SpecOption[]; families: Family[]; shared: boolean | null; wine?: boolean; presetSpecId?: string | null; featuredCount?: number }) {
   const router = useRouter();
   const [specs, setSpecs] = useState(initialSpecs);
   const kindOf = (s: SpecOption | undefined) => families.find((x) => x.id === s?.family_id)?.kind;
@@ -137,10 +137,20 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
         </label>
       ) : null}
 
-      <label className="a-check">
-        <input type="checkbox" checked={f.in_stock} onChange={(e) => set("in_stock", e.target.checked)} />
-        <span>In stock</span>
-      </label>
+      <div className="a-checks-row">
+        <label className="a-check">
+          <input type="checkbox" checked={f.in_stock} onChange={(e) => set("in_stock", e.target.checked)} />
+          <span>In stock</span>
+        </label>
+        <label className="a-check">
+          <input type="checkbox" checked={f.featured} onChange={(e) => set("featured", e.target.checked)} />
+          <span>Featured</span>
+        </label>
+      </div>
+      {/* Soft warning (migration 030): more than 3 products flagged Featured. Non-blocking. */}
+      {(featuredCount + (f.featured ? 1 : 0) - (product?.featured ? 1 : 0)) > 3 ? (
+        <p className="a-warn" role="status">More than 3 bottles are Featured. Guests will see them all; three or fewer usually works best.</p>
+      ) : null}
       <label className="a-check">
         <input type="checkbox" checked={f.pourable} onChange={(e) => set("pourable", e.target.checked)} />
         <span>Can be poured on its own</span>

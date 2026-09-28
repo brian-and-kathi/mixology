@@ -74,6 +74,21 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
   const stockOf = (it: StockItem) => override[it.id] ?? it.in_stock;
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  // Group headers stick right under the search bar. Its height differs (Spirits has the All / Out only
+  // chips, Wines doesn't), so measure it instead of assuming 104px: a header parked too high tucked
+  // under the bar, and one parked too low let rows show between them.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const bar = barRef.current, root = rootRef.current;
+    if (!bar || !root || typeof ResizeObserver === "undefined") return;
+    const set = () => root.style.setProperty("--a-search-h", `${Math.round(bar.getBoundingClientRect().height)}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
   function show(t: Toast) {
     setToast(t);
     window.clearTimeout(timer.current);
@@ -136,9 +151,9 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
     .slice(0, 5);
 
   return (
-    <div className="a-stock">
+    <div className="a-stock" ref={rootRef}>
       <KindSwitch kind={kind} onChange={setKind} />
-      <div className="a-searchbar">
+      <div className="a-searchbar" ref={barRef}>
         <div className="a-search">
           <input type="search" value={q} onChange={(e) => { setQ(e.target.value); if (outOpen === false) setOutOpen(null); }} placeholder={wines ? "Search wines" : "Search spirits"} aria-label={wines ? "Search wines" : "Search spirits"} enterKeyHint="search" />
           {q ? <button type="button" className="a-clear" onClick={() => setQ("")} aria-label="Clear search">×</button> : null}

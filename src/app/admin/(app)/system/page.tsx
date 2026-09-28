@@ -1,7 +1,5 @@
 import { GitCard } from "@/components/admin/GitCard";
-import { Glance } from "@/components/admin/Glance";
 import { HostCard } from "@/components/admin/HostCard";
-import { loadGlance } from "@/lib/admin-data";
 import { loadCloudflarePanel } from "@/lib/cloudflare-usage";
 import { loadDeployInfo } from "@/lib/deploy-info";
 import { loadNeonPanel, loadVercelPanel } from "@/lib/host-usage";
@@ -15,14 +13,13 @@ function where(): string {
   return "Local";
 }
 
-/** Not bar-night: what's deployed, the hosts' usage, and the glance (moved from Establishment). */
+/** Not bar-night: what's deployed and the hosts' usage (moved from Establishment). */
 export default async function SystemPage() {
-  const [deploy, neon, vercel, cloudflare, glance] = await Promise.all([
+  const [deploy, neon, vercel, cloudflare] = await Promise.all([
     loadDeployInfo(),
     loadNeonPanel(),
     loadVercelPanel(),
     loadCloudflarePanel(),
-    loadGlance(),
   ]);
   return (
     <div className="a-establish">
@@ -30,7 +27,6 @@ export default async function SystemPage() {
       <HostCard panel={neon} />
       <HostCard panel={vercel} />
       <HostCard panel={cloudflare} />
-      <Glance data={glance} />
     </div>
   );
 }

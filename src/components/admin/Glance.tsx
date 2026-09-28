@@ -6,7 +6,7 @@ import type { Glance as GlanceData } from "@/lib/admin-data";
 import { cap } from "@/lib/format";
 import { Disclosure } from "./Disclosure";
 
-/** "At a glance": recipes the bar can make, and what to buy. Lives on Establishment. */
+/** "At a glance": recipes the bar can make, and what to buy. Collapsed at the top of Stock. */
 export function Glance({ data }: { data: GlanceData }) {
   const [copied, setCopied] = useState(false);
   const label = (b: GlanceData["buy"][number]) =>

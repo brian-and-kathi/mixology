@@ -4,7 +4,7 @@ import { tonight } from "@/lib/night";
 
 export const metadata = { title: "Establishment" };
 
-/** The bar-night page: Open/Closed, then tonight's knock and words. Usage, git and the glance live on System. */
+/** The bar-night page: Open/Closed, then tonight's knock and words. Usage and git live on System; At a glance is on Stock. */
 export default async function EstablishmentPage() {
   const night = await tonight();
   return (

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { announceBarStatus } from "@/lib/bar-events";
 import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
 
 // Keeps an open guest screen (phone pages, the TV, the knock page, the lounge) in step with the bar's
@@ -12,6 +13,8 @@ import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
 // - Relay live: a bar:status notice checks at once; otherwise a slow fallback check (and one when the
 //   tab comes back into view). Relay off or down: poll every POLL_MS while visible.
 // - openUntil: one check just after the 2:00 AM self-close, so open screens close on time with no publish.
+// - A change is also announced in the page (mx:bar-status), so the TV band and the phone's cast button
+//   re-read /api/cast: a refresh re-renders the server parts but keeps client state such as a cast.
 // - Grace: a failed read keeps the last known state. Only after GRACE_MS without one good read does an open
 //   screen re-render, and then the server decides (it fails closed if it can't read the status either).
 
@@ -37,7 +40,10 @@ export function BarWatch({ open, openUntil, now }: BarView) {
       lastOk.current = Date.now();
       offset.current = Date.parse(data.now) - Date.now();
       setUntil(data.openUntil);
-      if (data.open !== rendered.current) router.refresh();
+      if (data.open !== rendered.current) {
+        announceBarStatus(data.open);
+        router.refresh();
+      }
     } catch {
       if (rendered.current && Date.now() - lastOk.current > CLIENT_GRACE_MS) router.refresh();
     }

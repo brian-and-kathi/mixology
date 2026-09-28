@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/components/admin/api";
 import { refreshTvCast } from "@/components/admin/ClearTv";
+import { announceBarStatus } from "@/lib/bar-events";
 import { useRelay } from "@/lib/use-relay";
 
 export type BarState = { open: boolean; openUntil: string | null };
@@ -17,6 +18,15 @@ export function useBarSwitch(initial: BarState, menuOpen: boolean) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
+  const openRef = useRef(initial.open);
+  // Tell the page when the status changes (the 2:00 AM self-close publishes nothing): ClearTv re-reads the cast.
+  const show = useCallback((next: BarState) => {
+    setState(next);
+    if (next.open !== openRef.current) {
+      openRef.current = next.open;
+      announceBarStatus(next.open);
+    }
+  }, []);
 
   const reload = useCallback(async () => {
     if (busyRef.current) return;
@@ -24,11 +34,11 @@ export function useBarSwitch(initial: BarState, menuOpen: boolean) {
       const res = await fetch("/api/bar/status", { cache: "no-store" });
       if (!res.ok) return; // keep what we show; the next check will try again
       const data = (await res.json()) as BarState;
-      if (!busyRef.current) setState({ open: data.open, openUntil: data.openUntil });
+      if (!busyRef.current) show({ open: data.open, openUntil: data.openUntil });
     } catch {
       /* keep the last known state */
     }
-  }, []);
+  }, [show]);
 
   useRelay("bar:status", () => void reload());
   useEffect(() => { if (menuOpen) void reload(); }, [menuOpen, reload]);
@@ -49,7 +59,7 @@ export function useBarSwitch(initial: BarState, menuOpen: boolean) {
     setState({ open, openUntil: open ? before.openUntil : null });
     try {
       const data = await api<BarState & { castCleared?: boolean }>("/api/admin/bar", "PATCH", { open });
-      setState({ open: data.open, openUntil: data.openUntil });
+      show({ open: data.open, openUntil: data.openUntil });
       if (data.castCleared) refreshTvCast();
     } catch (e) {
       setState(before);

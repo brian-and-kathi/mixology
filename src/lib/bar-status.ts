@@ -72,12 +72,21 @@ export const guestGate = cache(async (): Promise<Gate> => {
 
 /**
  * Admin switch. Opening sets open_until to the next 2:00 AM Eastern. Closing clears the TV cast in the same
- * transaction. Logs to change_log only when the effective state changes. Returns the new state and whether
- * a cast was taken down.
+ * transaction. Opening also deletes a cast from before the last close: the 2:00 AM self-close writes nothing,
+ * so that cast is only hidden (castRow()), and reopening within its 5 minutes would bring it back. A cast an
+ * admin started while Closed stays. Logs to change_log only when the effective state changes. Returns the new
+ * state and whether a cast was taken down.
  */
 export async function setBarOpen(open: boolean, now = new Date()): Promise<{ status: BarStatus; castCleared: boolean }> {
   const until = open ? nextCloseAt(now).toISOString() : null;
   const results = (await sql().transaction((t) => [
+    // Before the status row changes, while bar_state() still says when the bar last closed.
+    t.query(
+      `DELETE FROM tv_cast t USING bar_state() b
+        WHERE t.id = 1 AND (NOT $1::boolean OR (b.closed_since IS NOT NULL AND t.started_at < b.closed_since))
+       RETURNING t.id`,
+      [open],
+    ),
     t.query(
       `WITH prev AS (SELECT is_open FROM bar_state()),
             u AS (
@@ -95,13 +104,12 @@ export async function setBarOpen(open: boolean, now = new Date()): Promise<{ sta
        RETURNING id`,
       [open, until],
     ),
-    t.query("DELETE FROM tv_cast WHERE id = 1 AND NOT $1::boolean RETURNING id", [open]),
     t.query("SELECT is_open, open_until, closed_since FROM bar_state()"),
   ])) as unknown[][];
   const [row] = results[2] as Row[];
   const status: BarStatus = { open: row.is_open, openUntil: iso(row.open_until), closedSince: iso(row.closed_since), source: "db" };
   lastGood = { at: Date.now(), status };
-  return { status, castCleared: (results[1] as unknown[]).length > 0 };
+  return { status, castCleared: (results[0] as unknown[]).length > 0 };
 }
 
 /** What the browser gets (GET /api/bar/status and the first render): no internals. */

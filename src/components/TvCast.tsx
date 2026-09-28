@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
 import type { Cast, CastPayload } from "@/lib/cast";
+import { onBarStatus } from "@/lib/bar-events";
 import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
 
 // TV side of "Show on TV" (DESIGN §10). Polls /api/cast every 4 s; while something is cast,
@@ -60,6 +61,8 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
     };
   }, []);
   const relayLive = useRelay("bar:cast", () => void pollRef.current());
+  // The bar opened or closed (BarWatch): a cast from before a close is over, so ask again now.
+  useEffect(() => onBarStatus(() => void pollRef.current()), []);
   useEffect(() => {
     const id = window.setInterval(() => void pollRef.current(), relayLive ? RELAY_FALLBACK_MS : POLL_MS);
     if (!relayLive) return () => window.clearInterval(id);

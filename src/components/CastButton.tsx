@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { onBarStatus } from "@/lib/bar-events";
 import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
 
 type CastState = { type: string; id: string; started_at: string; expires_at: string } | null;
@@ -46,6 +47,21 @@ function endOwned(type: string, id: string, cast: CastState) {
   }).catch(() => {});
 }
 
+/** Shown in the status line when this page's cast came off the TV before its time ran out. */
+export const ENDED_BAR_CLOSED = "Off the TV \u00b7 the bar closed";
+export const ENDED_TAKEN_OFF = "Taken off the TV";
+/** A cast that disappears with less than this left just ran out; no message. */
+const EARLY_MS = 1500;
+
+/** Why a cast ended early: the bar closed (auto or manual), or someone took it off / replaced it. */
+async function endedReason(): Promise<string> {
+  try {
+    const res = await fetch("/api/bar/status", { cache: "no-store" });
+    if (res.ok && (await res.json() as { open: boolean }).open === false) return ENDED_BAR_CLOSED;
+  } catch { /* fall through */ }
+  return ENDED_TAKEN_OFF;
+}
+
 const mss = (ms: number) => {
   const s = Math.max(0, Math.ceil(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -61,13 +77,23 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ended, setEnded] = useState<string | null>(null);
 
   const castRef = useRef(cast);
   castRef.current = cast;
+  /** Set while this tab's own "Take it off the TV" is in flight, so that removal shows no message. */
+  const selfStop = useRef(false);
 
   const apply = useCallback((data: { cast: CastState; now: string }) => {
     setOffset(Date.parse(data.now) - Date.now());
     const next = data.cast ? { type: data.cast.type, id: data.cast.id, started_at: data.cast.started_at, expires_at: data.cast.expires_at } : null;
+    // This item was on the TV with time left and the server no longer shows it: say so, and why.
+    const prev = castRef.current;
+    const wasOurs = !!prev && prev.type === type && prev.id === id && Date.parse(prev.expires_at) - Date.parse(data.now) > EARLY_MS;
+    const stillOurs = !!next && !!prev && ownKey(next) === ownKey(prev);
+    if (next && next.type === type && next.id === id) setEnded(null);
+    else if (wasOurs && !stillOurs && !selfStop.current) void endedReason().then(setEnded);
+    castRef.current = next;
     setCast(next);
     // Drop ownership once the server no longer has the cast this tab started.
     const saved = readOwn();
@@ -78,6 +104,9 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
   // With the relay live, a "bar:cast" notice triggers the check and the poll slows to a fallback.
   const loadRef = useRef<() => Promise<void>>(async () => {});
   const relayLive = useRelay("bar:cast", () => void loadRef.current());
+  // The bar opened or closed (BarWatch). A close ends a cast from before it, and the 2:00 AM self-close
+  // publishes nothing, so ask now. (If casting is ever turned off while Closed, this is where it'd hook in.)
+  useEffect(() => onBarStatus(() => void loadRef.current()), []);
   useEffect(() => {
     let stop = false;
     let rev = "";
@@ -155,6 +184,8 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
   async function send(method: "POST" | "DELETE") {
     setBusy(true);
     setError(null);
+    setEnded(null);
+    selfStop.current = method === "DELETE";
     try {
       const res = await fetch("/api/cast", { method, headers: { "content-type": "application/json" }, body: JSON.stringify({ type, id }) });
       const data = await res.json().catch(() => null);
@@ -166,6 +197,7 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't reach the TV.");
     } finally {
+      selfStop.current = false;
       setBusy(false);
     }
   }
@@ -180,7 +212,7 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
         {onTv ? "Take it off the TV" : "Show on TV"}
       </button>
       <p className="cast-status quiet" aria-live="polite">
-        {error ? error : onTv ? `On the TV now · ${mss(remaining)} left` : "\u00a0"}
+        {error ? error : onTv ? `On the TV now · ${mss(remaining)} left` : ended ?? "\u00a0"}
       </p>
     </div>
   );

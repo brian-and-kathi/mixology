@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { api } from "@/components/admin/api";
+import { onBarStatus } from "@/lib/bar-events";
 import { subscribeRelay } from "@/lib/relay-client";
 import { RELAY_FALLBACK_MS } from "@/lib/use-relay";
 
@@ -24,6 +25,7 @@ let poll = 0;
 let tick = 0;
 let rev = "";
 let unsubscribeRelay: () => void = () => {};
+let unsubscribeBar: () => void = () => {};
 const POLL_MS = 10_000;
 
 function emit() {
@@ -78,6 +80,8 @@ function start() {
   setPoll(POLL_MS);
   // Relay live: a "bar:cast" notice triggers the check and the poll slows to a fallback.
   unsubscribeRelay = subscribeRelay("bar:cast", () => void load(), (live) => setPoll(live ? RELAY_FALLBACK_MS : POLL_MS));
+  // The bar opened or closed (useBarSwitch): closing ends a cast, including the 2:00 AM self-close.
+  unsubscribeBar = onBarStatus(() => void load());
   document.addEventListener("visibilitychange", load);
   syncTick();
 }
@@ -85,6 +89,8 @@ function start() {
 function stop() {
   unsubscribeRelay();
   unsubscribeRelay = () => {};
+  unsubscribeBar();
+  unsubscribeBar = () => {};
   window.clearInterval(poll);
   window.clearInterval(tick);
   poll = 0;

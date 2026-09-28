@@ -9,6 +9,8 @@ body:has(.admin-root) { background: #07101c; }
   --cream: #d5e4ff;
   --a-accent: #7eb0ff;
   --a-red: #f0a8a0;
+  /* Usage bars from 80% of an allowance. An orange amber, kept clear of the guest-side gold. */
+  --a-amber: #f4a261;
   --a-line: rgba(150, 186, 240, 0.18);
   --a-field: #0c1830;
   --a-header: #081428;
@@ -306,15 +308,21 @@ body:has(.admin-root) { background: #07101c; }
   color: var(--quiet);
   word-break: break-all;
 }
-.a-host-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; }
+.a-host-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 0.6rem; row-gap: 0.1rem; }
 .a-host-head .a-h2 { margin: 0; }
-.a-host-head p { margin: 0; font-size: 0.78rem; }
+.a-host-head p { margin: 0; font-size: 0.78rem; white-space: nowrap; }
 .a-meters { list-style: none; margin: 0.7rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.65rem; }
 .a-meter-top { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.88rem; }
-.a-meter-top span:last-child { color: var(--quiet); font-variant-numeric: tabular-nums; text-align: right; }
+.a-meter-top span:last-child { color: var(--quiet); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .a-meter-bar { height: 6px; margin-top: 0.28rem; border-radius: 99px; background: var(--a-raised-2); overflow: hidden; }
 .a-meter-bar span { display: block; height: 100%; background: var(--a-accent); border-radius: inherit; }
 .a-host-note { margin: 0.75rem 0 0; font-size: 0.82rem; }
+.a-meter.is-warn .a-meter-bar span { background: var(--a-amber); }
+.a-meter.is-over .a-meter-bar span { background: var(--a-red); }
+.a-meter.is-over .a-meter-top span:last-child { color: var(--a-red); }
+.a-host-more { margin-top: 0.35rem; }
+.a-host-more-head { min-height: 44px; font-size: 0.88rem; color: var(--quiet); }
+.a-host-more .a-meters { margin-top: 0.1rem; }
 .admin-root .a-btn-primary:disabled { background: transparent; color: var(--quiet); border-color: var(--a-line); opacity: 1; }
 /* PIN keypad sign-in: four dots (outline empty, cream filled), 3x4 keys >= 64px with cream outlines,
    centred, even gaps. No text input, so the phone keyboard never opens. */

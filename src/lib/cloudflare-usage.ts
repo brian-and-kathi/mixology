@@ -136,39 +136,44 @@ function gbSeconds(n: number): string {
   return `${count(n)} GB-s`;
 }
 
+/** The allowances that run out first for this app; the rest sit under "All limits". */
+const ROWS: { key: keyof typeof FREE; label: string; format: (n: number) => string; tight?: boolean }[] = [
+  { key: "workerRequests", label: "Workers requests", format: count, tight: true },
+  { key: "doRequests", label: "Durable Object requests", format: count },
+  { key: "doGbSeconds", label: "Durable Object duration", format: gbSeconds },
+  { key: "rowsRead", label: "SQLite rows read", format: count },
+  { key: "rowsWritten", label: "SQLite rows written", format: count, tight: true },
+  { key: "sqlBytes", label: "SQLite storage", format: bytes },
+  { key: "kvReads", label: "KV reads", format: count },
+  { key: "kvWrites", label: "KV writes", format: count, tight: true },
+  { key: "kvDeletes", label: "KV deletes", format: count },
+  { key: "kvLists", label: "KV lists", format: count, tight: true },
+  { key: "kvBytes", label: "KV storage", format: bytes },
+];
+
+/** Same rows, same order, in every state; "—" until there is a reading. */
 function meters(usage: CloudflareUsage | null): Meter[] {
-  const empty = (label: string, limit: string): Meter => ({ label, used: "—", limit, ratio: null });
-  if (!usage) {
-    return [
-      empty("Workers requests", count(FREE.workerRequests)),
-      empty("Durable Object requests", count(FREE.doRequests)),
-      empty("Durable Object duration", gbSeconds(FREE.doGbSeconds)),
-      empty("SQLite rows read", count(FREE.rowsRead)),
-      empty("SQLite rows written", count(FREE.rowsWritten)),
-      empty("SQLite storage", bytes(FREE.sqlBytes)),
-      empty("KV reads", count(FREE.kvReads)),
-      empty("KV writes", count(FREE.kvWrites)),
-      empty("KV storage", bytes(FREE.kvBytes)),
-    ];
-  }
-  const list = [
-    meter("Workers requests", usage.workerRequests, FREE.workerRequests, count),
-    meter("Durable Object requests", usage.doRequests, FREE.doRequests, count),
-    meter("Durable Object duration", usage.doGbSeconds, FREE.doGbSeconds, gbSeconds),
-    meter("SQLite rows read", usage.rowsRead, FREE.rowsRead, count),
-    meter("SQLite rows written", usage.rowsWritten, FREE.rowsWritten, count),
-    meter("SQLite storage", usage.sqlBytes, FREE.sqlBytes, bytes),
-    meter("KV reads", usage.kvReads, FREE.kvReads, count),
-    meter("KV writes", usage.kvWrites, FREE.kvWrites, count),
-  ];
-  if (usage.kvDeletes > 0) list.push(meter("KV deletes", usage.kvDeletes, FREE.kvDeletes, count));
-  if (usage.kvLists > 0) list.push(meter("KV lists", usage.kvLists, FREE.kvLists, count));
-  list.push(meter("KV storage", usage.kvBytes, FREE.kvBytes, bytes));
-  return list;
+  return ROWS.map((row) => {
+    const limit = FREE[row.key];
+    const m: Meter = usage
+      ? meter(row.label, usage[row.key], limit, row.format)
+      : { label: row.label, used: "—", limit: row.format(limit), ratio: null };
+    return row.tight ? { ...m, tight: true } : m;
+  });
 }
 
-function panel(usage: CloudflareUsage | null, note: string | null): HostPanel {
-  return { title: "Cloudflare · Workers Free", detail: "Today, UTC", note, meters: meters(usage) };
+/** Free allowances reset at 00:00 UTC; say when that is in Brian's time (8 PM EDT, 7 PM EST). */
+export function resetLabel(now = new Date()): string {
+  const next = new Date(now);
+  next.setUTCHours(24, 0, 0, 0);
+  const at = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric" })
+    .format(next)
+    .replace(":00", "");
+  return `Today · resets ${at} ET`;
+}
+
+export function panel(usage: CloudflareUsage | null, note: string | null): HostPanel {
+  return { title: "Cloudflare · Workers Free", detail: resetLabel(), note, meters: meters(usage) };
 }
 
 function shareNote(usage: CloudflareUsage): string {
@@ -226,6 +231,10 @@ let inflight: Promise<HostPanel> | null = null;
 
 /** Cached for five minutes per server instance so the admin page stays quick; failures retry after a minute. */
 export async function loadCloudflarePanel(): Promise<HostPanel> {
+  // Local screenshots only: `USAGE_MOCK=1 next dev`. Production builds drop this branch and the module.
+  if (process.env.NODE_ENV === "development" && process.env.USAGE_MOCK === "1") {
+    return (await import("@/lib/usage-mock")).mockCloudflarePanel();
+  }
   const token = process.env.CLOUDFLARE_API_TOKEN?.trim();
   if (!token) {
     return panel(null, "Set CLOUDFLARE_API_TOKEN to read today's usage. The allowances are the Workers Free plan, reset daily at 00:00 UTC.");

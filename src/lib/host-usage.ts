@@ -19,6 +19,8 @@ export type Meter = {
   limit: string | null;
   /** 0–1 when both sides are known. */
   ratio: number | null;
+  /** Shown while the card is collapsed; the rest wait under "All limits" unless they reach 80%. */
+  tight?: boolean;
 };
 
 export type HostPanel = {
@@ -135,7 +137,7 @@ export async function loadNeonPanel(): Promise<HostPanel> {
   return { title: `Neon · ${plan}`, detail: until, note, meters };
 }
 
-type Charge = {
+export type Charge = {
   ChargeCategory?: string;
   ConsumedQuantity?: number | string | null;
   ConsumedUnit?: string | null;
@@ -156,6 +158,10 @@ function chargeUsed(rows: Charge[], service: string): number | null {
 
 /** This month's Vercel usage for the mixology project, against Hobby allowances. */
 export async function loadVercelPanel(): Promise<HostPanel> {
+  // Local screenshots only: `USAGE_MOCK=1 next dev`. Production builds drop this branch and the module.
+  if (process.env.NODE_ENV === "development" && process.env.USAGE_MOCK === "1") {
+    return (await import("@/lib/usage-mock")).mockVercelPanel();
+  }
   const token = process.env.VERCEL_TOKEN?.trim();
   const from = new Date();
   from.setUTCDate(1);
@@ -196,20 +202,39 @@ export async function loadVercelPanel(): Promise<HostPanel> {
           : "Vercel did not return this month's usage.";
     }
   }
+  return vercelPanel(rows, note);
+}
+
+/** Five rows in every state; "—" where the charges have no matching line. */
+export function vercelPanel(rows: Charge[] | null, note: string | null): HostPanel {
   const meters = VERCEL_HOBBY.map((item) => {
     const used = rows ? chargeUsed(rows, item.label) : null;
     if (used == null) return { label: item.label, used: "—", limit: item.limitLabel, ratio: null };
-    return meter(item.label, used, item.limit, (n) => formatUnit(n, item.unit));
+    // Allowances are decimal (100 GB = 100e9 B); print the plan's own label, not a binary conversion.
+    return { ...meter(item.label, used, item.limit, (n) => formatUnit(n, item.unit)), limit: item.limitLabel };
   });
-  if (rows && rows.length > 0 && meters.every((m) => m.ratio == null)) {
+  if (!note && rows && rows.length > 0 && meters.every((m) => m.ratio == null)) {
     note = "Vercel returned charges, but none matched these meters.";
   }
   return { title: "Vercel · Hobby", detail: "This month", note, meters };
 }
 
 function formatUnit(n: number, unit: "bytes" | "count" | "seconds" | "gb-hours"): string {
-  if (unit === "bytes") return bytes(n);
+  if (unit === "bytes") return decimalBytes(n);
   if (unit === "seconds") return hours(n);
   if (unit === "gb-hours") return `${n >= 10 ? n.toFixed(0) : n.toFixed(1)} GB-hr`;
   return count(n);
+}
+
+/** Vercel meters transfer in decimal units (1 GB = 1e9 B), like its allowances. */
+function decimalBytes(n: number): string {
+  if (n < 1000) return `${Math.round(n)} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let v = n / 1000;
+  let i = 0;
+  while (v >= 1000 && i < units.length - 1) {
+    v /= 1000;
+    i++;
+  }
+  return `${v >= 10 ? v.toFixed(0) : v.toFixed(1)} ${units[i]}`;
 }

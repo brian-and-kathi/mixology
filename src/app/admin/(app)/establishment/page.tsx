@@ -1,8 +1,9 @@
 import { Glance } from "@/components/admin/Glance";
+import { HostCard } from "@/components/admin/HostCard";
 import { Tonight } from "@/components/admin/Tonight";
 import { loadGlance } from "@/lib/admin-data";
 import { loadCloudflarePanel } from "@/lib/cloudflare-usage";
-import { loadNeonPanel, loadVercelPanel, type HostPanel } from "@/lib/host-usage";
+import { loadNeonPanel, loadVercelPanel } from "@/lib/host-usage";
 import { tonight } from "@/lib/night";
 import { commitRef } from "@/lib/version";
 
@@ -30,32 +31,5 @@ export default async function EstablishmentPage() {
       <HostCard panel={vercel} />
       <HostCard panel={cloudflare} />
     </div>
-  );
-}
-
-function HostCard({ panel }: { panel: HostPanel }) {
-  return (
-    <section className="a-card a-host" aria-label={panel.title}>
-      <div className="a-host-head">
-        <h2 className="a-h2">{panel.title}</h2>
-        {panel.detail ? <p className="a-quiet">{panel.detail}</p> : null}
-      </div>
-      <ul className="a-meters">
-        {panel.meters.map((meter) => (
-          <li key={meter.label}>
-            <div className="a-meter-top">
-              <span>{meter.label}</span>
-              <span>{meter.limit ? `${meter.used} / ${meter.limit}` : meter.used}</span>
-            </div>
-            {meter.ratio != null ? (
-              <div className="a-meter-bar" aria-hidden>
-                <span style={{ width: `${Math.max(2, meter.ratio * 100)}%` }} />
-              </div>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-      {panel.note ? <p className="a-quiet a-host-note">{panel.note}</p> : null}
-    </section>
   );
 }

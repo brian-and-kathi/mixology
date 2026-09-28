@@ -160,7 +160,9 @@ export async function loadVercelPanel(): Promise<HostPanel> {
   const from = new Date();
   from.setUTCDate(1);
   from.setUTCHours(0, 0, 0, 0);
+  // The charges API works in whole UTC days: end at the next midnight.
   const to = new Date();
+  to.setUTCHours(0, 0, 0, 0);
   to.setUTCDate(to.getUTCDate() + 1);
   let rows: Charge[] | null = null;
   let note: string | null = null;
@@ -175,7 +177,10 @@ export async function loadVercelPanel(): Promise<HostPanel> {
         cache: "no-store",
       });
       if (!res.ok) {
-        note = "Vercel did not return this month's usage.";
+        note =
+          res.status === 401 || res.status === 403
+            ? `Vercel refused VERCEL_TOKEN (HTTP ${res.status}). It needs access to the brianandkathi team, not one project.`
+            : `Vercel did not return this month's usage (HTTP ${res.status}).`;
       } else {
         const text = await res.text();
         rows = text
@@ -184,8 +189,11 @@ export async function loadVercelPanel(): Promise<HostPanel> {
           .filter(Boolean)
           .map((line) => JSON.parse(line) as Charge);
       }
-    } catch {
-      note = "Vercel did not return this month's usage.";
+    } catch (error) {
+      note =
+        error instanceof SyntaxError
+          ? "Vercel's usage reply could not be read."
+          : "Vercel did not return this month's usage.";
     }
   }
   const meters = VERCEL_HOBBY.map((item) => {

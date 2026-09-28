@@ -170,26 +170,17 @@ export function pourLine(p: { origin: string | null; abv: string | null; type: s
 }
 
 /**
- * Cellar. Phone: region, then the grape or style unless the name already says it
- * ("Hakutsuru Sake" → just "Japan"). No region: the style alone ("Sake").
- * TV: the style is the spec badge and the line under the name is only the place, in the same
- * arrangement as Pours. Regions come only from the bottle's origin field; nothing is guessed.
+ * Cellar. Phone and TV: only the place ("California"). The style is the corner tab (phone) or inline
+ * badge (TV), so the line never repeats it. No region: no line at all (no blank line or stray " · ").
+ * Regions come only from the bottle's origin field; nothing is guessed.
  */
-export function wineLine(w: { name: string; origin: string | null; type: string | null }): Partial<Sub> {
+export function wineLine(w: { origin: string | null }): Partial<Sub> {
   const region = clean(w.origin);
-  const type = clean(w.type);
-  const redundant = !!type && w.name.toLowerCase().includes(type.toLowerCase());
-  const items = region ? (type && !redundant ? [region, type] : [region]) : type ? [type] : [];
-  if (!items.length) return {};
-  // Phone line: the place name and the type each stay whole ("semi-dry white wine"), so at narrow widths
-  // it only breaks at " · ".
-  const keepWords = (t: string) => t.trim().replace(/\s+/g, NBSP);
-  const head = region ? keepPlace(region) : "";
-  const parts = head ? [head, ...items.slice(1).map(keepWords)] : items.map(keepWords);
-  const detail = first(parts.join(DOT));
-  const origin = head ? detail.slice(0, first(head).length) : undefined;
-  const originTv = region ? first(region) : undefined;
-  return { detail, origin, originTv, ...(originTv ? { fit: [originTv] } : {}) };
+  if (!region) return {};
+  // Phone keeps each place name whole ("New\u00a0York"); the TV line is unchanged (plain spaces).
+  const detail = first(keepPlace(region));
+  const tv = first(region);
+  return { detail, origin: detail, originTv: tv, fit: [tv] };
 }
 
 export type RecipeLine = {

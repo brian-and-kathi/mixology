@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import type { CSSProperties } from "react";
 import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
 import { isAdmin } from "@/lib/admin-guard";
+import { barVersions } from "@/lib/bar-versions";
 import { loadMenu, SECTIONS, type SectionId } from "@/lib/menu";
 import { ratingKey } from "@/lib/rating-key";
 import { loadAllRatings } from "@/lib/ratings";
@@ -13,6 +15,8 @@ export const metadata = { title: "Menu" };
 /** Phone guest menu: same sections and order as the TV, one tab per non-empty section. */
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams;
+  // Read before the menu, so a change during the render counts as newer (AutoRefresh).
+  const version = await barVersions().catch(() => null);
   // Guest ratings, the TV board's single query and rounding; a failure just shows no ratings.
   const [menu, ratings, admin] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch((): Record<string, number> => ({})), isAdmin()]);
   if (!menu) {
@@ -34,6 +38,8 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
 
   return (
     <PhoneShell admin={admin}>
+      {/* Live updates only while the relay is on (no polling from phones otherwise). */}
+      <AutoRefresh topic="bar:menu" version={version?.menu ?? null} />
       <nav className="tabs" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
         {tabs.map((t) => (
           <Link key={t.id} href={`/menu?tab=${t.id}`} className={t.id === current ? "tab active" : "tab"} aria-current={t.id === current ? "page" : undefined}>

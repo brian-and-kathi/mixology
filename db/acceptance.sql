@@ -1150,6 +1150,39 @@ BEGIN
   RAISE NOTICE 'check 24 passed';
 END $$;
 
+-- 25. Database change signal (migration 028): one bump per statement; detail-only text bumps just the
+--     cast counter; board columns bump both; statements that change nothing bump nothing; a claim
+--     reports what moved once.
+DO $$
+DECLARE
+  v_id uuid := (SELECT id FROM products ORDER BY display_name LIMIT 1);
+  m0 bigint; c0 bigint; m bigint; c bigint;
+  cl record;
+BEGIN
+  PERFORM claim_bar_versions();
+  SELECT menu_version, cast_version INTO m0, c0 FROM bar_versions;
+  UPDATE products SET description = coalesce(description, '') || ' (acc)' WHERE true;
+  SELECT menu_version, cast_version INTO m, c FROM bar_versions;
+  IF (m, c) <> (m0, c0 + 1) THEN RAISE EXCEPTION 'check 25 failed: a many-row description edit gave menu +%, cast +% (want 0, 1)', m - m0, c - c0; END IF;
+  UPDATE products SET in_stock = NOT in_stock WHERE id = v_id;
+  SELECT menu_version, cast_version INTO m, c FROM bar_versions;
+  IF (m, c) <> (m0 + 1, c0 + 2) THEN RAISE EXCEPTION 'check 25 failed: a stock toggle did not bump both counters'; END IF;
+  UPDATE products SET in_stock = in_stock WHERE true;
+  DELETE FROM drink_ratings WHERE false;
+  UPDATE recipes SET name = name WHERE true;
+  SELECT menu_version, cast_version INTO m, c FROM bar_versions;
+  IF (m, c) <> (m0 + 1, c0 + 2) THEN RAISE EXCEPTION 'check 25 failed: statements that change nothing bumped a counter'; END IF;
+  UPDATE recipes SET description = coalesce(description, '') || ' (acc)' WHERE true;
+  UPDATE recipe_lines SET required = NOT required WHERE id = (SELECT id FROM recipe_lines ORDER BY id LIMIT 1);
+  SELECT menu_version, cast_version INTO m, c FROM bar_versions;
+  IF (m, c) <> (m0 + 2, c0 + 4) THEN RAISE EXCEPTION 'check 25 failed: recipe method text or a recipe line bumped the wrong counter'; END IF;
+  SELECT * INTO cl FROM claim_bar_versions();
+  IF NOT (cl.menu_changed AND cl.cast_changed) THEN RAISE EXCEPTION 'check 25 failed: the claim missed a change'; END IF;
+  SELECT * INTO cl FROM claim_bar_versions();
+  IF cl.menu_changed OR cl.cast_changed THEN RAISE EXCEPTION 'check 25 failed: a second claim reported the same change'; END IF;
+  RAISE NOTICE 'check 25 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

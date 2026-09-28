@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { barVersions } from "@/lib/bar-versions";
 import { altGlassLine, cap, lineText, methodParts, serveParts, tvGlassLine } from "@/lib/format";
 import { bottleLine, loadPour, loadRecipe } from "@/lib/menu";
 
@@ -50,13 +51,18 @@ type Row = { item_type: CastType; item_id: string; started_at: string; expires_a
 
 const CAST_ROW = "SELECT item_type, item_id, started_at, expires_at FROM tv_cast WHERE id = 1 AND expires_at > now()";
 
-/** Stable token for the current cast row: "none", or type, id, and started_at. No recipe or pour load. */
+/**
+ * Stable token for the current cast row: "none", or type, id, started_at and the database's
+ * cast_version (migration 028), so an edit to the item's text (e.g. a tasting note changed in SQL)
+ * also changes the ETag and the TV refetches the pop-up. No recipe or pour load.
+ */
 export async function castRevision(): Promise<string> {
   const [row] = await query<Row>(CAST_ROW);
   if (!row) return "none";
   const started = new Date(row.started_at);
   const stamp = Number.isNaN(started.getTime()) ? String(row.started_at) : started.toISOString();
-  return `${row.item_type}:${row.item_id}:${stamp}`;
+  const v = await barVersions().catch(() => null);
+  return `${row.item_type}:${row.item_id}:${stamp}${v ? `:${v.cast}` : ""}`;
 }
 
 /** The current cast, or null when nothing is showing (expired casts count as nothing). */

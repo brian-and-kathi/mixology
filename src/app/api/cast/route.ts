@@ -9,10 +9,11 @@ const noStore = { "cache-control": "no-store" };
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: noStore });
 
 /**
- * GET: what the TV should show right now. The TV polls this every 4 seconds (every 5 minutes, plus
+ * GET: what the TV should show right now. The TV polls this every 4 seconds (every 15 minutes, plus
  * on each relay notice, while the realtime relay is live).
  * If-None-Match with the previous ETag (the cast revision, or "none") gets a 304 and does not
- * rebuild the recipe or pour. x-now is the server clock, including on a 304.
+ * rebuild the recipe or pour. The revision includes the database cast_version (migration 028), so a
+ * changed tasting note or method also gets a fresh payload. x-now is the server clock, including on a 304.
  */
 export async function GET(req: NextRequest) {
   const rev = await castRevision();

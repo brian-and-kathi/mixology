@@ -114,7 +114,7 @@ function GuestMenu({ editHref, admin }: { editHref?: string; admin: boolean }) {
         <nav aria-label="Site">
           <Link href="/menu" onClick={() => setOpen(false)}>Menu</Link>
           <Link href="/admin" onClick={() => setOpen(false)}>Bar admin</Link>
-          {admin ? <Link href="/db" onClick={() => setOpen(false)}>Database</Link> : null}
+          {admin ? <Link href="/db/products" onClick={() => setOpen(false)}>Database</Link> : null}
           {editHref ? (
             <>
               <hr />

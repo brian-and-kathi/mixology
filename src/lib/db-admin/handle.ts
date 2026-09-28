@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { addSubstitution, deleteSubstitution, RECIPE_UNITS, setStock } from "@/lib/admin-write";
+import { addSubstitution, deleteSubstitution, RECIPE_UNITS } from "@/lib/admin-write";
 import {
   EFFERVESCENCE, KINDS, RATINGS, ROLES, SECTIONS, UNITS, WINE_COLORS,
   area, check, esc, field, heading, options, page, select, text,
@@ -539,7 +539,8 @@ export async function handleDb(req: Request, parts: string[]): Promise<Response>
   const path = "/" + parts.join("/");
   const url = new URL(req.url);
   try {
-    if (method === "GET" && (path === "/" || path === "")) return home();
+    // No home page: /db opens on Products. /db/menus (retired read-only lists) goes there too.
+    if (method === "GET" && (path === "/" || path === "" || path === "/menus")) return Response.redirect(new URL(`${DB}/products`, req.url), 302);
     if (method === "GET" && path === "/families") return familiesPage();
     if (method === "GET" && path === "/families/new") return html(200, familyForm(null, "", null));
     if (method === "POST" && path === "/families") return postFamily(req, null);
@@ -564,7 +565,6 @@ export async function handleDb(req: Request, parts: string[]): Promise<Response>
     if (method === "POST" && path === "/products") return postProduct(req, null);
     if (parts[0] === "products" && parts[1] && isUuid(parts[1]) && parts.length === 2 && method === "GET") return productEdit(parts[1]);
     if (parts[0] === "products" && parts[1] && isUuid(parts[1]) && parts.length === 2 && method === "POST") return postProduct(req, parts[1]);
-    if (parts[0] === "products" && parts[2] === "stock" && method === "POST") return postStock(req, parts[1]);
     if (parts[0] === "products" && parts[2] === "delete" && method === "POST") return postProductDelete(req, parts[1]);
     if (parts[0] === "products" && parts[2] === "lookup" && parts.length === 3 && method === "POST") return postLookup(req, parts[1]);
     if (parts[0] === "products" && parts[2] === "lookup" && parts[3] === "delete" && method === "POST") return postLookupDelete(req, parts[1]);
@@ -576,7 +576,6 @@ export async function handleDb(req: Request, parts: string[]): Promise<Response>
     if (parts[0] === "recipes" && parts[1] && isUuid(parts[1]) && parts.length === 2 && method === "POST") return postRecipe(req, parts[1]);
     if (parts[0] === "recipes" && parts[2] === "delete" && method === "POST") return postRecipeDelete(req, parts[1]);
 
-    if (method === "GET" && path === "/menus") return menusPage();
     return notFound(`${DB}`, "That page was not found.");
   } catch (error) {
     const status = (error as { status?: number }).status;
@@ -584,30 +583,6 @@ export async function handleDb(req: Request, parts: string[]): Promise<Response>
     if (!isUserError(error)) console.error("db admin", error);
     return html(500, page({ title: "Error", active: `${DB}`, error: isUserError(error) ? dbMessage(error) : "Something went wrong while saving.", body: "" }));
   }
-}
-
-async function home() {
-  const [row] = await q<{ families: string; specs: string; products: string; in_stock: string; recipes: string; substitutions: string }>(`
-    SELECT
-      (SELECT count(*) FROM families) AS families,
-      (SELECT count(*) FROM specs) AS specs,
-      (SELECT count(*) FROM products) AS products,
-      (SELECT count(*) FROM products WHERE in_stock) AS in_stock,
-      (SELECT count(*) FROM recipes) AS recipes,
-      (SELECT count(*) FROM spec_substitutions) AS substitutions`);
-  const cards = [
-    [`${DB}/families`, row.families, "Families"],
-    [`${DB}/specs`, row.specs, "Specs"],
-    [`${DB}/products`, row.products, "Products"],
-    [`${DB}/products`, row.in_stock, "In stock"],
-    [`${DB}/recipes`, row.recipes, "Recipes"],
-    [`${DB}/substitutions`, row.substitutions, "Substitutions"],
-  ].map(([href, count, label]) => `<a class="card count" href="${href}"><strong>${esc(count)}</strong><span>${esc(label)}</span></a>`).join("");
-  return html(200, page({
-    title: "Home",
-    active: DB,
-    body: `${heading("Bar book", "Create and edit the household bar. Stock is on or off, and recipes name specs rather than bottles.")}<div class="counts">${cards}</div>`,
-  }));
 }
 
 async function familiesPage() {
@@ -827,10 +802,6 @@ async function productsPage(saved: string | null) {
       ORDER BY p.display_name`,
   );
   const body = rows.map((product) => `<tr data-search="${esc([product.display_name, product.packaged_name, product.brand, product.upc, product.family_name, product.spec_names].filter(Boolean).join(" "))}">
-    <td class="stock"><form method="post" action="${DB}/products/${product.id}/stock">
-      <input type="hidden" name="in_stock" value="${product.in_stock ? "false" : "true"}">
-      <button class="${product.in_stock ? "" : "quiet"}" type="submit">${product.in_stock ? "In stock" : "Out"}</button>
-    </form></td>
     <td><a href="${DB}/products/${product.id}">${esc(product.display_name)}</a><div class="hint">${esc(product.upc ?? "No UPC")}</div></td>
     ${PRODUCT_FLAGS.map(([key, letter, label]) => `<td class="flag"${product[key] ? ` data-tip="${esc(label)}"` : ""}>${product[key] ? letter : ""}</td>`).join("")}
     <td>${esc(product.family_name ?? "")}</td>
@@ -842,10 +813,10 @@ async function productsPage(saved: string | null) {
     title: "Products",
     active: `${DB}/products`,
     notice: saved ? `Saved ${saved}.` : "",
-    body: `${heading("Products", "Each bottle, batch, or piece of produce is one row. The stock button is the whole inventory.", `<a class="button" href="${DB}/products/new">New product</a>`)}
+    body: `${heading("Products", `Each bottle, batch, or piece of produce is one row. Mark bottles in or out on <a href="/admin/stock">Admin stock</a>.`, `<a class="button" href="${DB}/products/new">New product</a>`)}
       ${searchForm("Find a product by name, brand, UPC, or a flag such as Neat.", "products")}
-      <div class="table-scroll"><table><thead><tr><th>Stock</th><th>Name</th>${flagHeads}<th>Family</th><th>Specs</th><th></th></tr></thead>
-      <tbody>${body || `<tr><td colspan="13" class="empty">No products yet.</td></tr>`}</tbody></table></div>`,
+      <div class="table-scroll"><table><thead><tr><th>Name</th>${flagHeads}<th>Family</th><th>Specs</th><th></th></tr></thead>
+      <tbody>${body || `<tr><td colspan="12" class="empty">No products yet.</td></tr>`}</tbody></table></div>`,
   }));
 }
 
@@ -875,12 +846,6 @@ async function postProduct(req: Request, id: string | null) {
     const draft = { ...(id ? { id } : {}), ...body, lookup: existing?.product.lookup ?? null, fortified: checked(body.fortified), in_stock: checked(body.in_stock), serves_neat: checked(body.serves_neat), serves_rocks: checked(body.serves_rocks), serves_chilled: checked(body.serves_chilled), mix_only: checked(body.mix_only), serves_glass: checked(body.serves_glass), serves_bottle: checked(body.serves_bottle), decanting: checked(body.decanting) };
     return html(400, productForm(draft, many(body.spec_ids), String(body.primary_spec_id ?? ""), await familyChoices(), await specChoices(), dbMessage(error)));
   }
-}
-
-async function postStock(req: Request, id: string) {
-  const body = await formOf(req);
-  await setStock(requireUuid(id), checked(body.in_stock));
-  return go(req, `${DB}/products`);
 }
 
 async function postProductDelete(req: Request, id: string) {
@@ -992,26 +957,4 @@ async function postRecipeDelete(req: Request, id: string) {
     ["DELETE FROM recipes WHERE id = $1", [id]],
   ]);
   return go(req, `${DB}/recipes`);
-}
-
-async function menusPage() {
-  const [neat, wines, mixed] = await Promise.all([
-    q<{ id: string; display_name: string; origin: string | null; rating: number | null; serve_note: string | null }>("SELECT id, display_name, origin, rating, serve_note FROM menu_neat ORDER BY display_name"),
-    q<{ id: string; style_group: string; display_name: string; origin: string | null; rating: number | null }>("SELECT id, style_group, display_name, origin, rating FROM menu_wines ORDER BY style_group, display_name"),
-    q<{ id: string; name: string; rating: number | null }>("SELECT id, name, rating FROM menu_mixed ORDER BY name"),
-  ]);
-  const table = (headers: string[], rows: string[]) => `<table><thead><tr>${headers.map((header) => `<th>${esc(header)}</th>`).join("")}</tr></thead><tbody>${
-    rows.length ? rows.join("") : `<tr><td colspan="${headers.length}" class="empty">Nothing on this menu.</td></tr>`
-  }</tbody></table>`;
-  return html(200, page({
-    title: "Menus",
-    active: `${DB}/menus`,
-    body: `${heading("Menus", "Read-only. These are the guest lists the database builds from stock, specs, and recipes. The rating is the operator rating, not the guest stars.")}
-      <h2>Pours</h2>
-      ${table(["Name", "Origin", "Rating", "Best served"], neat.map((row) => `<tr><td><a href="${DB}/products/${row.id}">${esc(row.display_name)}</a></td><td>${esc(row.origin ?? "")}</td><td>${esc(row.rating ?? "")}</td><td>${esc(row.serve_note ?? "")}</td></tr>`))}
-      <h2>Cellar</h2>
-      ${table(["Group", "Name", "Origin", "Rating"], wines.map((row) => `<tr><td>${esc(row.style_group)}</td><td><a href="${DB}/products/${row.id}">${esc(row.display_name)}</a></td><td>${esc(row.origin ?? "")}</td><td>${esc(row.rating ?? "")}</td></tr>`))}
-      <h2>Cocktails</h2>
-      ${table(["Name", "Rating"], mixed.map((row) => `<tr><td><a href="${DB}/recipes/${row.id}">${esc(row.name)}</a></td><td>${esc(row.rating ?? "")}</td></tr>`))}`,
-  }));
 }

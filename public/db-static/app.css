@@ -31,7 +31,7 @@ a:hover { text-decoration: underline; }
 
 .top {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto; /* tabs, then the menu button (no brand word) */
   align-items: center;
   gap: 12px 28px;
   padding: 12px 22px;
@@ -40,14 +40,6 @@ a:hover { text-decoration: underline; }
   position: sticky;
   top: 0;
   z-index: 5;
-}
-
-.mark {
-  color: var(--text);
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  text-decoration: none;
 }
 
 nav.sections { display: flex; flex-wrap: wrap; gap: 6px 16px; min-width: 0; }
@@ -326,12 +318,6 @@ td.row-actions {
   width: 1%;
   white-space: nowrap;
 }
-td.stock {
-  vertical-align: middle;
-  width: 1%;
-  white-space: nowrap;
-}
-td.stock form { margin: 0; }
 button.icon {
   background: transparent;
   color: var(--muted);
@@ -398,10 +384,6 @@ button.search-clear:hover { color: var(--text); background: rgba(255, 255, 255, 
   cursor: not-allowed;
 }
 [data-also-in] input:disabled { cursor: not-allowed; }
-.counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.count { display: block; color: inherit; text-decoration: none; }
-.count strong { display: block; font-size: 1.6rem; }
-.count span { color: var(--muted); }
 
 .empty { color: var(--muted); padding: 16px; }
 
@@ -410,7 +392,7 @@ button.search-clear:hover { color: var(--text); background: rgba(255, 255, 255, 
 .lines input, .lines select { width: 100%; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font: inherit; }
 
 @media (max-width: 800px) {
-  .grid, .grid-3, .counts { grid-template-columns: 1fr; }
+  .grid, .grid-3 { grid-template-columns: 1fr; }
   .spec-fields { grid-auto-flow: row; grid-template-rows: none; }
   .span-2 { grid-column: auto; }
   .check-split { grid-template-columns: 1fr; }
@@ -423,8 +405,5 @@ button.search-clear:hover { color: var(--text); background: rgba(255, 255, 255, 
   .spec-extra > .field:nth-child(3) > .control { grid-column: 1; grid-row: 5; }
   .spec-extra > .field:nth-child(3) textarea { min-height: 140px; }
   .top { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; padding: 12px 14px; }
-  .mark { grid-column: 1; grid-row: 1; }
-  .db-menu { grid-column: 2; grid-row: 1; }
-  nav.sections { grid-column: 1 / -1; grid-row: 2; }
   main { width: min(1100px, calc(100% - 24px)); }
 }

@@ -62,7 +62,7 @@ export function AdminMenu() {
       <div ref={panel} id={id} className="a-menu-panel" hidden={!open}>
         <nav aria-label="Admin">
           <Link href="/menu" onClick={() => setOpen(false)}>Guest menu</Link>
-          <Link href="/db" onClick={() => setOpen(false)}>Database</Link>
+          <Link href="/db/products" onClick={() => setOpen(false)}>Database</Link>
           <hr />
           <p className="a-menu-status">{tv.live ? `On the TV: ${tv.name}` : "TV is showing the menu"}</p>
           <button type="button" onClick={() => void tv.clear()} disabled={tv.busy || !tv.live}>

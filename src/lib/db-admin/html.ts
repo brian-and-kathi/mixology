@@ -1,12 +1,11 @@
 // @ts-nocheck
+// Adding, editing and deleting records. Stock in/out and running the bar live in /admin.
 const NAV = [
-  ["/db", "Home"],
   ["/db/families", "Families"],
   ["/db/specs", "Specs"],
   ["/db/substitutions", "Substitutions"],
   ["/db/products", "Products"],
   ["/db/recipes", "Recipes"],
-  ["/db/menus", "Menus"],
 ];
 
 export function esc(value: unknown): string {
@@ -50,11 +49,10 @@ export function page({ title, active, body, error = null, notice = null }: { tit
   <meta name="theme-color" content="#06140e">
   <meta name="robots" content="noindex">
   <title>${esc(title)} · Database</title>
-  <link rel="stylesheet" href="/db-static/app.css?v=3">
+  <link rel="stylesheet" href="/db-static/app.css?v=4">
 </head>
 <body>
   <header class="top">
-    <a class="mark" href="/tv">Database</a>
     <nav class="sections" aria-label="Database">${nav}</nav>
     ${menu}
   </header>

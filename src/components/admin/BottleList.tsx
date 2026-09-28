@@ -13,7 +13,8 @@ const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\
 
 /**
  * Bottles, split Spirits | Wines like Stock. Wines: in-stock first, out wines folded into a quiet
- * "Out · N" section (opens by itself when a search matches one). "Add wine" preselects a wine type.
+ * "Out · N" section (opens by itself when a search matches one). Adding bottles is in /db (Products);
+ * /admin/bottles/new stays for the phone share target.
  */
 export function BottleList({ items, saved, initialQuery = "" }: { items: StockItem[]; saved?: string; initialQuery?: string }) {
   const [q, setQ] = useRememberedSearch(SEARCH.bottles, initialQuery);
@@ -42,10 +43,7 @@ export function BottleList({ items, saved, initialQuery = "" }: { items: StockIt
   );
   return (
     <>
-      <div className="a-titlebar">
-        <h1 className="a-h1">Bottles</h1>
-        <Link href={wines ? "/admin/bottles/new?kind=wine" : "/admin/bottles/new"} className="a-btn a-btn-primary">{wines ? "Add wine" : "Add bottle"}</Link>
-      </div>
+      <h1 className="a-h1">Bottles</h1>
       {saved ? <p className="a-ok" role="status">Saved {saved}.</p> : null}
       <KindSwitch kind={kind} onChange={setKind} />
       <div className="a-search">

@@ -14,10 +14,9 @@ import { SEARCH } from "@/lib/search-cookie";
 const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
 const VERMOUTH = new Set(["sweet vermouth", "dry vermouth"]);
 
-/** Ingredients tab: stand-ins as sentences (with the vermouth rule), then all ingredients by family. */
-export function IngredientsPanel({ specs: initialSpecs, families, subs, initialQuery = "" }: { specs: SpecOption[]; families: Family[]; subs: Sub[]; initialQuery?: string }) {
+/** Ingredients tab: all ingredients by family, then stand-ins as sentences (with the vermouth rule). New ingredients are added in /db (Specs). */
+export function IngredientsPanel({ specs, families, subs, initialQuery = "" }: { specs: SpecOption[]; families: Family[]; subs: Sub[]; initialQuery?: string }) {
   const router = useRouter();
-  const [specs, setSpecs] = useState(initialSpecs);
   const [q, setQ] = useRememberedSearch(SEARCH.ingredients, initialQuery);
   const [source, setSource] = useState<string | null>(null);
   const [target, setTarget] = useState<string | null>(null);
@@ -114,12 +113,6 @@ export function IngredientsPanel({ specs: initialSpecs, families, subs, initialQ
         );
       })}
       {groups.size === 0 ? <p className="a-quiet a-empty">{outOnly ? "Nothing is out." : "No ingredients match."}</p> : null}
-
-      <Disclosure className="a-more" headClassName="a-more-head" bodyClassName="a-more-body" summary="Add an ingredient">
-        <SpecPicker label="Type a new name, then add it" specs={specs} families={families} value={null}
-          onChange={(id) => router.push(`/admin/ingredients/${id}`)}
-          onCreate={(s) => setSpecs((l) => [...l, s].sort((a, b) => a.name.localeCompare(b.name)))} />
-      </Disclosure>
 
       <Disclosure className="a-more a-standins" headClassName="a-more-head" bodyClassName="a-more-body" summary={<>Stand-ins <span className="a-quiet">· {subs.length}</span></>}>
         {subs.length === 0 ? <p className="a-quiet">No stand-ins yet.</p> : (

@@ -8,6 +8,7 @@ import { KindSwitch, useAdminKind, type Kind } from "./KindSwitch";
 import { useRememberedSearch } from "./useRememberedSearch";
 import { SEARCH } from "@/lib/search-cookie";
 import { Disclosure } from "./Disclosure";
+import { StockRow } from "./StockToggle";
 
 type Result = { name: string; in_stock: boolean; log_id: number | null; blocked: string[]; unlocked: string[] };
 type Toast = { text: string; undo?: { id: string; to: boolean; logId: number | null } };
@@ -37,8 +38,9 @@ function ago(iso: string, now: number): string {
 }
 
 /**
- * Stock: one tap flips a bottle In/Out (optimistic), with an undo toast that shows the menu impact.
- * Spirits | Wines switch: Spirits is the short list whose outs matter (red Out, "Out only", counts).
+ * Stock: one tap on the row's In/Out toggle (left edge) flips a bottle (optimistic), with an undo toast
+ * that shows the menu impact. The rest of the row opens the bottle, like Bottles.
+ * Spirits | Wines switch: Spirits is the short list whose outs matter ("Out only", counts).
  * Wines (the guest Cellar's bottles) lists in-stock wines by type, with the out ones folded into a
  * quiet "Out · N" section at the bottom; wine outs never count as shopping or "out" numbers.
  */
@@ -178,7 +180,7 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
           <section key={g.family} className="a-group">
             <h2 className="a-group-head">{g.family.replace(/^./, (c) => c.toUpperCase())}<span className="a-quiet"> · {g.items.length}{out && !wines ? ` · ${out} out` : ""}</span></h2>
             <ul className="a-rows">
-              {g.items.map((it) => <StockRow key={it.id} it={it} inStock={stockOf(it)} quiet={wines} error={rowError[it.id]} onFlip={flip} />)}
+              {g.items.map((it) => <StockRow key={it.id} id={it.id} name={it.name} inStock={stockOf(it)} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
             </ul>
           </section>
         );
@@ -188,7 +190,7 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
         <section className="a-outsec" aria-label="Out wines">
           <Disclosure headClassName="a-outsec-head" id="out-wines" open={outExpanded} onOpenChange={setOutOpen} summary={<>Out · {outWinesCount}</>}>
             <ul className="a-rows">
-              {outWines.map((it) => <StockRow key={it.id} it={it} inStock={stockOf(it)} quiet error={rowError[it.id]} onFlip={flip} />)}
+              {outWines.map((it) => <StockRow key={it.id} id={it.id} name={it.name} inStock={stockOf(it)} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
             </ul>
           </Disclosure>
         </section>
@@ -210,18 +212,5 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
         ) : null}
       </div>
     </div>
-  );
-}
-
-/** One tap-to-flip row. `quiet`: wines, where Out is a neutral gray, not the red spirits Out. */
-function StockRow({ it, inStock, quiet, error, onFlip }: { it: StockItem; inStock: boolean; quiet: boolean; error?: string; onFlip: (it: StockItem, to: boolean) => void }) {
-  return (
-    <li>
-      <button type="button" className={inStock ? "a-row" : "a-row is-out"} onClick={() => onFlip(it, !inStock)} aria-pressed={inStock} aria-label={`${it.name}: ${inStock ? "in stock" : "out"}. Tap to mark ${inStock ? "out" : "in"}.`}>
-        <span className="a-row-name">{it.name}</span>
-        <span className={inStock ? "a-pill in" : quiet ? "a-pill gray" : "a-pill out"}>{inStock ? "In" : "Out"}</span>
-      </button>
-      {error ? <p className="a-error a-row-error" role="alert">{error}</p> : null}
-    </li>
   );
 }

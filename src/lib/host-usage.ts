@@ -133,8 +133,13 @@ export async function loadNeonPanel(): Promise<HostPanel> {
   } else if (project?.compute_time_seconds != null) {
     meters.push(meter("Compute", project.compute_time_seconds, 100 * 3600, hours));
   }
-  if (project?.data_transfer_bytes != null) {
-    meters.push(meter("Public transfer", project.data_transfer_bytes, 5 * 1024 * 1024 * 1024, bytes));
+  // Same for transfer: 0 bytes is Neon not reporting yet, so show the limit alone, with no bar.
+  const transferCap = 5 * 1024 * 1024 * 1024;
+  const transferSilent = project?.data_transfer_bytes === 0;
+  if (transferSilent) {
+    meters.push({ label: "Public transfer", used: `${bytes(transferCap)} limit`, limit: null, ratio: null });
+  } else if (project?.data_transfer_bytes != null) {
+    meters.push(meter("Public transfer", project.data_transfer_bytes, transferCap, bytes));
   }
   const min = project?.default_endpoint_settings?.autoscaling_limit_min_cu;
   const max = project?.default_endpoint_settings?.autoscaling_limit_max_cu;
@@ -146,9 +151,11 @@ export async function loadNeonPanel(): Promise<HostPanel> {
     meters.push(meter("Branches", live.branches, branchLimit, count));
   }
   const until = project?.consumption_period_end ? resetsOn(project.consumption_period_end) : null;
+  // One note for whatever Neon isn't reporting yet (compute, transfer or both).
+  const silent = [computeSilent ? "compute" : null, transferSilent ? "transfer" : null].filter(Boolean);
   const note = project
-    ? computeSilent
-      ? "Neon isn't reporting compute yet."
+    ? silent.length
+      ? `Neon isn't reporting ${silent.join(" or ")} yet.`
       : null
     : "Compute hours and transfer need NEON_API_KEY. Storage here is this database, measured against the 512 MB project cap.";
   return { title: `Neon · ${plan}`, detail: until, note, meters };

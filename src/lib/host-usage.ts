@@ -106,6 +106,13 @@ async function databaseBytes(): Promise<{ bytes: number; name: string } | null> 
   }
 }
 
+/** "Resets Oct 1" from Neon's period end (a UTC midnight, so read the calendar date in UTC). */
+export function resetsOn(iso: string): string | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return `Resets ${new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(d)}`;
+}
+
 /** Storage, compute, and transfer for the Neon project, against the Free plan caps. */
 export async function loadNeonPanel(): Promise<HostPanel> {
   const live = await neonProject().catch(() => null);
@@ -119,7 +126,11 @@ export async function loadNeonPanel(): Promise<HostPanel> {
   } else if (db) {
     meters.push(meter(`Database ${db.name}`, db.bytes, storageCap, bytes));
   }
-  if (project?.compute_time_seconds != null) {
+  // Neon reports 0 compute seconds until its usage catches up; a 0% bar would read as "measured, unused".
+  const computeSilent = project?.compute_time_seconds === 0;
+  if (computeSilent) {
+    meters.push({ label: "Compute", used: `${hours(100 * 3600)} limit`, limit: null, ratio: null });
+  } else if (project?.compute_time_seconds != null) {
     meters.push(meter("Compute", project.compute_time_seconds, 100 * 3600, hours));
   }
   if (project?.data_transfer_bytes != null) {
@@ -134,9 +145,11 @@ export async function loadNeonPanel(): Promise<HostPanel> {
   if (live?.branches != null) {
     meters.push(meter("Branches", live.branches, branchLimit, count));
   }
-  const until = project?.consumption_period_end ? `Resets ${project.consumption_period_end.slice(0, 10)}` : null;
+  const until = project?.consumption_period_end ? resetsOn(project.consumption_period_end) : null;
   const note = project
-    ? null
+    ? computeSilent
+      ? "Neon isn't reporting compute yet."
+      : null
     : "Compute hours and transfer need NEON_API_KEY. Storage here is this database, measured against the 512 MB project cap.";
   return { title: `Neon · ${plan}`, detail: until, note, meters };
 }

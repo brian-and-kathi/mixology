@@ -5,7 +5,23 @@ import { useRouter } from "next/navigation";
 import { GlassIcon } from "@/components/GlassIcon";
 import { KNOCK_PAD, knockGlass, type KnockId } from "@/lib/night-pad";
 
-function KnockKey({ glass, disabled, onPress }: { glass: (typeof KNOCK_PAD)[number]; disabled: boolean; onPress: (id: KnockId) => void }) {
+type KnockGlass = (typeof KNOCK_PAD)[number];
+
+/** The door stays up this long after its first frame before the knock pad appears. */
+const DOOR_BEFORE_PAD_MS = 4000;
+
+function shuffledGlasses(): KnockGlass[] {
+  const next = [...KNOCK_PAD];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const swap = next[i];
+    next[i] = next[j];
+    next[j] = swap;
+  }
+  return next;
+}
+
+function KnockKey({ glass, disabled, onPress }: { glass: KnockGlass; disabled: boolean; onPress: (id: KnockId) => void }) {
   return (
     <button type="button" className="knock-key" aria-label={glass.label} disabled={disabled} onClick={() => onPress(glass.id)}>
       <GlassIcon glass={glass.name} label="" />
@@ -25,17 +41,81 @@ export function Door() {
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(false);
   const [note, setNote] = useState("");
+  const [glasses, setGlasses] = useState<KnockGlass[]>(() => [...KNOCK_PAD]);
+  const [padOn, setPadOn] = useState(false);
+
+  useEffect(() => {
+    setGlasses(shuffledGlasses());
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    let cancelled = false;
+    let armed = false;
+    let revealTimer = 0;
+
     const hold = () => {
       if (playing.current) return;
       video.pause();
       if (video.currentTime !== 0) video.currentTime = 0;
     };
-    video.addEventListener("loadeddata", hold);
-    return () => video.removeEventListener("loadeddata", hold);
+
+    const arm = () => {
+      if (cancelled || armed || playing.current) return;
+      armed = true;
+      revealTimer = window.setTimeout(() => {
+        if (!cancelled) setPadOn(true);
+      }, DOOR_BEFORE_PAD_MS);
+    };
+
+    const afterPaint = () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!cancelled) arm();
+        });
+      });
+    };
+
+    const onReady = () => {
+      if (cancelled || playing.current || armed) return;
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+      if (video.currentTime > 0.01) {
+        let settled = false;
+        const finishSeek = () => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(seekTimer);
+          video.removeEventListener("seeked", finishSeek);
+          hold();
+          afterPaint();
+        };
+        const seekTimer = window.setTimeout(finishSeek, 700);
+        video.addEventListener("seeked", finishSeek);
+        hold();
+        return;
+      }
+      hold();
+      afterPaint();
+    };
+
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) onReady();
+    video.addEventListener("loadeddata", onReady);
+    const onError = () => {
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) arm();
+    };
+    video.addEventListener("error", onError);
+    const giveUp = window.setTimeout(() => {
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) arm();
+    }, 15_000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(revealTimer);
+      window.clearTimeout(giveUp);
+      video.removeEventListener("loadeddata", onReady);
+      video.removeEventListener("error", onError);
+    };
   }, []);
 
   async function finish(next: KnockId[]) {
@@ -94,8 +174,8 @@ export function Door() {
     }
   }, [presses]);
 
-  const keys = KNOCK_PAD.slice(0, 9);
-  const last = KNOCK_PAD[9];
+  const keys = glasses.slice(0, 9);
+  const last = glasses[9];
 
   return (
     <main className="cover door-scene">
@@ -108,7 +188,7 @@ export function Door() {
         preload="auto"
         aria-hidden
       />
-      <div className="door">
+      <div className="door" hidden={!padOn}>
         <p className="door-knock">Knock</p>
         <div className={shake ? "door-slots shake" : "door-slots"} aria-hidden>
           {[0, 1, 2].map((index) => {
@@ -125,7 +205,7 @@ export function Door() {
             <KnockKey key={glass.id} glass={glass} disabled={busy || open} onPress={press} />
           ))}
           <span className="knock-gap" />
-          <KnockKey glass={last} disabled={busy || open} onPress={press} />
+          {last ? <KnockKey glass={last} disabled={busy || open} onPress={press} /> : null}
           <button
             type="button"
             className="knock-key knock-undo"

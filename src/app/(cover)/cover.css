@@ -354,6 +354,7 @@ body:has(.shop) { background: #f6f1e8; }
   padding: 2.2rem 1.4rem 1.4rem;
   background: linear-gradient(180deg, rgba(7, 7, 6, 0.18), rgba(7, 7, 6, 0.55));
 }
+.door[hidden] { display: none; }
 .door-knock {
   margin: 0.4rem 0 0;
   font-family: var(--font-display), Palatino, serif;

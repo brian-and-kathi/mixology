@@ -43,10 +43,23 @@ export function Door() {
   const [note, setNote] = useState("");
   const [glasses, setGlasses] = useState<KnockGlass[]>(() => [...KNOCK_PAD]);
   const [padOn, setPadOn] = useState(false);
+  const [padIn, setPadIn] = useState(false);
 
   useEffect(() => {
     setGlasses(shuffledGlasses());
   }, []);
+
+  useEffect(() => {
+    if (!padOn) return;
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setPadIn(true));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [padOn]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -188,7 +201,7 @@ export function Door() {
         preload="auto"
         aria-hidden
       />
-      <div className="door" hidden={!padOn}>
+      <div className={padIn ? "door is-on" : "door"} hidden={!padOn}>
         <p className="door-knock">Knock</p>
         <div className={shake ? "door-slots shake" : "door-slots"} aria-hidden>
           {[0, 1, 2].map((index) => {

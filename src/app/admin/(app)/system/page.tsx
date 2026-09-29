@@ -9,13 +9,6 @@ import { loadStackInfo } from "@/lib/stack-info";
 
 export const metadata = { title: "System" };
 
-function where(): string {
-  const env = process.env.VERCEL_ENV;
-  if (env === "production") return "Production";
-  if (env === "preview") return process.env.VERCEL_GIT_COMMIT_REF ? `Preview · ${process.env.VERCEL_GIT_COMMIT_REF}` : "Preview";
-  return "Local";
-}
-
 /** Not bar-night: what's running underneath (stack, repo, hosts), what's deployed, and the hosts' usage. */
 export default async function SystemPage() {
   const [stack, deploy, neon, vercel, cloudflare] = await Promise.all([
@@ -28,22 +21,15 @@ export default async function SystemPage() {
   return (
     <div className="a-establish">
       <StackCard info={stack} />
-      <GitCard info={deploy} where={where()} github={stack.github} />
+      <GitCard info={deploy} github={stack.github} />
       <HostCard panel={vercel} facts={stack.vercel} />
       <HostCard panel={neon} facts={stack.neon} />
       <HostCard panel={cloudflare} facts={stack.cloudflare} />
       <section className="a-card" aria-label="Network Solutions">
         <div className="a-host-head">
           <h2 className="a-h2">Network Solutions</h2>
-          <p className="a-quiet">Registrar · DNS</p>
         </div>
         <StackFacts facts={stack.registrar} />
-      </section>
-      <section className="a-card" aria-label="Runtime">
-        <div className="a-host-head">
-          <h2 className="a-h2">Runtime</h2>
-        </div>
-        <StackFacts facts={stack.runtime} />
       </section>
     </div>
   );

@@ -6,12 +6,11 @@ const WHEN = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", mo
 const et = (iso: string) => `${WHEN.format(new Date(iso))} ET`;
 
 /** Read-only: the commit this server runs, when it went out, production's rollback commit, then the repo it came from. */
-export function GitCard({ info, where, github = null }: { info: DeployInfo; where: string; github?: Facts | null }) {
+export function GitCard({ info, github = null }: { info: DeployInfo; github?: Facts | null }) {
   return (
     <section className="a-card a-git" aria-label="GitHub">
       <div className="a-host-head">
         <h2 className="a-h2">GitHub</h2>
-        <p className="a-quiet">{where}</p>
       </div>
       {github?.purpose ? <p className="a-purpose">{github.purpose}</p> : null}
       <dl className="a-git-rows">

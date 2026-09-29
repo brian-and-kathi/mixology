@@ -22,7 +22,6 @@ const nextConfig: NextConfig = {
     BUILD_TIME: new Date().toISOString(),
     NEXT_VERSION: pkgVersion("next"),
     REACT_VERSION: pkgVersion("react"),
-    COMMIT_TIME: gitLog("%cI"),
     COMMIT_AUTHOR: gitLog("%an"),
   },
   // Always revalidate the service worker script so updates are picked up.

@@ -237,7 +237,7 @@ export async function loadCloudflarePanel(): Promise<HostPanel> {
   }
   const token = process.env.CLOUDFLARE_API_TOKEN?.trim();
   if (!token) {
-    return panel(null, "Set CLOUDFLARE_API_TOKEN to read today's usage. The allowances are the Workers Free plan, reset daily at 00:00 UTC.");
+    return panel(null, "Set CLOUDFLARE_API_TOKEN to read today's usage. The allowances are the Workers Free plan.");
   }
   if (cached && cached.token === token && Date.now() - cached.at < cached.ttl) return cached.panel;
   if (!inflight) {

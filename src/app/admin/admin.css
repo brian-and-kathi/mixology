@@ -427,3 +427,16 @@ body:has(.admin-root) { background: #07101c; }
 .a-stack-side b { color: var(--text); font-weight: 600; margin-right: 0.3rem; }
 .a-facts dd code { font-size: 0.86em; }
 .a-purpose { margin: 0.3rem 0 0; font-size: 0.82rem; line-height: 1.4; color: var(--quiet); }
+/* v2 review: header label (usage period) stays top-right beside the title, wrapping onto two lines if needed. */
+.a-host-head { flex-wrap: nowrap; }
+.a-host-head p { white-space: normal; text-align: right; max-width: 45%; line-height: 1.3; }
+.a-facts dd.is-warn .a-fact-v, .a-facts dd.is-warn .a-fact-sub { color: var(--a-amber); }
+/* Raw ids: closed by default, a left chevron that turns down when open. */
+.a-ids { margin-top: 0.55rem; }
+.a-ids > summary { list-style: none; display: flex; align-items: center; gap: 0.45rem; min-height: 40px; font-size: 0.88rem; color: var(--quiet); cursor: pointer; }
+.a-ids > summary::-webkit-details-marker { display: none; }
+.a-ids > summary::before { content: "›"; display: inline-block; width: 0.8em; font-size: 1.25rem; line-height: 1; text-align: center; transition: transform 150ms; }
+.a-ids[open] > summary::before { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .a-ids > summary::before { transition: none; } }
+.a-ids > summary:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; border-radius: 4px; }
+.a-ids-rows { margin-top: 0.2rem; }

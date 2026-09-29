@@ -15,9 +15,11 @@ import { commitRef } from "@/lib/version";
 // Anything missing reads "unavailable"; nothing here can fail the page. Never shown: tokens, passwords,
 // DATABASE_URL (only its endpoint id and region are read from the host name).
 
-export type Fact = { label: string; value: string; sub?: string | null; mono?: boolean };
+/** mono only for things people copy (commit, branch, endpoint, name servers, worker, topics, ids); warn = amber. */
+export type Fact = { label: string; value: string; sub?: string | null; mono?: boolean; warn?: boolean };
 export type Link = { href: string; label: string };
-export type Facts = { purpose?: string | null; rows: Fact[]; links: Link[]; note?: string | null };
+/** `details` holds raw ids, shown under a closed-by-default "Details" row. */
+export type Facts = { purpose?: string | null; rows: Fact[]; details?: Fact[]; links: Link[]; note?: string | null };
 
 export type StackInfo = {
   where: "Production" | "Preview" | "Local";
@@ -26,7 +28,6 @@ export type StackInfo = {
   neon: Facts;
   cloudflare: Facts;
   registrar: Facts;
-  runtime: Facts;
   diagram: { framework: string; region: string | null; neonBranch: string; postgres: string | null; relay: boolean; repo: string };
 };
 
@@ -54,7 +55,6 @@ const STAMP = {
   built: process.env.BUILD_TIME?.trim() || null,
   next: process.env.NEXT_VERSION?.trim() || null,
   react: process.env.REACT_VERSION?.trim() || null,
-  commitTime: process.env.COMMIT_TIME?.trim() || null,
   commitAuthor: process.env.COMMIT_AUTHOR?.trim() || null,
 };
 const shortId = (id: string) => (id.length > 14 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id);
@@ -186,6 +186,21 @@ const domainLookup = cached<Domain>(async () => {
   };
   return { value, ok: !!(rdap && doh) };
 }, DOMAIN_MS);
+/** Within 60 days of the domain's expiry (or past it): the Expires row turns amber. */
+export const EXPIRY_WARN_DAYS = 60;
+export function expiresSoon(iso: string | null, now: Date): boolean {
+  const t = iso ? new Date(iso).getTime() : NaN;
+  return Number.isFinite(t) && t - now.getTime() <= EXPIRY_WARN_DAYS * 24 * 60 * 60 * 1000;
+}
+/** Screenshot-only clock override, honored in `next dev` alone (production builds ignore it). */
+function nowForExpiry(): Date {
+  const mock = process.env.NODE_ENV === "development" ? process.env.STACK_MOCK_NOW : undefined;
+  const d = mock ? new Date(mock) : new Date();
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+/** RDAP status words in plain language. */
+const STATUS_WORDS: Record<string, string> = { "client transfer prohibited": "Transfer lock on", "client delete prohibited": "Delete lock on", "client update prohibited": "Update lock on", "client hold": "On hold", active: "Active" };
+
 const DAY = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
 const day = (iso: string | null) => (iso && !Number.isNaN(new Date(iso).getTime()) ? DAY.format(new Date(iso)) : null);
 
@@ -239,22 +254,19 @@ export async function loadStackInfo(): Promise<StackInfo> {
   const branchId = db?.branch ?? null;
   const nNames = await neonNames(neonProject, branchId).catch(() => null);
 
-  // GitHub
+  // GitHub (commit, message and Built come from the git card; this is the Source part)
   const owner = env("VERCEL_GIT_REPO_OWNER") ?? "bhwithun";
   const repo = env("VERCEL_GIT_REPO_SLUG") ?? "mixology";
   const branch = env("VERCEL_GIT_COMMIT_REF") ?? git("rev-parse --abbrev-ref HEAD") ?? UNAVAILABLE;
   const author = env("VERCEL_GIT_COMMIT_AUTHOR_NAME") ?? STAMP.commitAuthor ?? git("log -1 --format=%an") ?? UNAVAILABLE;
   const login = env("VERCEL_GIT_COMMIT_AUTHOR_LOGIN");
-  const committed = et(STAMP.commitTime ?? git("log -1 --format=%cI"));
   const repoUrl = `https://github.com/${owner}/${repo}`;
   const github: Facts = {
     purpose: "Holds the source code and its history. Every push to main deploys to production; other branches get a preview.",
     rows: [
-      { label: "Owner", value: owner },
       { label: "Repo", value: `${owner}/${repo}`, sub: "private" },
-      { label: "Branch", value: branch, mono: true },
+      { label: "Branch", value: branch, mono: branch !== UNAVAILABLE },
       { label: "Author", value: author, sub: login && login !== author ? `@${login}` : null },
-      { label: "Committed", value: committed ?? UNAVAILABLE },
     ],
     links: [
       ...(full ? [{ href: `${repoUrl}/commit/${full}`, label: `Commit ${short}` }] : []),
@@ -275,13 +287,18 @@ export async function loadStackInfo(): Promise<StackInfo> {
     purpose: "Builds and hosts the Next.js app (pages and API) and serves speakeasy.brianandkathi.com.",
     rows: [
       { label: "Team", value: vNames?.team ?? slug, sub: vNames?.team && vNames.team !== slug ? slug : null },
-      { label: "Project", value: projectName, sub: VERCEL_PROJECT, mono: false },
+      { label: "Project", value: projectName },
       { label: "Environment", value: vercelEnv ? vercelEnv[0].toUpperCase() + vercelEnv.slice(1) : "Local (not on Vercel)" },
-      { label: "Deployment", value: deployment ?? (where === "Local" ? "none (local)" : UNAVAILABLE), mono: !!deployment },
-      { label: "URL", value: url ?? (where === "Local" ? "none (local)" : UNAVAILABLE), mono: !!url },
-      { label: "Region", value: region ?? (where === "Local" ? "none (local)" : UNAVAILABLE), mono: !!region },
-      { label: "Framework", value: vNames?.framework && vNames.framework !== "nextjs" ? vNames.framework : STAMP.next ? `Next.js ${STAMP.next}` : "Next.js", sub: vNames?.node ? `Node ${vNames.node} (project setting)` : null },
+      { label: "URL", value: url ?? (where === "Local" ? "none (local)" : UNAVAILABLE) },
+      { label: "Region", value: region ?? (where === "Local" ? "none (local)" : UNAVAILABLE) },
       { label: "Domains", value: domains.join(", ") },
+      { label: "Framework", value: vNames?.framework && vNames.framework !== "nextjs" ? vNames.framework : STAMP.next ? `Next.js ${STAMP.next}` : "Next.js" },
+      { label: "React", value: STAMP.react ?? UNAVAILABLE },
+      { label: "Node", value: process.version.replace(/^v/, ""), sub: vNames?.node ? `project setting ${vNames.node}` : null },
+    ],
+    details: [
+      { label: "Project id", value: VERCEL_PROJECT, mono: true },
+      ...(deployment ? [{ label: "Deployment id", value: deployment, mono: true }] : []),
     ],
     links: [
       { href: projectUrl, label: "Project" },
@@ -298,13 +315,17 @@ export async function loadStackInfo(): Promise<StackInfo> {
     purpose: "The Postgres database: bottles, recipes, stock, ratings and bar status. Branch main is live; dev is for previews.",
     rows: [
       { label: "Org", value: nNames?.org ?? "BrianAndKathi" },
-      { label: "Project", value: nNames?.project ?? "mixology", sub: neonProject },
-      { label: "Branch", value: branchName ?? (branchId ? "unknown name" : UNAVAILABLE), sub: branchId ? `${branchId}${nNames?.primary ? " · default" : ""}` : null },
-      { label: "Endpoint", value: endpoint ?? UNAVAILABLE, mono: !!endpoint, sub: host.pooled ? "pooled connection" : null },
-      { label: "Region", value: nNames?.region ?? host.region ?? UNAVAILABLE, mono: true },
+      { label: "Project", value: nNames?.project ?? "mixology" },
+      { label: "Branch", value: branchName ?? (branchId ? "unknown name" : UNAVAILABLE), mono: !!branchName, sub: branchName === "main" ? "live" : branchName === "dev" ? "previews and local" : null },
+      { label: "Region", value: nNames?.region ?? host.region ?? UNAVAILABLE },
       { label: "Postgres", value: pg ?? UNAVAILABLE },
-      { label: "Database", value: db?.db ?? UNAVAILABLE, mono: !!db },
-      { label: "Last migration", value: db?.migration?.replace(/\.sql$/, "") ?? UNAVAILABLE, mono: !!db?.migration, sub: db?.applied ? `applied ${et(db.applied)} · ${db.migrations} total` : null },
+      { label: "Database", value: db?.db ?? UNAVAILABLE },
+      { label: "Last migration", value: db?.migration?.replace(/\.sql$/, "") ?? UNAVAILABLE, sub: db?.applied ? `applied ${et(db.applied)} · ${db.migrations} total` : null },
+    ],
+    details: [
+      { label: "Project id", value: neonProject, mono: true },
+      ...(branchId ? [{ label: "Branch id", value: branchId, mono: true }] : []),
+      ...(endpoint ? [{ label: "Endpoint", value: endpoint, mono: true, sub: host.pooled ? "pooled connection" : null }] : []),
     ],
     links: [
       { href: branchId ? `https://console.neon.tech/app/projects/${neonProject}/branches/${branchId}` : `https://console.neon.tech/app/projects/${neonProject}`, label: branchId ? "Branch in console" : "Neon console" },
@@ -317,15 +338,16 @@ export async function loadStackInfo(): Promise<StackInfo> {
   const cloudflare: Facts = {
     purpose: "Runs the small relay Worker that pushes change notices, so the TV and phones update within seconds instead of polling.",
     rows: [
-      { label: "Account", value: cfName ?? shortId(CF_ACCOUNT), mono: !cfName },
+      ...(cfName ? [{ label: "Account", value: cfName }] : []),
       { label: "Worker", value: RELAY_WORKER, mono: true, sub: relay ?? (where === "Local" ? "relay off locally (RELAY_URL not set)" : "RELAY_URL not set, so the relay is off") },
-      { label: "Durable Object", value: "Topic", mono: true, sub: "binding TOPIC · SQLite storage" },
+      { label: "Durable Object", value: "Topic", sub: "binding TOPIC · SQLite storage" },
       { label: "Topics", value: "bar:cast, bar:menu, bar:status", mono: true },
     ],
+    details: [{ label: "Account id", value: CF_ACCOUNT, mono: true }],
     links: [{ href: `https://dash.cloudflare.com/${CF_ACCOUNT}/workers/services/view/${RELAY_WORKER}/production`, label: "Worker dashboard" }],
   };
 
-  // Registrar (Network Solutions) and runtime
+  // Registrar (Network Solutions)
   const target = dom?.cname ? (/vercel-dns/.test(dom.cname) ? "Vercel" : dom.cname) : dom?.a?.length ? dom.a.join(", ") : null;
   const registrar: Facts = {
     purpose: "The domain registrar and DNS host for brianandkathi.com; its DNS points speakeasy at Vercel.",
@@ -333,8 +355,9 @@ export async function loadStackInfo(): Promise<StackInfo> {
       { label: "Domain", value: APEX },
       { label: "Registrar", value: dom?.registrar ?? "Network Solutions (not confirmed)" },
       { label: "Registered", value: day(dom?.registered ?? null) ?? UNAVAILABLE },
-      { label: "Expires", value: day(dom?.expires ?? null) ?? UNAVAILABLE, sub: dom?.changed ? `last changed ${day(dom.changed)}` : null },
-      { label: "Status", value: dom?.status?.length ? dom.status.join(", ") : UNAVAILABLE },
+      { label: "Expires", value: day(dom?.expires ?? null) ?? UNAVAILABLE, warn: expiresSoon(dom?.expires ?? null, nowForExpiry()), sub: expiresSoon(dom?.expires ?? null, nowForExpiry()) ? "renew soon" : null },
+      { label: "Last changed", value: day(dom?.changed ?? null) ?? UNAVAILABLE },
+      { label: "Status", value: dom?.status?.length ? dom.status.map((s) => STATUS_WORDS[s] ?? s).join(", ") : UNAVAILABLE },
       { label: "Name servers", value: dom?.ns?.length ? dom.ns.join(" ") : UNAVAILABLE, mono: !!dom?.ns?.length },
       { label: HOST.split(".")[0], value: target ?? UNAVAILABLE, sub: dom?.cname ? `CNAME ${dom.cname}${dom.a?.length ? ` → ${dom.a.join(", ")}` : ""}` : null },
     ],
@@ -344,17 +367,6 @@ export async function loadStackInfo(): Promise<StackInfo> {
     ],
     note: dom && (dom.registrar || dom.cname) ? "From public RDAP and DNS (no login), refreshed every 6 hours." : "The public RDAP or DNS lookup didn't answer; showing what's known.",
   };
-  const runtime: Facts = {
-    purpose: "The software this server runs.",
-    rows: [
-      { label: "Next.js", value: STAMP.next ?? UNAVAILABLE },
-      { label: "React", value: STAMP.react ?? UNAVAILABLE },
-      { label: "Node", value: process.version },
-      { label: "Built", value: et(STAMP.built) ?? UNAVAILABLE },
-    ],
-    links: [],
-  };
-
   return {
     where,
     github,
@@ -362,7 +374,6 @@ export async function loadStackInfo(): Promise<StackInfo> {
     neon,
     cloudflare,
     registrar,
-    runtime,
     diagram: {
       framework: STAMP.next ? `Next.js ${STAMP.next}` : "Next.js",
       region,

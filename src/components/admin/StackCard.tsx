@@ -7,7 +7,6 @@ export function StackCard({ info }: { info: StackInfo }) {
     <section className="a-card a-stack" aria-label="What's running underneath">
       <div className="a-host-head">
         <h2 className="a-h2">What's running underneath</h2>
-        <p className="a-quiet">{info.where}</p>
       </div>
       <ol className="a-stack-flow">
         <li className="a-stack-node">

@@ -1,5 +1,4 @@
 import { execSync } from "node:child_process";
-import { resolveCname, resolveNs } from "node:dns/promises";
 import { query } from "@/lib/db";
 import { VERCEL_PROJECT, VERCEL_TEAM } from "@/lib/host-usage";
 import { commitRef } from "@/lib/version";
@@ -10,13 +9,15 @@ import { commitRef } from "@/lib/version";
 //   - build stamps from next.config (BUILD_TIME, NEXT_VERSION, REACT_VERSION, COMMIT_TIME, COMMIT_AUTHOR)
 //   - one SQL query per request (the Neon branch, endpoint and project are server settings on Neon)
 //   - the tokens the usage cards already use (VERCEL_TOKEN, NEON_API_KEY, CLOUDFLARE_API_TOKEN) for names,
-//     cached 10 minutes, and DNS lookups for the domain, cached the same
+//     cached 10 minutes
+//   - public, no-credential lookups for the domain: RDAP (registrar, dates, status, name servers) and
+//     DNS-over-HTTPS (where speakeasy points), cached 6 hours
 // Anything missing reads "unavailable"; nothing here can fail the page. Never shown: tokens, passwords,
 // DATABASE_URL (only its endpoint id and region are read from the host name).
 
 export type Fact = { label: string; value: string; sub?: string | null; mono?: boolean };
 export type Link = { href: string; label: string };
-export type Facts = { rows: Fact[]; links: Link[]; note?: string | null };
+export type Facts = { purpose?: string | null; rows: Fact[]; links: Link[]; note?: string | null };
 
 export type StackInfo = {
   where: "Production" | "Preview" | "Local";
@@ -24,13 +25,15 @@ export type StackInfo = {
   vercel: Facts;
   neon: Facts;
   cloudflare: Facts;
-  web: Facts;
+  registrar: Facts;
+  runtime: Facts;
   diagram: { framework: string; region: string | null; neonBranch: string; postgres: string | null; relay: boolean; repo: string };
 };
 
 const UNAVAILABLE = "unavailable";
 const FRESH_MS = 10 * 60 * 1000;
 const RETRY_MS = 60 * 1000;
+const DOMAIN_MS = 6 * 60 * 60 * 1000;
 const TEAM_SLUG = process.env.VERCEL_TEAM_SLUG?.trim() || "brianandkathi";
 const CF_ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || "9526fc0cabe18729bb55f7a831815d69";
 const RELAY_WORKER = "mixology-relay";
@@ -64,15 +67,15 @@ function git(args: string): string | null {
   }
 }
 
-/** Keeps a good answer for 10 minutes and a failed one for 1, per server instance. */
-function cached<T>(load: () => Promise<{ value: T; ok: boolean }>): () => Promise<T> {
+/** Keeps a good answer for `fresh` (10 minutes by default) and a failed one for 1 minute, per server instance. */
+function cached<T>(load: () => Promise<{ value: T; ok: boolean }>, fresh = FRESH_MS): () => Promise<T> {
   let hold: { value: T; until: number } | null = null;
   let pending: Promise<T> | null = null;
   return async () => {
     if (hold && hold.until > Date.now()) return hold.value;
     pending ??= load()
       .then(({ value, ok }) => {
-        hold = { value, until: Date.now() + (ok ? FRESH_MS : RETRY_MS) };
+        hold = { value, until: Date.now() + (ok ? fresh : RETRY_MS) };
         return value;
       })
       .finally(() => {
@@ -82,8 +85,10 @@ function cached<T>(load: () => Promise<{ value: T; ok: boolean }>): () => Promis
   };
 }
 
-async function getJson<T>(url: string, token: string): Promise<T> {
-  const res = await fetch(url, { headers: { authorization: `Bearer ${token}`, accept: "application/json" }, signal: AbortSignal.timeout(5000), cache: "no-store" });
+async function getJson<T>(url: string, token: string | null, accept = "application/json"): Promise<T> {
+  const headers: Record<string, string> = { accept };
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(5000), cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as T;
 }
@@ -152,13 +157,37 @@ const cloudflareAccount = cached<string | null>(async () => {
   return { value: body?.result?.name ?? null, ok: true };
 });
 
-// ---- DNS ----
-type Dns = { cname: string[] | null; ns: string[] | null };
-const withTimeout = <T>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
-const dnsLookup = cached<Dns>(async () => {
-  const [cname, ns] = await Promise.all([settle(withTimeout(resolveCname(HOST), 2000)), settle(withTimeout(resolveNs(APEX), 2000))]);
-  return { value: { cname: cname ?? null, ns: ns ? [...ns].sort() : null }, ok: !!(cname && ns) };
-});
+// ---- Domain: RDAP + DNS-over-HTTPS (public, no credentials) ----
+type Rdap = {
+  status?: string[];
+  events?: { eventAction?: string; eventDate?: string }[];
+  nameservers?: { ldhName?: string }[];
+  entities?: { roles?: string[]; vcardArray?: [string, [string, unknown, string, string][]] }[];
+};
+type DohAnswer = { name?: string; type?: number; data?: string };
+type Domain = { registrar: string | null; registered: string | null; expires: string | null; changed: string | null; status: string[] | null; ns: string[] | null; cname: string | null; a: string[] | null };
+const domainLookup = cached<Domain>(async () => {
+  const [rdap, doh] = await Promise.all([
+    settle(getJson<Rdap>(`https://rdap.verisign.com/com/v1/domain/${APEX}`, null, "application/rdap+json")),
+    settle(getJson<{ Answer?: DohAnswer[] }>(`https://cloudflare-dns.com/dns-query?name=${HOST}&type=A`, null, "application/dns-json")),
+  ]);
+  const event = (action: string) => rdap?.events?.find((e) => e.eventAction === action)?.eventDate ?? null;
+  const registrar = rdap?.entities?.find((e) => e.roles?.includes("registrar"))?.vcardArray?.[1]?.find((v) => v[0] === "fn")?.[3] ?? null;
+  const answers = doh?.Answer ?? null;
+  const value: Domain = {
+    registrar,
+    registered: event("registration"),
+    expires: event("expiration"),
+    changed: event("last changed"),
+    status: rdap?.status ?? null,
+    ns: rdap?.nameservers ? rdap.nameservers.map((n) => (n.ldhName ?? "").toLowerCase()).filter(Boolean).sort() : null,
+    cname: answers?.find((x) => x.type === 5)?.data?.replace(/\.$/, "") ?? null,
+    a: answers ? answers.filter((x) => x.type === 1).map((x) => x.data ?? "").filter(Boolean).sort() : null,
+  };
+  return { value, ok: !!(rdap && doh) };
+}, DOMAIN_MS);
+const DAY = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
+const day = (iso: string | null) => (iso && !Number.isNaN(new Date(iso).getTime()) ? DAY.format(new Date(iso)) : null);
 
 // ---- Database (per request) ----
 type DbRow = { db: string; pg: string; project: string | null; branch: string | null; endpoint: string | null; migration: string | null; applied: string | null; migrations: string };
@@ -205,7 +234,7 @@ export async function loadStackInfo(): Promise<StackInfo> {
   const where: StackInfo["where"] = vercelEnv === "production" ? "Production" : vercelEnv === "preview" ? "Preview" : "Local";
   const { short, full } = commitRef();
   const host = dbHost();
-  const [db, vNames, cfName, dns] = await Promise.all([dbFacts(), vercelNames().catch(() => null), cloudflareAccount().catch(() => null), dnsLookup().catch(() => null)]);
+  const [db, vNames, cfName, dom] = await Promise.all([dbFacts(), vercelNames().catch(() => null), cloudflareAccount().catch(() => null), domainLookup().catch(() => null)]);
   const neonProject = db?.project || env("NEON_PROJECT_ID") || "green-snow-21814330";
   const branchId = db?.branch ?? null;
   const nNames = await neonNames(neonProject, branchId).catch(() => null);
@@ -219,6 +248,7 @@ export async function loadStackInfo(): Promise<StackInfo> {
   const committed = et(STAMP.commitTime ?? git("log -1 --format=%cI"));
   const repoUrl = `https://github.com/${owner}/${repo}`;
   const github: Facts = {
+    purpose: "Holds the source code and its history. Every push to main deploys to production; other branches get a preview.",
     rows: [
       { label: "Owner", value: owner },
       { label: "Repo", value: `${owner}/${repo}`, sub: "private" },
@@ -242,6 +272,7 @@ export async function loadStackInfo(): Promise<StackInfo> {
   const domains = vNames?.domains ?? [env("VERCEL_PROJECT_PRODUCTION_URL") ?? HOST];
   const projectUrl = `https://vercel.com/${slug}/${projectName}`;
   const vercel: Facts = {
+    purpose: "Builds and hosts the Next.js app (pages and API) and serves speakeasy.brianandkathi.com.",
     rows: [
       { label: "Team", value: vNames?.team ?? slug, sub: vNames?.team && vNames.team !== slug ? slug : null },
       { label: "Project", value: projectName, sub: VERCEL_PROJECT, mono: false },
@@ -264,6 +295,7 @@ export async function loadStackInfo(): Promise<StackInfo> {
   const endpoint = db?.endpoint || host.endpoint;
   const pg = db?.pg ? db.pg.split(/\s/, 1)[0] : null;
   const neon: Facts = {
+    purpose: "The Postgres database: bottles, recipes, stock, ratings and bar status. Branch main is live; dev is for previews.",
     rows: [
       { label: "Org", value: nNames?.org ?? "BrianAndKathi" },
       { label: "Project", value: nNames?.project ?? "mixology", sub: neonProject },
@@ -283,6 +315,7 @@ export async function loadStackInfo(): Promise<StackInfo> {
   // Cloudflare
   const relay = relayHost();
   const cloudflare: Facts = {
+    purpose: "Runs the small relay Worker that pushes change notices, so the TV and phones update within seconds instead of polling.",
     rows: [
       { label: "Account", value: cfName ?? shortId(CF_ACCOUNT), mono: !cfName },
       { label: "Worker", value: RELAY_WORKER, mono: true, sub: relay ?? (where === "Local" ? "relay off locally (RELAY_URL not set)" : "RELAY_URL not set, so the relay is off") },
@@ -292,13 +325,28 @@ export async function loadStackInfo(): Promise<StackInfo> {
     links: [{ href: `https://dash.cloudflare.com/${CF_ACCOUNT}/workers/services/view/${RELAY_WORKER}/production`, label: "Worker dashboard" }],
   };
 
-  // Domain and runtime
-  const cname = dns?.cname?.[0] ?? null;
-  const web: Facts = {
+  // Registrar (Network Solutions) and runtime
+  const target = dom?.cname ? (/vercel-dns/.test(dom.cname) ? "Vercel" : dom.cname) : dom?.a?.length ? dom.a.join(", ") : null;
+  const registrar: Facts = {
+    purpose: "The domain registrar and DNS host for brianandkathi.com; its DNS points speakeasy at Vercel.",
     rows: [
-      { label: "Domain", value: APEX, sub: "registrar Network Solutions" },
-      { label: "Name servers", value: dns?.ns ? dns.ns.join(", ") : UNAVAILABLE, mono: !!dns?.ns },
-      { label: HOST.split(".")[0], value: cname ? "Vercel" : UNAVAILABLE, sub: cname ? `CNAME ${cname}` : null },
+      { label: "Domain", value: APEX },
+      { label: "Registrar", value: dom?.registrar ?? "Network Solutions (not confirmed)" },
+      { label: "Registered", value: day(dom?.registered ?? null) ?? UNAVAILABLE },
+      { label: "Expires", value: day(dom?.expires ?? null) ?? UNAVAILABLE, sub: dom?.changed ? `last changed ${day(dom.changed)}` : null },
+      { label: "Status", value: dom?.status?.length ? dom.status.join(", ") : UNAVAILABLE },
+      { label: "Name servers", value: dom?.ns?.length ? dom.ns.join(" ") : UNAVAILABLE, mono: !!dom?.ns?.length },
+      { label: HOST.split(".")[0], value: target ?? UNAVAILABLE, sub: dom?.cname ? `CNAME ${dom.cname}${dom.a?.length ? ` → ${dom.a.join(", ")}` : ""}` : null },
+    ],
+    links: [
+      { href: "https://www.networksolutions.com/my-account/account-center", label: "Account manager" },
+      { href: `https://rdap.verisign.com/com/v1/domain/${APEX}`, label: "RDAP record" },
+    ],
+    note: dom && (dom.registrar || dom.cname) ? "From public RDAP and DNS (no login), refreshed every 6 hours." : "The public RDAP or DNS lookup didn't answer; showing what's known.",
+  };
+  const runtime: Facts = {
+    purpose: "The software this server runs.",
+    rows: [
       { label: "Next.js", value: STAMP.next ?? UNAVAILABLE },
       { label: "React", value: STAMP.react ?? UNAVAILABLE },
       { label: "Node", value: process.version },
@@ -313,7 +361,8 @@ export async function loadStackInfo(): Promise<StackInfo> {
     vercel,
     neon,
     cloudflare,
-    web,
+    registrar,
+    runtime,
     diagram: {
       framework: STAMP.next ? `Next.js ${STAMP.next}` : "Next.js",
       region,

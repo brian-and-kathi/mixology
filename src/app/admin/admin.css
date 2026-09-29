@@ -426,3 +426,4 @@ body:has(.admin-root) { background: #07101c; }
 .a-stack-side li { padding-left: 0.7rem; border-left: 2px solid var(--a-line); }
 .a-stack-side b { color: var(--text); font-weight: 600; margin-right: 0.3rem; }
 .a-facts dd code { font-size: 0.86em; }
+.a-purpose { margin: 0.3rem 0 0; font-size: 0.82rem; line-height: 1.4; color: var(--quiet); }

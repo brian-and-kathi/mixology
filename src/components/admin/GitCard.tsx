@@ -13,6 +13,7 @@ export function GitCard({ info, where, github = null }: { info: DeployInfo; wher
         <h2 className="a-h2">GitHub</h2>
         <p className="a-quiet">{where}</p>
       </div>
+      {github?.purpose ? <p className="a-purpose">{github.purpose}</p> : null}
       <dl className="a-git-rows">
         <div>
           <dt>Commit</dt>
@@ -36,7 +37,7 @@ export function GitCard({ info, where, github = null }: { info: DeployInfo; wher
         ) : null}
       </dl>
       {info.rollbackNote ? <p className="a-quiet a-host-note">{info.rollbackNote}</p> : null}
-      {github ? <StackFacts facts={github} heading="Source" /> : null}
+      {github ? <StackFacts facts={{ ...github, purpose: null }} heading="Source" /> : null}
     </section>
   );
 }

@@ -32,11 +32,18 @@ export default async function SystemPage() {
       <HostCard panel={vercel} facts={stack.vercel} />
       <HostCard panel={neon} facts={stack.neon} />
       <HostCard panel={cloudflare} facts={stack.cloudflare} />
-      <section className="a-card" aria-label="Domain and runtime">
+      <section className="a-card" aria-label="Network Solutions">
         <div className="a-host-head">
-          <h2 className="a-h2">Domain &amp; runtime</h2>
+          <h2 className="a-h2">Network Solutions</h2>
+          <p className="a-quiet">Registrar · DNS</p>
         </div>
-        <StackFacts facts={stack.web} />
+        <StackFacts facts={stack.registrar} />
+      </section>
+      <section className="a-card" aria-label="Runtime">
+        <div className="a-host-head">
+          <h2 className="a-h2">Runtime</h2>
+        </div>
+        <StackFacts facts={stack.runtime} />
       </section>
     </div>
   );

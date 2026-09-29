@@ -1,10 +1,11 @@
 import type { Facts } from "@/lib/stack-info";
 
-/** Label-left, value-right rows (the git card's style), an optional id or detail under the value, then dashboard links. */
+/** A short grey purpose line, then label-left, value-right rows (the git card's style), an optional id or detail under the value, then dashboard links. */
 export function StackFacts({ facts, heading = null }: { facts: Facts; heading?: string | null }) {
   return (
     <>
       {heading ? <p className="a-stack-sub">{heading}</p> : null}
+      {facts.purpose ? <p className="a-purpose">{facts.purpose}</p> : null}
       <dl className="a-git-rows a-facts">
         {facts.rows.map((f) => (
           <div key={f.label}>

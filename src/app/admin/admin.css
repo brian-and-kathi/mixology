@@ -409,3 +409,20 @@ body:has(.admin-root) { background: #07101c; }
 .a-checks-row { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
 .a-checks-row .a-check { flex: 0 0 auto; }
 .a-warn { color: var(--a-amber); font-size: 0.9rem; margin: 0.4rem 0 0.6rem; padding: 0.55rem 0.75rem; border: 1px solid rgba(244, 162, 97, 0.45); border-radius: 8px; background: rgba(244, 162, 97, 0.08); }
+/* System: what's running underneath. Facts reuse the git rows; an id or detail sits quietly under its value. */
+.a-facts dd { overflow-wrap: anywhere; }
+.a-facts code { overflow-wrap: anywhere; }
+.a-fact-v { color: var(--text); }
+.a-fact-sub { display: block; margin-top: 0.1rem; font-size: 0.78rem; color: var(--quiet); overflow-wrap: anywhere; }
+.a-fact-links { margin: 0.75rem 0 0; display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; font-size: 0.85rem; }
+.a-fact-links .a-host-link { display: inline-flex; align-items: center; min-height: 32px; }
+.a-stack-sub { margin: 1rem 0 0; padding-top: 0.75rem; border-top: 1px solid var(--a-line); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--quiet); }
+.a-stack-flow { list-style: none; margin: 0.8rem 0 0; padding: 0; display: flex; flex-direction: column; align-items: stretch; }
+.a-stack-node { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.55rem 0.75rem; border-radius: 10px; background: var(--a-raised); box-shadow: inset 0 0 0 1px var(--a-line); text-align: center; }
+.a-stack-node b { font-weight: 600; font-size: 0.92rem; }
+.a-stack-node span { font-size: 0.8rem; color: var(--quiet); overflow-wrap: anywhere; }
+.a-stack-arrow { padding: 0.25rem 0; text-align: center; font-size: 0.78rem; color: var(--quiet); }
+.a-stack-side { list-style: none; margin: 0.8rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.84rem; color: var(--quiet); }
+.a-stack-side li { padding-left: 0.7rem; border-left: 2px solid var(--a-line); }
+.a-stack-side b { color: var(--text); font-weight: 600; margin-right: 0.3rem; }
+.a-facts dd code { font-size: 0.86em; }

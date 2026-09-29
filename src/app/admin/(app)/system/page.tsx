@@ -1,8 +1,11 @@
 import { GitCard } from "@/components/admin/GitCard";
 import { HostCard } from "@/components/admin/HostCard";
+import { StackCard } from "@/components/admin/StackCard";
+import { StackFacts } from "@/components/admin/StackFacts";
 import { loadCloudflarePanel } from "@/lib/cloudflare-usage";
 import { loadDeployInfo } from "@/lib/deploy-info";
 import { loadNeonPanel, loadVercelPanel } from "@/lib/host-usage";
+import { loadStackInfo } from "@/lib/stack-info";
 
 export const metadata = { title: "System" };
 
@@ -13,9 +16,10 @@ function where(): string {
   return "Local";
 }
 
-/** Not bar-night: what's deployed and the hosts' usage (moved from the Bar tab, then called Establishment). */
+/** Not bar-night: what's running underneath (stack, repo, hosts), what's deployed, and the hosts' usage. */
 export default async function SystemPage() {
-  const [deploy, neon, vercel, cloudflare] = await Promise.all([
+  const [stack, deploy, neon, vercel, cloudflare] = await Promise.all([
+    loadStackInfo(),
     loadDeployInfo(),
     loadNeonPanel(),
     loadVercelPanel(),
@@ -23,10 +27,17 @@ export default async function SystemPage() {
   ]);
   return (
     <div className="a-establish">
-      <GitCard info={deploy} where={where()} />
-      <HostCard panel={neon} />
-      <HostCard panel={vercel} />
-      <HostCard panel={cloudflare} />
+      <StackCard info={stack} />
+      <GitCard info={deploy} where={where()} github={stack.github} />
+      <HostCard panel={vercel} facts={stack.vercel} />
+      <HostCard panel={neon} facts={stack.neon} />
+      <HostCard panel={cloudflare} facts={stack.cloudflare} />
+      <section className="a-card" aria-label="Domain and runtime">
+        <div className="a-host-head">
+          <h2 className="a-h2">Domain &amp; runtime</h2>
+        </div>
+        <StackFacts facts={stack.web} />
+      </section>
     </div>
   );
 }

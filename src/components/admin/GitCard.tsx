@@ -1,14 +1,16 @@
+import { StackFacts } from "@/components/admin/StackFacts";
 import type { DeployInfo } from "@/lib/deploy-info";
+import type { Facts } from "@/lib/stack-info";
 
 const WHEN = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const et = (iso: string) => `${WHEN.format(new Date(iso))} ET`;
 
-/** Read-only: the commit this server runs, when it went out, and production's rollback commit. */
-export function GitCard({ info, where }: { info: DeployInfo; where: string }) {
+/** Read-only: the commit this server runs, when it went out, production's rollback commit, then the repo it came from. */
+export function GitCard({ info, where, github = null }: { info: DeployInfo; where: string; github?: Facts | null }) {
   return (
-    <section className="a-card a-git" aria-label="Git">
+    <section className="a-card a-git" aria-label="GitHub">
       <div className="a-host-head">
-        <h2 className="a-h2">Git</h2>
+        <h2 className="a-h2">GitHub</h2>
         <p className="a-quiet">{where}</p>
       </div>
       <dl className="a-git-rows">
@@ -34,6 +36,7 @@ export function GitCard({ info, where }: { info: DeployInfo; where: string }) {
         ) : null}
       </dl>
       {info.rollbackNote ? <p className="a-quiet a-host-note">{info.rollbackNote}</p> : null}
+      {github ? <StackFacts facts={github} heading="Source" /> : null}
     </section>
   );
 }

@@ -1,5 +1,7 @@
 import { Disclosure } from "@/components/admin/Disclosure";
+import { StackFacts } from "@/components/admin/StackFacts";
 import type { HostPanel, Meter } from "@/lib/host-usage";
+import type { Facts } from "@/lib/stack-info";
 
 /** Amber from 80% of an allowance, red at 100%. */
 function level(ratio: number | null): string {
@@ -27,9 +29,10 @@ function MeterRow({ meter }: { meter: Meter }) {
 
 /**
  * One hosting allowance card. When some meters are marked tight, only those (plus any at 80% or
- * more) show at first; the rest open under "All limits".
+ * more) show at first; the rest open under "All limits". With `facts`, what's running (project, branch, ...)
+ * comes first, then the usage.
  */
-export function HostCard({ panel }: { panel: HostPanel }) {
+export function HostCard({ panel, facts = null }: { panel: HostPanel; facts?: Facts | null }) {
   const collapsible = panel.meters.some((m) => m.tight) && panel.meters.some((m) => !m.tight);
   const shown = collapsible ? panel.meters.filter((m) => m.tight || (m.ratio ?? 0) >= 0.8) : panel.meters;
   const rest = collapsible ? panel.meters.filter((m) => !shown.includes(m)) : [];
@@ -39,6 +42,8 @@ export function HostCard({ panel }: { panel: HostPanel }) {
         <h2 className="a-h2">{panel.title}</h2>
         {panel.detail ? <p className="a-quiet">{panel.detail}</p> : null}
       </div>
+      {facts ? <StackFacts facts={facts} /> : null}
+      {facts ? <p className="a-stack-sub">Usage</p> : null}
       <ul className="a-meters">
         {shown.map((meter) => (
           <MeterRow key={meter.label} meter={meter} />

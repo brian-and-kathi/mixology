@@ -9,6 +9,8 @@ type KnockGlass = (typeof KNOCK_PAD)[number];
 
 /** The door stays up this long after its first frame before the knock pad appears. */
 const DOOR_BEFORE_PAD_MS = 4000;
+/** Quicker than the 2s knock-pad-in. Keep in step with knock-pad-out in cover.css. */
+const PAD_OUT_MS = 800;
 
 function shuffledGlasses(): KnockGlass[] {
   const next = [...KNOCK_PAD];
@@ -36,6 +38,7 @@ export function Door() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playing = useRef(false);
   const sent = useRef(false);
+  const alive = useRef(true);
   const [presses, setPresses] = useState<KnockId[]>([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -47,6 +50,11 @@ export function Door() {
 
   useEffect(() => {
     setGlasses(shuffledGlasses());
+  }, []);
+
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
   }, []);
 
   useEffect(() => {
@@ -142,8 +150,26 @@ export function Door() {
       });
       if (!res.ok) sent.current = false;
       if (res.ok) {
-        setOpen(true);
         const video = videoRef.current;
+        const pad = document.querySelector(".knock-pad");
+        const faded = new Promise<void>((resolve) => {
+          let done = false;
+          const finish = () => {
+            if (done) return;
+            done = true;
+            pad?.removeEventListener("animationend", onEnd);
+            window.clearTimeout(timer);
+            resolve();
+          };
+          const onEnd = (event: AnimationEvent) => {
+            if (event.animationName === "knock-pad-out") finish();
+          };
+          pad?.addEventListener("animationend", onEnd);
+          const timer = window.setTimeout(finish, PAD_OUT_MS + 250);
+        });
+        setOpen(true);
+        await faded;
+        if (!alive.current) return;
         const go = () => router.push("/lounge");
         if (!video) {
           go();
@@ -201,7 +227,7 @@ export function Door() {
         preload="auto"
         aria-hidden
       />
-      <div className={padIn ? "door is-on" : "door"} hidden={!padOn}>
+      <div className={["door", padIn ? "is-on" : "", open ? "is-open" : ""].filter(Boolean).join(" ")} hidden={!padOn}>
         <p className="door-knock">Knock</p>
         <div className={shake ? "door-slots shake" : "door-slots"} aria-hidden>
           {[0, 1, 2].map((index) => {

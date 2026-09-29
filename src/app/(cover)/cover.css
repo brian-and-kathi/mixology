@@ -393,9 +393,16 @@ body:has(.shop) { background: #f6f1e8; }
 .door.is-on .knock-pad {
   animation: knock-pad-in 2s ease forwards;
 }
+.door.is-open .knock-pad {
+  animation: knock-pad-out 0.8s ease forwards;
+}
 @keyframes knock-pad-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+@keyframes knock-pad-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 .knock-key {
   position: relative;
@@ -432,7 +439,9 @@ body:has(.shop) { background: #f6f1e8; }
   transition-delay: 1s;
 }
 .knock-key .glass { width: 1.85rem; height: 1.85rem; }
-.knock-key:disabled { opacity: 0.45; cursor: default; }
+.knock-key:disabled { cursor: default; }
+.knock-undo:disabled { opacity: 0.45; }
+.door.is-open .knock-key:disabled { opacity: 1; }
 .knock-key:focus-visible { outline: 2px solid #d7c4a1; outline-offset: 3px; }
 .knock-undo { color: #cbbfaa; }
 .door-note {

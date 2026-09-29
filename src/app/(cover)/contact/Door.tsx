@@ -151,9 +151,10 @@ export function Door() {
       if (!res.ok) sent.current = false;
       if (res.ok) {
         const video = videoRef.current;
-        const pad = document.querySelector(".knock-pad");
+        const pad = document.querySelector<HTMLElement>(".knock-pad");
         const faded = new Promise<void>((resolve) => {
           let done = false;
+          let timer = 0;
           const finish = () => {
             if (done) return;
             done = true;
@@ -165,7 +166,7 @@ export function Door() {
             if (event.animationName === "knock-pad-out") finish();
           };
           pad?.addEventListener("animationend", onEnd);
-          const timer = window.setTimeout(finish, PAD_OUT_MS + 250);
+          timer = window.setTimeout(finish, PAD_OUT_MS + 250);
         });
         setOpen(true);
         await faded;

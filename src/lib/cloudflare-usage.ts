@@ -173,7 +173,7 @@ export function resetLabel(now = new Date()): string {
 }
 
 export function panel(usage: CloudflareUsage | null, note: string | null): HostPanel {
-  return { title: "Cloudflare · Workers Free", detail: resetLabel(), note, meters: meters(usage) };
+  return { title: "Cloudflare · Free", detail: resetLabel(), note, meters: meters(usage) };
 }
 
 function shareNote(usage: CloudflareUsage): string {

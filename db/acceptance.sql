@@ -1319,8 +1319,10 @@ BEGIN
   END IF;
   IF (SELECT string_agg(column_name, ',' ORDER BY ordinal_position) FROM information_schema.columns
        WHERE table_schema = 'public' AND table_name = 'menu_wines')
-     IS DISTINCT FROM 'id,display_name,description,rating,origin,serve_note,pairing_notes,wine_color,wine_effervescence,fortified,style_group,grape' THEN
-    RAISE EXCEPTION 'check 28 failed: menu_wines columns moved or grape is not last';
+     NOT IN ('id,display_name,description,rating,origin,serve_note,pairing_notes,wine_color,wine_effervescence,fortified,style_group,grape',
+             -- 032 appends the reserved columns after grape.
+             'id,display_name,description,rating,origin,serve_note,pairing_notes,wine_color,wine_effervescence,fortified,style_group,grape,reserved,reserved_note') THEN
+    RAISE EXCEPTION 'check 28 failed: menu_wines columns moved or grape is not after the earlier columns';
   END IF;
   SELECT p.id INTO v_product FROM products p WHERE is_cellar_wine(p.id) ORDER BY p.id LIMIT 1;
   IF v_product IS NULL THEN RAISE EXCEPTION 'check 28 failed: no Cellar wine to test with'; END IF;
@@ -1356,6 +1358,98 @@ BEGIN
     RAISE EXCEPTION 'check 28 failed: a grape is also an ingredient (grapes are display only)';
   END IF;
   RAISE NOTICE 'check 28 passed';
+END $$;
+
+-- 29. Reserved (032): products.reserved defaults off; the note is optional, trimmed, never blank, at most 40
+-- characters; reserved and featured are never both on. A reserved in-stock bottle keeps its pour visible but
+-- flagged, and a cocktail that can only be built with reserved bottles stays on menu_mixed, flagged, with the
+-- note; once nothing is reserved nothing is flagged and menu_mixed is unchanged. Out of stock still hides.
+-- New view columns are last. Flipping reserved bumps the change signal.
+DO $$
+DECLARE
+  v_mixed   uuid[];
+  v_neat    uuid[];
+  v_product uuid;
+  v_recipe  uuid;
+  v_before  bigint;
+  v_after   bigint;
+BEGIN
+  IF (SELECT column_default FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'reserved') IS DISTINCT FROM 'false' THEN
+    RAISE EXCEPTION 'check 29 failed: products.reserved is missing or not default false';
+  END IF;
+  IF (SELECT string_agg(column_name, ',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'menu_mixed')
+     IS DISTINCT FROM 'id,name,description,rating,section,reserved,reserved_note' THEN
+    RAISE EXCEPTION 'check 29 failed: menu_mixed columns moved or the reserved columns are not last';
+  END IF;
+  IF (SELECT string_agg(column_name, ',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'menu_neat')
+     NOT LIKE '%,primary_spec_name,reserved,reserved_note' THEN
+    RAISE EXCEPTION 'check 29 failed: menu_neat reserved columns are not last';
+  END IF;
+  IF (SELECT string_agg(column_name, ',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'menu_wines')
+     NOT LIKE '%,style_group,grape,reserved,reserved_note' THEN
+    RAISE EXCEPTION 'check 29 failed: menu_wines reserved columns are not last';
+  END IF;
+
+  UPDATE products SET reserved = false, reserved_note = NULL WHERE reserved OR reserved_note IS NOT NULL;
+  SELECT array_agg(id ORDER BY id) INTO v_mixed FROM menu_mixed;
+  SELECT array_agg(id ORDER BY id) INTO v_neat FROM menu_neat;
+  IF EXISTS (SELECT 1 FROM menu_mixed WHERE reserved) OR EXISTS (SELECT 1 FROM menu_neat WHERE reserved) THEN
+    RAISE EXCEPTION 'check 29 failed: something is locked with nothing reserved';
+  END IF;
+  SELECT id INTO v_product FROM menu_neat ORDER BY id LIMIT 1;
+  IF v_product IS NULL THEN RAISE EXCEPTION 'check 29 failed: no pour to test with'; END IF;
+
+  -- Note rules and the featured rule.
+  BEGIN UPDATE products SET reserved_note = '  ' WHERE id = v_product; RAISE EXCEPTION 'check 29 failed: a blank note was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE products SET reserved_note = ' Kathi''s 50th' WHERE id = v_product; RAISE EXCEPTION 'check 29 failed: a padded note was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE products SET reserved_note = repeat('x', 41) WHERE id = v_product; RAISE EXCEPTION 'check 29 failed: a 41-character note was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE products SET reserved_note = repeat('x', 40) WHERE id = v_product;
+  BEGIN UPDATE products SET reserved = true, featured = true WHERE id = v_product; RAISE EXCEPTION 'check 29 failed: reserved and featured together were accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+
+  -- The change signal.
+  SELECT menu_version INTO v_before FROM bar_versions WHERE id = 1;
+  UPDATE products SET reserved = true, featured = false, reserved_note = 'Kathi''s 50th' WHERE id = v_product;
+  SELECT menu_version INTO v_after FROM bar_versions WHERE id = 1;
+  IF v_after <= v_before THEN RAISE EXCEPTION 'check 29 failed: reserving a bottle did not bump menu_version'; END IF;
+  IF NOT (SELECT reserved FROM menu_neat WHERE id = v_product) OR (SELECT reserved_note FROM menu_neat WHERE id = v_product) IS DISTINCT FROM 'Kathi''s 50th' THEN
+    RAISE EXCEPTION 'check 29 failed: a reserved pour is not flagged with its note';
+  END IF;
+
+  -- Reserve every in-stock bottle: every pour and cocktail stays on the menu; a cocktail with a line only
+  -- reserved bottles can fill is locked, with the note.
+  UPDATE products SET reserved = true, featured = false, reserved_note = 'Kathi''s 50th' WHERE in_stock;
+  IF (SELECT array_agg(id ORDER BY id) FROM menu_mixed) IS DISTINCT FROM v_mixed OR (SELECT array_agg(id ORDER BY id) FROM menu_neat) IS DISTINCT FROM v_neat THEN
+    RAISE EXCEPTION 'check 29 failed: reserving bottles hid or added menu items';
+  END IF;
+  IF EXISTS (SELECT 1 FROM menu_neat WHERE NOT reserved) THEN RAISE EXCEPTION 'check 29 failed: a reserved pour is not flagged'; END IF;
+  SELECT m.id INTO v_recipe FROM menu_mixed m
+   WHERE EXISTS (SELECT 1 FROM recipe_lines rl WHERE rl.recipe_id = m.id AND rl.required
+                    AND rl.spec_id NOT IN (SELECT spec_id FROM free_spec_ids()))
+   ORDER BY m.id LIMIT 1;
+  IF v_recipe IS NULL THEN RAISE EXCEPTION 'check 29 failed: no cocktail needs a bottle'; END IF;
+  IF NOT (SELECT reserved FROM menu_mixed WHERE id = v_recipe) OR (SELECT reserved_note FROM menu_mixed WHERE id = v_recipe) IS DISTINCT FROM 'Kathi''s 50th' THEN
+    RAISE EXCEPTION 'check 29 failed: a cocktail that needs a reserved bottle is not locked with the note';
+  END IF;
+  IF EXISTS (SELECT 1 FROM menu_mixed m WHERE m.reserved AND NOT EXISTS (
+               SELECT 1 FROM recipe_lines rl WHERE rl.recipe_id = m.id AND rl.required AND rl.spec_id NOT IN (SELECT spec_id FROM free_spec_ids()))) THEN
+    RAISE EXCEPTION 'check 29 failed: a cocktail with a free bottle for every line is locked';
+  END IF;
+
+  -- Out of stock still hides, reserved or not.
+  UPDATE products SET in_stock = false WHERE id = v_product;
+  IF EXISTS (SELECT 1 FROM menu_neat WHERE id = v_product) THEN RAISE EXCEPTION 'check 29 failed: an out-of-stock reserved bottle is on Pours'; END IF;
+  UPDATE products SET in_stock = true WHERE id = v_product;
+
+  -- Nothing reserved: nothing locked, the same menu.
+  UPDATE products SET reserved = false, reserved_note = NULL WHERE reserved;
+  IF EXISTS (SELECT 1 FROM menu_mixed WHERE reserved) OR (SELECT array_agg(id ORDER BY id) FROM menu_mixed) IS DISTINCT FROM v_mixed THEN
+    RAISE EXCEPTION 'check 29 failed: un-reserving did not restore the cocktails';
+  END IF;
+  RAISE NOTICE 'check 29 passed';
 END $$;
 
 DO $$

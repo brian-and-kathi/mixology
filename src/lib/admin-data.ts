@@ -7,7 +7,8 @@ export type Family = { id: string; slug: string; name: string; kind: string; all
 /** `wine`: the bottle belongs in the guest Cellar (is_cellar_wine, migration 020): the admin Wines view. */
 /** `label`: the bottle's own badge label (migration 023), shown instead of the type when set. */
 /** `origin`: the bottle's Origin field, matched by the Stock search ("michigan", "traverse city"); not shown. */
-export type StockItem = { id: string; name: string; in_stock: boolean; featured: boolean; family: string; family_order: number; spec: string | null; label: string | null; wine: boolean; origin: string | null };
+/** `reserved`, `reserved_note`: Reserved (migration 032); the Stock row shows the key and the note under the name. */
+export type StockItem = { id: string; name: string; in_stock: boolean; featured: boolean; reserved: boolean; reserved_note: string | null; family: string; family_order: number; spec: string | null; label: string | null; wine: boolean; origin: string | null };
 export type Change = { id: number; at: string; summary: string; entity_id: string; action: string; before: { in_stock?: boolean } | null; after: { in_stock?: boolean } | null; undone: boolean };
 
 export async function loadFamilies(): Promise<Family[]> {
@@ -16,7 +17,7 @@ export async function loadFamilies(): Promise<Family[]> {
 
 export async function loadStock(): Promise<StockItem[]> {
   return query<StockItem>(
-    `SELECT p.id, p.display_name AS name, p.in_stock, p.featured,
+    `SELECT p.id, p.display_name AS name, p.in_stock, p.featured, p.reserved, p.reserved_note,
             COALESCE(pf.canonical_name, sf.canonical_name, 'other') AS family,
             COALESCE(pf.sort_order, sf.sort_order, 999) AS family_order,
             s.canonical_name AS spec, p.spec_label AS label,
@@ -168,14 +169,14 @@ export async function loadDefaultWineSpec(): Promise<string | null> {
 export type ProductRow = {
   id: string; display_name: string; short_name: string | null; spec_label: string | null; packaged_name: string; brand: string | null; description: string | null;
   origin: string | null; serve_note: string | null; abv: string | null; upc: string | null; family_id: string | null;
-  in_stock: boolean; featured: boolean; mix_only: boolean; serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean;
+  in_stock: boolean; featured: boolean; reserved: boolean; reserved_note: string | null; mix_only: boolean; serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean;
   fortified: boolean; wine_color: string; wine_effervescence: string; grape: string | null; spec_id: string | null; other_spec_ids: string[];
 };
 
 export async function loadProduct(id: string): Promise<ProductRow | null> {
   const [p] = await query<ProductRow>(
     `SELECT p.id, p.display_name, p.short_name, p.spec_label, p.packaged_name, p.brand, p.description, p.origin, p.serve_note, p.abv::text AS abv,
-            p.upc, p.family_id, p.in_stock, p.featured, p.mix_only, p.serves_neat, p.serves_rocks, p.serves_chilled,
+            p.upc, p.family_id, p.in_stock, p.featured, p.reserved, p.reserved_note, p.mix_only, p.serves_neat, p.serves_rocks, p.serves_chilled,
             p.fortified, p.wine_color, p.wine_effervescence, p.grape,
             (SELECT ps.spec_id FROM product_specs ps WHERE ps.product_id = p.id ORDER BY ps.is_primary DESC LIMIT 1) AS spec_id,
             COALESCE((SELECT array_agg(ps.spec_id) FROM product_specs ps WHERE ps.product_id = p.id AND NOT ps.is_primary), '{}') AS other_spec_ids

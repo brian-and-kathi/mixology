@@ -7,7 +7,8 @@ import { PhoneShell } from "@/components/PhoneShell";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { cap, wineServeLine } from "@/lib/format";
-import { loadWine, wineGlass } from "@/lib/menu";
+import { loadLocked, loadWine, wineGlass } from "@/lib/menu";
+import { LockedPage } from "@/components/LockedPage";
 import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,12 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
   const bar = publicStatus(gate);
   if (!gate.allowed) return <ClosedPage bar={bar} />;
   const wine = await loadWine(id);
-  if (!wine) notFound();
+  if (!wine) {
+    // Reserved (migration 032): a locked wine shows only its name and occasion, even when opened directly.
+    const locked = await loadLocked("wine", id);
+    if (!locked) notFound();
+    return <LockedPage locked={locked} bar={bar} back={{ href: "/menu?tab=cellar", label: "Cellar" }} editHref={(await isAdmin()) ? `/admin/bottles/${id}` : undefined} />;
+  }
   const [admin, rating] = await Promise.all([isAdmin(), loadRating("product", wine.id)]);
   const editHref = admin ? `/admin/bottles/${wine.id}` : undefined;
 

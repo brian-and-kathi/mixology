@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { KeyIcon } from "@/components/ReservedIcon";
 import type { ReactNode } from "react";
 
 /**
@@ -29,17 +30,20 @@ export function StockToggle({ name, inStock, onToggle }: { name: string; inStock
 }
 
 /** A stock row: the toggle, then the rest of the row opens the bottle's edit page (no chevron). `sub` is a quiet second line (Stock: the type). `featured` adds a small non-interactive star by the name (migration 030). */
-export function StockRow({ id, name, inStock, onToggle, children, error, sub, featured = false }: { id: string; name: string; inStock: boolean; onToggle: (to: boolean) => void; children?: ReactNode; error?: string; sub?: string | null; featured?: boolean }) {
+export function StockRow({ id, name, inStock, onToggle, children, error, sub, featured = false, reserved = false, reservedNote = null }: { id: string; name: string; inStock: boolean; onToggle: (to: boolean) => void; children?: ReactNode; error?: string; sub?: string | null; featured?: boolean; reserved?: boolean; reservedNote?: string | null }) {
   const star = featured ? <span className="a-feat-star" title="Featured" aria-label="Featured">★</span> : null;
+  // Reserved (migration 032): the skeleton key and the occasion ("Kathi's 50th"; "Reserved" without one) in the grey
+  // line under the name. The In/Out toggle is untouched.
+  const res = reserved ? <span className="a-srow-res">{sub ? " · " : null}<KeyIcon label="Reserved" />{reservedNote || "Reserved"}</span> : null;
   return (
     <li>
       <div className="a-srow">
         <StockToggle name={name} inStock={inStock} onToggle={onToggle} />
         <Link href={`/admin/bottles/${id}`} className="a-srow-link">
-          {sub ? (
+          {sub || res ? (
             <span className="a-srow-text">
               <span className="a-srow-name">{name}{star}{children}</span>
-              <span className="a-srow-sub">{sub}</span>
+              <span className="a-srow-sub">{sub}{res}</span>
             </span>
           ) : (
             <span className="a-srow-name">{name}{star}{children}</span>

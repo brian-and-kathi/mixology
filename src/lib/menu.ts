@@ -23,7 +23,7 @@ export type Sub = { detail: string; fit: string[]; /** Place name as it appears 
  * spirit family after another family (lib/spirit-family.ts); (Cellar): the first wine of a category after another
  * category (wineCategory, migration 031). The phone and TV add the same small gap above it.
  */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40% abv" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean };
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40% abv" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean; /** Reserved (migration 032): a reserved bottle, or a cocktail that needs one. Still listed, LOCKED: key icon, brass "Ask the host" tag, dimmed, after the available items of its family; no detail page, no cast. Never featured. */ reserved?: boolean; /** The occasion ("Kathi's 50th"), shown as "Saved for …". */ reservedNote?: string | null };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -37,7 +37,8 @@ const cmp = (a: string, b: string) => a.localeCompare(b, "en", { sensitivity: "b
  * Featured pours (migration 030) come first, in the same order; the first family after them gets the gap too.
  */
 function byFamily(rows: (MenuItem & { family: number; sortBadge: string })[]): MenuItem[] {
-  const sorted = [...rows].sort((a, b) => Number(!!b.featured) - Number(!!a.featured) || a.family - b.family || cmp(a.sortBadge, b.sortBadge) || cmp(a.name, b.name));
+  // Reserved (locked) pours go after the available pours of their own family (migration 032).
+  const sorted = [...rows].sort((a, b) => Number(!!b.featured) - Number(!!a.featured) || a.family - b.family || Number(!!a.reserved) - Number(!!b.reserved) || cmp(a.sortBadge, b.sortBadge) || cmp(a.name, b.name));
   return sorted.map(({ family, sortBadge: _badge, ...item }, i) => {
     const prev = sorted[i - 1];
     const famStart = !!prev && !item.featured && (!!prev.featured || family !== prev.family);
@@ -48,6 +49,14 @@ function byFamily(rows: (MenuItem & { family: number; sortBadge: string })[]): M
 /** Phone and TV: featured items (migration 030) first, then the list's own order. Stable. */
 export const featuredFirst = <T extends { featured?: boolean }>(items: T[]): T[] =>
   [...items.filter((i) => i.featured), ...items.filter((i) => !i.featured)];
+
+/** Reserved (locked) items after the available ones (migration 032). Stable. */
+export const reservedLast = <T extends { reserved?: boolean }>(items: T[]): T[] =>
+  [...items.filter((i) => !i.reserved), ...items.filter((i) => i.reserved)];
+
+/** A locked item is never featured, and has no detail page: its detail URL shows the locked page (loadLocked). */
+const lock = <T extends MenuItem>(item: T, reserved: boolean, note: string | null): T =>
+  reserved ? { ...item, reserved: true, reservedNote: note, featured: false } : item;
 
 /** Cellar color groups, in menu order (wine_style_group(), migration 011); anything else ("unsorted": sake, fruit wine) is Other, last. */
 export const WINE_GROUPS = ["red", "rose", "white", "sparkling"] as const;
@@ -82,7 +91,8 @@ export function wineBadge(name: string, grape: string | null | undefined, type: 
  * famStart (the gap Pours puts between spirit families); the first category after the featured wines gets it too.
  */
 function byCategory(rows: (MenuItem & { group: number; category: string })[]): MenuItem[] {
-  const sorted = [...rows].sort((a, b) => Number(!!b.featured) - Number(!!a.featured) || a.group - b.group || cmp(a.category, b.category) || cmp(a.name, b.name));
+  // Reserved (locked) wines go after the available wines of their own category (migration 032).
+  const sorted = [...rows].sort((a, b) => Number(!!b.featured) - Number(!!a.featured) || a.group - b.group || cmp(a.category, b.category) || Number(!!a.reserved) - Number(!!b.reserved) || cmp(a.name, b.name));
   return sorted.map(({ group, category, ...item }, i) => {
     const prev = sorted[i - 1];
     const famStart = !!prev && !item.featured && (!!prev.featured || group !== prev.group || cmp(category, prev.category) !== 0);
@@ -96,25 +106,25 @@ function byCategory(rows: (MenuItem & { group: number; category: string })[]): M
  */
 export async function loadMenu(): Promise<Menu> {
   const [pours, cocktails, cellar, lines] = await Promise.all([
-    query<{ id: string; name: string; full: string; origin: string | null; abv: string | null; type: string | null; label: string | null; family: string | null; featured: boolean }>(
+    query<{ id: string; name: string; full: string; origin: string | null; abv: string | null; type: string | null; label: string | null; family: string | null; featured: boolean; reserved: boolean; reserved_note: string | null }>(
       // Pours show the bottle's short name (migration 023; NULL = the full name) with a badge: its own badge
       // label, or else its type (spec_label is display only; the subtext's type fallback stays the ingredient).
       `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full, n.origin, n.abv::text AS abv, n.primary_spec_name AS type,
-              p.spec_label AS label, (p.id IN (SELECT featured_product_ids())) AS featured,
+              p.spec_label AS label, (p.id IN (SELECT featured_product_ids())) AS featured, n.reserved, n.reserved_note,
               -- The primary ingredient's family, for grouping (lib/spirit-family.ts). Ingredient names are unique.
               (SELECT f.slug FROM specs s JOIN spec_families sf ON sf.spec_id = s.id AND sf.is_primary
                  JOIN families f ON f.id = sf.family_id WHERE s.canonical_name = n.primary_spec_name) AS family
          FROM menu_neat n JOIN products p ON p.id = n.id`,
     ),
-    query<{ id: string; name: string; glass: string | null; featured: boolean }>(
-      `SELECT m.id, m.name, g.name AS glass, (m.id IN (SELECT featured_recipe_ids())) AS featured
+    query<{ id: string; name: string; glass: string | null; featured: boolean; reserved: boolean; reserved_note: string | null }>(
+      `SELECT m.id, m.name, g.name AS glass, (m.id IN (SELECT featured_recipe_ids())) AS featured, m.reserved, m.reserved_note
          FROM menu_mixed m
          JOIN recipes r ON r.id = m.id
          LEFT JOIN glassware g ON g.id = r.glass_id`,
     ),
-    query<{ id: string; name: string; origin: string | null; type: string | null; grape: string | null; style_group: string | null; sparkling: boolean; featured: boolean }>(
+    query<{ id: string; name: string; origin: string | null; type: string | null; grape: string | null; style_group: string | null; sparkling: boolean; featured: boolean; reserved: boolean; reserved_note: string | null }>(
       `SELECT w.id, w.display_name AS name, w.origin, (w.wine_effervescence = 'sparkling') AS sparkling,
-              w.grape, w.style_group, (w.id IN (SELECT featured_product_ids())) AS featured,
+              w.grape, w.style_group, (w.id IN (SELECT featured_product_ids())) AS featured, w.reserved, w.reserved_note,
               (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
                 WHERE ps.product_id = w.id AND ps.is_primary) AS type
          FROM menu_wines w`,
@@ -123,19 +133,22 @@ export async function loadMenu(): Promise<Menu> {
   ]);
   return {
     // Pours have no glass_id in the schema; they are shown with a rocks glass.
+    // Reserved (migration 032): the pour, cocktail or wine stays listed but locked (lock()); its link opens the
+    // locked page, which never shows the recipe, specs or serve. A locked cocktail drops its ingredient line.
     pours: byFamily(pours.map((p) => {
       const badge = specLabel(p.type, p.label);
-      return { id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, badge), measure: p.full, ...pourLine(p),
+      return lock({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, badge), measure: p.full, ...pourLine(p),
         abv: p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% abv` : null, featured: p.featured,
-        family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" };
+        family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" }, p.reserved, p.reserved_note);
     })),
-    cocktails: featuredFirst(cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName)),
+    cocktails: reservedLast<MenuItem>(featuredFirst<MenuItem>(cocktails.map(({ reserved, reserved_note, ...c }) =>
+      lock<MenuItem>({ ...c, href: `/recipe/${c.id}`, ...(reserved ? {} : lines.get(c.id) ?? {}) }, reserved, reserved_note)).sort(byName))),
     // Cellar: the badge is the category. A grape always shows (Brian, 2026-10-04: "… Merlot 2020" still gets "Merlot");
     // with no grape, the type's label is hidden when the name already says it ("Señor Sangria", "Hakutsuru Sake").
     cellar: byCategory(cellar.map((w) => {
       const category = wineCategory(w.grape, w.type);
-      return { id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: wineBadge(w.name, w.grape, w.type), featured: w.featured, ...wineLine(w),
-        group: wineGroup(w.style_group), category: category ?? "" };
+      return lock({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: wineBadge(w.name, w.grape, w.type), featured: w.featured, ...wineLine(w),
+        group: wineGroup(w.style_group), category: category ?? "" }, w.reserved, w.reserved_note);
     })),
   };
 }
@@ -144,7 +157,8 @@ export async function loadMenu(): Promise<Menu> {
  * Ingredient line for each cocktail on the menu: required lines in recipe order, no amounts,
  * leaving out garnishes (role "garnish"), ice and water (the "staple" family) and optional lines.
  * A line that is out tonight names its stocked stand-in, with the same shelf rule as the recipe
- * page (loadRecipe): a stand-in only counts when a bottle of it is on the shelf.
+ * page (loadRecipe): a stand-in only counts when a bottle of it is on the shelf. Reserved bottles (migration 032)
+ * are not on the shelf here; a locked cocktail shows no line at all.
  */
 async function loadCocktailLines(): Promise<Map<string, Sub>> {
   const rows = await query<{ recipe_id: string; names: string[] }>(
@@ -152,7 +166,7 @@ async function loadCocktailLines(): Promise<Map<string, Sub>> {
        SELECT sp.id FROM specs sp
         WHERE sp.always_available
            OR EXISTS (SELECT 1 FROM product_specs ps JOIN products p ON p.id = ps.product_id
-                       WHERE ps.spec_id = sp.id AND p.in_stock)),
+                       WHERE ps.spec_id = sp.id AND p.in_stock AND NOT p.reserved)),
      staple AS (
        SELECT sf.spec_id FROM spec_families sf JOIN families f ON f.id = sf.family_id WHERE f.slug = 'staple')
      SELECT s.recipe_id,
@@ -371,7 +385,10 @@ export function featuredBottlesFirst(names: string[] | null, featured: string[],
 }
 export const PHONE_DOT = DOT;
 
-/** A recipe is only shown to guests while it is buildable (it appears in menu_mixed). */
+/**
+ * A recipe is only shown to guests while it is buildable (it appears in menu_mixed) and not locked by a
+ * reserved bottle (migration 032; the locked page is loadLocked). So the cast (lib/cast.ts) never shows it either.
+ */
 export async function loadRecipe(id: string): Promise<Recipe | null> {
   if (!isUuid(id)) return null;
   const [recipe] = await query<Omit<Recipe, "lines">>(
@@ -382,7 +399,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
        FROM recipes r
        LEFT JOIN glassware g ON g.id = r.glass_id
        LEFT JOIN glassware ag ON ag.id = r.alt_glass_id
-      WHERE r.id = $1 AND r.id IN (SELECT id FROM menu_mixed)`,
+      WHERE r.id = $1 AND r.id IN (SELECT id FROM menu_mixed WHERE NOT reserved)`,
     [id],
   );
   if (!recipe) return null;
@@ -393,7 +410,14 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   // Bottles listed: the ingredient's own when it is in; else the named stand-in's; else the nearest
   // stand-in chain that makes the recipe buildable.
   const rows = await query<Omit<RecipeLine, "bottles" | "featured"> & BottleFacts>(
-    `WITH supply AS MATERIALIZED (SELECT * FROM spec_supply()),
+    // Reserved bottles (migration 032) are left out of the supply: never listed, never counted as on the shelf
+    // (an always-available ingredient stays on the shelf without its reserved bottle).
+    `WITH supply AS MATERIALIZED (
+       SELECT x.spec_id, x.source_spec_id, x.hops, CASE WHEN p.reserved THEN NULL ELSE x.product_id END AS product_id
+         FROM spec_supply() x
+         JOIN specs src ON src.id = x.source_spec_id
+         LEFT JOIN products p ON p.id = x.product_id
+        WHERE x.product_id IS NULL OR NOT p.reserved OR src.always_available),
      shelf AS (SELECT DISTINCT spec_id AS id FROM supply WHERE hops = 0),
      base AS (
        SELECT s.position, s.spec_id, s.spec_name AS name, s.required,
@@ -472,7 +496,7 @@ export type Wine = {
   featured: boolean;
 };
 
-/** A Cellar wine's detail page: only while it's in the guest Cellar (menu_wines). */
+/** A Cellar wine's detail page: only while it's in the guest Cellar (menu_wines) and not reserved (migration 032). */
 export async function loadWine(id: string): Promise<Wine | null> {
   if (!isUuid(id)) return null;
   const [wine] = await query<Wine>(
@@ -482,7 +506,7 @@ export async function loadWine(id: string): Promise<Wine | null> {
             (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
               WHERE ps.product_id = w.id ORDER BY ps.is_primary DESC LIMIT 1) AS type
        FROM menu_wines w JOIN products p ON p.id = w.id
-      WHERE w.id = $1`,
+      WHERE w.id = $1 AND NOT w.reserved`,
     [id],
   );
   return wine ?? null;
@@ -507,16 +531,35 @@ export type Pour = {
   featured: boolean;
 };
 
+/** A pour's detail page and cast: only while it's on Pours (menu_neat) and not reserved (migration 032). */
 export async function loadPour(id: string): Promise<Pour | null> {
   if (!isUuid(id)) return null;
   const [pour] = await query<Pour & { label: string | null }>(
     `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full_name, n.brand, n.origin,
             n.description, n.serve_note, n.rating, n.abv::text AS abv, n.serves_neat, n.serves_rocks, n.serves_chilled,
             n.primary_spec_name AS spec, p.spec_label AS label, (n.id IN (SELECT featured_product_ids())) AS featured
-       FROM menu_neat n JOIN products p ON p.id = n.id WHERE n.id = $1`,
+       FROM menu_neat n JOIN products p ON p.id = n.id WHERE n.id = $1 AND NOT n.reserved`,
     [id],
   );
   if (!pour) return null;
   const { label, ...rest } = pour;
   return { ...rest, spec: badgeFor(pour.name, specLabel(pour.spec, label)) };
+}
+
+/** What a guest may see of a locked (reserved, migration 032) item: its name and the occasion. Nothing else. */
+export type Locked = { name: string; note: string | null };
+
+/**
+ * The locked page behind a reserved pour, cocktail or Cellar wine: only while it is on the menu and locked.
+ * Pours use the short name like the list. Null when it isn't on the menu or isn't locked.
+ */
+export async function loadLocked(kind: "pour" | "recipe" | "wine", id: string): Promise<Locked | null> {
+  if (!isUuid(id)) return null;
+  const sql = {
+    pour: `SELECT COALESCE(p.short_name, n.display_name) AS name, n.reserved_note AS note FROM menu_neat n JOIN products p ON p.id = n.id WHERE n.id = $1 AND n.reserved`,
+    recipe: `SELECT name, reserved_note AS note FROM menu_mixed WHERE id = $1 AND reserved`,
+    wine: `SELECT display_name AS name, reserved_note AS note FROM menu_wines WHERE id = $1 AND reserved`,
+  }[kind];
+  const [row] = await query<Locked>(sql, [id]);
+  return row ?? null;
 }

@@ -8,7 +8,8 @@ import { PhoneShell } from "@/components/PhoneShell";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { altGlassLine, cap, glassLine, lineText, methodParts } from "@/lib/format";
-import { bottleParts, loadRecipe, PHONE_DOT } from "@/lib/menu";
+import { bottleParts, loadLocked, loadRecipe, PHONE_DOT } from "@/lib/menu";
+import { LockedPage } from "@/components/LockedPage";
 import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,13 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const bar = publicStatus(gate);
   if (!gate.allowed) return <ClosedPage bar={bar} />;
   const recipe = await loadRecipe(id);
-  if (!recipe) notFound();
+  if (!recipe) {
+    // Reserved (migration 032): a cocktail that needs a reserved bottle shows only its name and occasion, even
+    // when opened directly. No recipe, specs or method.
+    const locked = await loadLocked("recipe", id);
+    if (!locked) notFound();
+    return <LockedPage locked={locked} bar={bar} back={{ href: "/menu?tab=cocktails", label: "Cocktails" }} editHref={(await isAdmin()) ? `/admin/recipes/${id}` : undefined} />;
+  }
   // Only a link goes to the client, and only for a signed-in admin device.
   const [admin, rating] = await Promise.all([isAdmin(), loadRating("recipe", recipe.id)]);
   const editHref = admin ? `/admin/recipes/${recipe.id}` : undefined;

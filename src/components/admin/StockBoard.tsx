@@ -178,7 +178,7 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
           <section key={g.family} className="a-group">
             <h2 className="a-group-head">{g.family.replace(/^./, (c) => c.toUpperCase())}<span className="a-quiet"> · {g.items.length}{out ? ` · ${out} out` : ""}</span></h2>
             <ul className="a-rows">
-              {g.items.map((it) => <StockRow key={it.id} id={it.id} name={it.name} sub={specLabel(it.spec, it.label)} inStock={stockOf(it)} featured={it.featured} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
+              {g.items.map((it) => <StockRow key={it.id} id={it.id} name={it.name} sub={specLabel(it.spec, it.label)} inStock={stockOf(it)} featured={it.featured} reserved={it.reserved} reservedNote={it.reserved_note} error={rowError[it.id]} onToggle={(to) => void flip(it, to)} />)}
             </ul>
           </section>
         );

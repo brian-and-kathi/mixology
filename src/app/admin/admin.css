@@ -440,3 +440,8 @@ body:has(.admin-root) { background: #07101c; }
 @media (prefers-reduced-motion: reduce) { .a-ids > summary::before { transition: none; } }
 .a-ids > summary:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; border-radius: 4px; }
 .a-ids-rows { margin-top: 0.2rem; }
+/* Reserved (migration 032): the key beside the Reserved switch, and the key + occasion in a Stock row's grey line. */
+.a-reserved-label { display: inline-flex; align-items: center; gap: 0.4em; }
+.a-reserved-label .res-icon { width: 1.2em; height: 1.2em; vertical-align: 0; }
+.a-srow-res { white-space: nowrap; }
+.a-srow-res .res-icon { width: 1.25em; height: 1.25em; margin-right: 0.3em; vertical-align: -0.3em; }

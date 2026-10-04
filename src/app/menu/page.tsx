@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import type { CSSProperties } from "react";
 import { FeaturedTag } from "@/components/FeaturedTag";
+import { ReservedTag } from "@/components/ReservedIcon";
 import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { PhoneShell } from "@/components/PhoneShell";
 import { isAdmin } from "@/lib/admin-guard";
@@ -77,9 +78,11 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
                   {/* Pours: an invisible copy of the badge floated at the right of the name's first line keeps the room
                       the corner badge takes, plus 8px, so the name wraps before it and never runs under it. */}
                   {item.spec ? <span className="spec-badge badge-reserve" aria-hidden>{item.spec}</span> : null}
-                  {item.name}
+                  {item.reserved ? <span className="res-dim">{item.name}</span> : item.name}
                   {/* Featured (migration 030): sorted first (lib/menu.ts), copper hairline and this tag. */}
                   {item.featured ? <FeaturedTag /> : null}
+                  {/* Reserved (migration 032): dimmed, after the available items, brass key tag; the link opens the locked page. */}
+                  {item.reserved ? <ReservedTag /> : null}
                 </span>
                 {item.detail ? <ItemDetail text={item.detail} origin={item.origin} /> : null}
               </span>
@@ -87,7 +90,7 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
               {item.spec ? <span className="spec-badge corner-badge">{item.spec}</span> : null}
             </>
           );
-          const two = (item.detail ? " two-line" : "") + (item.spec ? " has-badge" : "") + (item.featured ? " is-featured" : "");
+          const two = (item.detail ? " two-line" : "") + (item.spec ? " has-badge" : "") + (item.featured ? " is-featured" : "") + (item.reserved ? " is-reserved" : "");
           return (
             // Pours: a little extra space above the first bottle of each spirit family (lib/spirit-family.ts).
             <li key={item.id} className={item.famStart ? "fam-start" : undefined}>

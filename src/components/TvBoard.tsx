@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GlassIcon } from "@/components/GlassIcon";
+import { KeyIcon, PadlockIcon } from "@/components/ReservedIcon";
 
 import { useCastHighlight } from "@/components/TvCast";
 import type { MenuItem } from "@/lib/menu";
@@ -45,6 +46,12 @@ function pack(heights: number[], gaps: number[], available: number, reserve: (co
  * star before the name. Both keep the copper name. Vincent chose between them from the v2 comparison shots.
  */
 const TV_FEATURED: "tag" | "star" = "star";
+
+/**
+ * Reserved rows (migration 032): the icon before the name. "key": the skeleton key (same as the phone); "padlock":
+ * the fallback if the key reads poorly from the couch. The brass "Ask the host" tag ends the line under the name.
+ */
+const TV_RESERVED_ICON: "key" | "padlock" = "key";
 
 /** Total height of the featured rows (migration 030), pinned to the top of every page's first sub-column. */
 function pinnedHeight(items: MenuItem[], heights: number[]): number {
@@ -110,7 +117,7 @@ let fitCanvas: HTMLCanvasElement | null = null;
  * whole items or words, e.g. "Rye · sweet vermouth · …") that fits the row. Re-measures when the
  * row or the text size changes (column widths, cast shrink, web fonts).
  */
-function FitLine({ fit, badge = null, origin = null, featured = false }: { fit: string[]; badge?: string | null; origin?: string | null; featured?: boolean }) {
+function FitLine({ fit, badge = null, origin = null, featured = false, reserved = false }: { fit: string[]; badge?: string | null; origin?: string | null; featured?: boolean; reserved?: boolean }) {
   const ref = useRef<HTMLSpanElement>(null);
   const badgeRef = useRef<HTMLSpanElement>(null);
   const tagRef = useRef<HTMLSpanElement>(null);
@@ -138,7 +145,7 @@ function FitLine({ fit, badge = null, origin = null, featured = false }: { fit: 
     ro.observe(el);
     void document.fonts?.ready.then(run);
     return () => ro.disconnect();
-  }, [fit, badge, featured]);
+  }, [fit, badge, featured, reserved]);
   const place = origin && text.startsWith(origin) ? origin : "";
   return (
     <span ref={ref} className="tv-detail">
@@ -146,6 +153,7 @@ function FitLine({ fit, badge = null, origin = null, featured = false }: { fit: 
       {place ? <span className="tv-origin">{place}</span> : null}
       {place ? text.slice(place.length) : text}
       {featured ? <span ref={tagRef} className="feat-tag tv-feat-tag">Featured</span> : null}
+      {reserved ? <span ref={tagRef} className="res-tag tv-res-tag">Ask the host</span> : null}
     </span>
   );
 }
@@ -172,23 +180,26 @@ function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
 
 function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on?: boolean }) {
   // Pours are grouped by spirit family: the first bottle of a family gets a small gap above it (.fam-start).
-  const cls = "tv-row" + (on ? " on" : "") + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "");
+  const cls = "tv-row" + (on ? " on" : "") + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "") + (item.reserved ? " is-reserved" : "");
   // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name.
   // Featured (migration 030): copper name, plus the tag at the end of the line under it ("tag") or a star
   // before the name ("star"); see TV_FEATURED.
   const tag = !!item.featured && TV_FEATURED === "tag";
   const star = !!item.featured && TV_FEATURED === "star";
-  const below = !!item.spec || !!item.fit?.length || tag;
+  // Reserved (migration 032): dimmed, an icon before the name and the "Ask the host" tag under it. Never cast.
+  const locked = !!item.reserved;
+  const below = !!item.spec || !!item.fit?.length || tag || locked;
   return (
     <li className={cls}>
       <Lead glass={item.glass} rating={rating} />
       <span className="tv-text">
-        <span className="tv-name" data-measure={star && item.measure ? `\u2605\u00a0${item.measure}` : item.measure}>
+        <span className="tv-name" data-measure={star && item.measure ? `\u2605\u00a0${item.measure}` : locked ? `\u2605\u00a0${item.measure ?? item.name}` : item.measure}>
           {star ? <span className="tv-feat-star" role="img" aria-label="Featured">★</span> : null}
+          {locked ? (TV_RESERVED_ICON === "padlock" ? <PadlockIcon className="tv-res-icon" label="Reserved" /> : <KeyIcon className="tv-res-icon" label="Reserved" />) : null}
           {item.name}
           {item.abv ? <sup className="tv-abv">{item.abv}</sup> : null}
         </span>
-        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={tag} /> : null}
+        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={tag} reserved={locked} /> : null}
       </span>
     </li>
   );

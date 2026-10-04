@@ -8,7 +8,8 @@ import { PhoneShell } from "@/components/PhoneShell";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { serveLine } from "@/lib/format";
-import { loadPour } from "@/lib/menu";
+import { loadLocked, loadPour } from "@/lib/menu";
+import { LockedPage } from "@/components/LockedPage";
 import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,12 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
   const bar = publicStatus(gate);
   if (!gate.allowed) return <ClosedPage bar={bar} />;
   const pour = await loadPour(id);
-  if (!pour) notFound();
+  if (!pour) {
+    // Reserved (migration 032): a locked pour shows only its name and occasion, even when opened directly.
+    const locked = await loadLocked("pour", id);
+    if (!locked) notFound();
+    return <LockedPage locked={locked} bar={bar} back={{ href: "/menu?tab=pours", label: "Pours" }} editHref={(await isAdmin()) ? `/admin/bottles/${id}` : undefined} />;
+  }
   // Only a link goes to the client, and only for a signed-in admin device.
   const [admin, rating] = await Promise.all([isAdmin(), loadRating("product", pour.id)]);
   const editHref = admin ? `/admin/bottles/${pour.id}` : undefined;

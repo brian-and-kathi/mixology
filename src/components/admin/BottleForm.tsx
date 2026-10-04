@@ -10,9 +10,10 @@ import { SpecPicker } from "./SpecPicker";
 import { specLabel } from "@/lib/spec-label";
 import { Disclosure } from "./Disclosure";
 import { formatUpc } from "@/lib/format";
+import { KeyIcon } from "@/components/ReservedIcon";
 
 type Form = {
-  display_name: string; short_name: string; spec_label: string; spec_id: string | null; family_id: string; in_stock: boolean; featured: boolean; pourable: boolean;
+  display_name: string; short_name: string; spec_label: string; spec_id: string | null; family_id: string; in_stock: boolean; featured: boolean; reserved: boolean; reserved_note: string; pourable: boolean;
   serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean; description: string;
   brand: string; origin: string; abv: string; serve_note: string; upc: string; fortified: boolean;
   wine_color: string; wine_effervescence: string; grape: string;
@@ -21,7 +22,7 @@ type Form = {
 function initial(p: ProductRow | null): Form {
   return {
     display_name: p?.display_name ?? "", short_name: p?.short_name ?? "", spec_label: p?.spec_label ?? "", spec_id: p?.spec_id ?? null, family_id: p?.family_id ?? "",
-    in_stock: p?.in_stock ?? true, featured: p?.featured ?? false, pourable: p ? !p.mix_only : true, serves_neat: p?.serves_neat ?? false,
+    in_stock: p?.in_stock ?? true, featured: p?.featured ?? false, reserved: p?.reserved ?? false, reserved_note: p?.reserved_note ?? "", pourable: p ? !p.mix_only : true, serves_neat: p?.serves_neat ?? false,
     serves_rocks: p?.serves_rocks ?? false, serves_chilled: p?.serves_chilled ?? false, description: p?.description ?? "",
     brand: p?.brand ?? "", origin: p?.origin ?? "", abv: p?.abv ? String(Number(p.abv)) : "", serve_note: p?.serve_note ?? "",
     upc: p?.upc ?? "", fortified: p?.fortified ?? false, wine_color: p?.wine_color ?? "not_applicable",
@@ -85,7 +86,7 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
     setError(null);
     try {
       // Grape is for wines only: anything else saves none (migration 031).
-      const body = { ...f, family_id: f.family_id || spec?.family_id || null, grape: isWine ? f.grape.trim() : "" };
+      const body = { ...f, family_id: f.family_id || spec?.family_id || null, grape: isWine ? f.grape.trim() : "", reserved_note: f.reserved ? f.reserved_note.trim() : "" };
       if (product) await api(`/api/admin/products/${product.id}`, "PUT", body);
       else await api("/api/admin/products", "POST", body);
       router.push(`/admin?saved=${encodeURIComponent(f.display_name)}`); // Stock (the Bottles list is gone)
@@ -145,11 +146,24 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
           <input type="checkbox" checked={f.in_stock} onChange={(e) => set("in_stock", e.target.checked)} />
           <span>In stock</span>
         </label>
+        {/* Featured and Reserved (migration 032) are never both on: turning one on turns the other off (saveProduct
+            and a CHECK enforce it too). Neither touches In stock. */}
         <label className="a-check">
-          <input type="checkbox" checked={f.featured} onChange={(e) => set("featured", e.target.checked)} />
+          <input type="checkbox" checked={f.featured} onChange={(e) => setF((o) => ({ ...o, featured: e.target.checked, reserved: e.target.checked ? false : o.reserved }))} />
           <span>Featured</span>
         </label>
+        <label className="a-check">
+          <input type="checkbox" checked={f.reserved} onChange={(e) => setF((o) => ({ ...o, reserved: e.target.checked, featured: e.target.checked ? false : o.featured }))} />
+          <span className="a-reserved-label"><KeyIcon /> Reserved</span>
+        </label>
       </div>
+      {f.reserved ? (
+        <label className="a-field">
+          <span className="a-label">Occasion note (optional)</span>
+          <input value={f.reserved_note} onChange={(e) => set("reserved_note", e.target.value)} maxLength={40} placeholder="Kathi's 50th" />
+          <span className="a-quiet a-small">Guests still see it on the menu, locked: “Ask the host”{f.reserved_note.trim() ? `, “Saved for ${f.reserved_note.trim()}”` : ""}. Drinks that need it are locked too.</span>
+        </label>
+      ) : null}
       {/* Soft warning (migration 030): more than 3 bottles Featured and in stock (what guests see). Non-blocking.
           featuredCount is the saved total; this bottle counts as it is on the form. */}
       {(featuredCount + (f.featured && f.in_stock ? 1 : 0) - (product?.featured && product.in_stock ? 1 : 0)) > 3 ? (

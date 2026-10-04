@@ -88,14 +88,24 @@ export async function saveProduct(id: string | null, body: Record<string, unknow
   const specLabel = null;
   // Grape (migration 031): wines only (the form sends it empty for anything else); blank = none. Display text, not an ingredient.
   const grape = text(body.grape, 80);
+  // Reserved (migration 032): kept for an occasion; independent of in_stock. Never with featured (the form turns
+  // one off when the other goes on; a request with both is refused, like the CHECK). The note is optional,
+  // trimmed, at most 40 characters, and only kept while reserved.
+  const featured = bool(body.featured);
+  const reserved = bool(body.reserved);
+  if (featured && reserved) throw new UserError("A bottle can't be both Featured and Reserved. Turn one off.");
+  const note = typeof body.reserved_note === "string" ? body.reserved_note.trim() : "";
+  if (reserved && note.length > 40) throw new UserError("The occasion note can be at most 40 characters.");
+  const reservedNote = reserved && note ? note : null;
   const v = [
     name, text(body.brand, 120), text(body.description, 2000), text(body.origin, 120), text(body.serve_note, 200), abv, upc,
-    familyId, bool(body.in_stock), bool(body.featured), !pourable, servesNeat, servesRocks, pourable && bool(body.serves_chilled),
-    bool(body.fortified), wineColor, eff, shortName, specLabel, grape,
+    familyId, bool(body.in_stock), featured, !pourable, servesNeat, servesRocks, pourable && bool(body.serves_chilled),
+    bool(body.fortified), wineColor, eff, shortName, specLabel, grape, reserved, reservedNote,
   ];
   const cols = `display_name = $2, brand = $3, description = $4, origin = $5, serve_note = $6, abv = $7, upc = $8,
     family_id = $9, in_stock = $10, featured = $11, mix_only = $12, serves_neat = $13, serves_rocks = $14, serves_chilled = $15,
-    fortified = $16, wine_color = $17, wine_effervescence = $18, short_name = $19, spec_label = $20, grape = $21`;
+    fortified = $16, wine_color = $17, wine_effervescence = $18, short_name = $19, spec_label = $20, grape = $21,
+    reserved = $22, reserved_note = $23`;
   const pid = id ?? randomUUID();
   const stmts: Stmt[] = [];
   if (id) {
@@ -111,8 +121,8 @@ export async function saveProduct(id: string | null, body: Record<string, unknow
       `WITH ins AS (
          INSERT INTO products (id, packaged_name, display_name, brand, description, origin, serve_note, abv, upc, family_id,
                                in_stock, featured, mix_only, serves_neat, serves_rocks, serves_chilled, fortified, wine_color, wine_effervescence,
-                               short_name, spec_label, grape)
-         VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                               short_name, spec_label, grape, reserved, reserved_note)
+         VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
          RETURNING to_jsonb(products.*) j)
        INSERT INTO change_log (entity, entity_id, action, summary, after)
        SELECT 'product', $1::text, 'create', 'Added ' || $2, ins.j FROM ins`,

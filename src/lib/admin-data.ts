@@ -168,14 +168,14 @@ export type ProductRow = {
   id: string; display_name: string; short_name: string | null; spec_label: string | null; packaged_name: string; brand: string | null; description: string | null;
   origin: string | null; serve_note: string | null; abv: string | null; upc: string | null; family_id: string | null;
   in_stock: boolean; featured: boolean; mix_only: boolean; serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean;
-  fortified: boolean; wine_color: string; wine_effervescence: string; spec_id: string | null; other_spec_ids: string[];
+  fortified: boolean; wine_color: string; wine_effervescence: string; grape: string | null; spec_id: string | null; other_spec_ids: string[];
 };
 
 export async function loadProduct(id: string): Promise<ProductRow | null> {
   const [p] = await query<ProductRow>(
     `SELECT p.id, p.display_name, p.short_name, p.spec_label, p.packaged_name, p.brand, p.description, p.origin, p.serve_note, p.abv::text AS abv,
             p.upc, p.family_id, p.in_stock, p.featured, p.mix_only, p.serves_neat, p.serves_rocks, p.serves_chilled,
-            p.fortified, p.wine_color, p.wine_effervescence,
+            p.fortified, p.wine_color, p.wine_effervescence, p.grape,
             (SELECT ps.spec_id FROM product_specs ps WHERE ps.product_id = p.id ORDER BY ps.is_primary DESC LIMIT 1) AS spec_id,
             COALESCE((SELECT array_agg(ps.spec_id) FROM product_specs ps WHERE ps.product_id = p.id AND NOT ps.is_primary), '{}') AS other_spec_ids
        FROM products p WHERE p.id = $1`,
@@ -183,6 +183,10 @@ export async function loadProduct(id: string): Promise<ProductRow | null> {
   );
   return p ?? null;
 }
+
+/** Grapes already on a bottle (migration 031), for the wine form's suggestions. Free text; nothing is created here. */
+export const loadGrapes = () =>
+  query<{ grape: string }>("SELECT DISTINCT grape FROM products WHERE grape IS NOT NULL ORDER BY grape").then((rows) => rows.map((r) => r.grape));
 
 export type Glass = { id: number; name: string };
 export const loadGlassware = () => query<Glass>("SELECT id, name FROM glassware ORDER BY id");

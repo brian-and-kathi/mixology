@@ -20,7 +20,8 @@ export type Sub = { detail: string; fit: string[]; /** Place name as it appears 
  * `spec`: the badge after a Pours name ("Rye", see lib/spec-label; none when the name already says it);
  * other sections have none. `measure`: the text the TV sizes the column by (the full name, so column
  * widths are exactly what they were before short names and badges). `famStart` (Pours): the first bottle of a
- * spirit family after another family (lib/spirit-family.ts); the phone and TV add a small gap above it.
+ * spirit family after another family (lib/spirit-family.ts); (Cellar): the first wine of a category after another
+ * category (wineCategory, migration 031). The phone and TV add the same small gap above it.
  */
 export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40% abv" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean };
 export type Menu = Record<SectionId, MenuItem[]>;
@@ -48,6 +49,37 @@ function byFamily(rows: (MenuItem & { family: number; sortBadge: string })[]): M
 export const featuredFirst = <T extends { featured?: boolean }>(items: T[]): T[] =>
   [...items.filter((i) => i.featured), ...items.filter((i) => !i.featured)];
 
+/** Cellar color groups, in menu order (wine_style_group(), migration 011); anything else ("unsorted": sake, fruit wine) is Other, last. */
+export const WINE_GROUPS = ["red", "rose", "white", "sparkling"] as const;
+const wineGroup = (styleGroup: string | null) => {
+  const i = WINE_GROUPS.indexOf((styleGroup ?? "") as (typeof WINE_GROUPS)[number]);
+  return i < 0 ? WINE_GROUPS.length : i;
+};
+
+/**
+ * A Cellar wine's category (migration 031): its grape ("Cabernet Sauvignon"), or with no grape its main
+ * ingredient's label ("Sangria", "Sake", "Cranberry wine"). Grapes are display text, never ingredients, so
+ * recipes still match the bottle on its type ("red wine"). Shared by the Cellar list and the wine page.
+ */
+export function wineCategory(grape: string | null | undefined, type: string | null | undefined): string | null {
+  const g = (grape ?? "").trim();
+  return g || specLabel(type);
+}
+
+/**
+ * Cellar in color-group order (red, rosé, white, sparkling, other), then by category, then by name. Featured
+ * wines (migration 030) come first, in the same order, like Pours. Marks the first wine of each category with
+ * famStart (the gap Pours puts between spirit families); the first category after the featured wines gets it too.
+ */
+function byCategory(rows: (MenuItem & { group: number; category: string })[]): MenuItem[] {
+  const sorted = [...rows].sort((a, b) => Number(!!b.featured) - Number(!!a.featured) || a.group - b.group || cmp(a.category, b.category) || cmp(a.name, b.name));
+  return sorted.map(({ group, category, ...item }, i) => {
+    const prev = sorted[i - 1];
+    const famStart = !!prev && !item.featured && (!!prev.featured || group !== prev.group || cmp(category, prev.category) !== 0);
+    return { ...item, famStart };
+  });
+}
+
 /**
  * The three guest sections come straight from the existing database views:
  * menu_neat (Pours), menu_mixed (buildable Cocktails), menu_wines (Cellar).
@@ -70,9 +102,9 @@ export async function loadMenu(): Promise<Menu> {
          JOIN recipes r ON r.id = m.id
          LEFT JOIN glassware g ON g.id = r.glass_id`,
     ),
-    query<{ id: string; name: string; origin: string | null; type: string | null; sparkling: boolean; featured: boolean }>(
+    query<{ id: string; name: string; origin: string | null; type: string | null; grape: string | null; style_group: string | null; sparkling: boolean; featured: boolean }>(
       `SELECT w.id, w.display_name AS name, w.origin, (w.wine_effervescence = 'sparkling') AS sparkling,
-              (w.id IN (SELECT featured_product_ids())) AS featured,
+              w.grape, w.style_group, (w.id IN (SELECT featured_product_ids())) AS featured,
               (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
                 WHERE ps.product_id = w.id AND ps.is_primary) AS type
          FROM menu_wines w`,
@@ -88,7 +120,12 @@ export async function loadMenu(): Promise<Menu> {
         family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" };
     })),
     cocktails: featuredFirst(cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName)),
-    cellar: featuredFirst(cellar.map((w) => ({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: badgeFor(w.name, specLabel(w.type)), featured: w.featured, ...wineLine(w) })).sort(byName)),
+    // Cellar: the badge is the category (grape, else the type's label), hidden when the name already says it ("… Merlot 2020").
+    cellar: byCategory(cellar.map((w) => {
+      const category = wineCategory(w.grape, w.type);
+      return { id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: badgeFor(w.name, category), featured: w.featured, ...wineLine(w),
+        group: wineGroup(w.style_group), category: category ?? "" };
+    })),
   };
 }
 
@@ -411,6 +448,8 @@ export type Wine = {
   brand: string | null;
   origin: string | null;
   type: string | null;
+  /** Grape (migration 031), or null. */
+  grape: string | null;
   abv: string | null;
   description: string | null;
   serve_note: string | null;
@@ -426,7 +465,7 @@ export type Wine = {
 export async function loadWine(id: string): Promise<Wine | null> {
   if (!isUuid(id)) return null;
   const [wine] = await query<Wine>(
-    `SELECT w.id, w.display_name AS name, p.brand, w.origin, p.abv::text AS abv, w.description, w.serve_note, w.pairing_notes,
+    `SELECT w.id, w.display_name AS name, p.brand, w.origin, w.grape, p.abv::text AS abv, w.description, w.serve_note, w.pairing_notes,
             (w.wine_effervescence = 'sparkling') AS sparkling, p.serves_chilled, p.serves_neat, p.serves_rocks,
             (w.id IN (SELECT featured_product_ids())) AS featured,
             (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id

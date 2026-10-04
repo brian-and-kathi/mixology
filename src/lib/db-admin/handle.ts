@@ -240,7 +240,7 @@ async function saveSpec(id: string | null, input: ReturnType<typeof specInput>) 
 function productForm(product: Bag | null, selectedSpecs: string[], primarySpecId: string, families: { id: string; canonical_name: string }[], specs: { id: string; canonical_name: string }[], error: string | null) {
   const value = product ?? {
     upc: "", packaged_name: "", display_name: "", short_name: "", spec_label: "", brand: "", description: "", rating: "",
-    origin: "", pairing_notes: "", serve_note: "", family_id: "", wine_color: "not_applicable", wine_effervescence: "not_applicable",
+    origin: "", pairing_notes: "", serve_note: "", family_id: "", wine_color: "not_applicable", wine_effervescence: "not_applicable", grape: "",
     fortified: false, net_contents_amount: "", net_contents_unit: "", abv: "", in_stock: false, serves_neat: false, serves_rocks: false,
     serves_chilled: false, mix_only: false, serves_glass: false, serves_bottle: false, decanting: false,
   };
@@ -271,6 +271,7 @@ function productForm(product: Bag | null, selectedSpecs: string[], primarySpecId
             ${field("ABV", text("abv", value.abv, 'inputmode="decimal"'), "Alcohol percent. Leave empty if you do not know it.")}
             ${field("Net contents", `<span class="actions">${text("net_contents_amount", value.net_contents_amount, 'inputmode="decimal"')} ${select("net_contents_unit", options(UNITS), value.net_contents_unit ?? "")}</span>`, "How much is in the package, such as 750 ml.")}
             ${field("Wine color", select("wine_color", options(WINE_COLORS), value.wine_color), "This bottle's color.")}
+            ${field("Grape", text("grape", value.grape), "Wines only: the grape, such as Cabernet Sauvignon. The Cellar shows it as the category. Leave empty for none. Not a spec.")}
             ${field("Effervescence", select("wine_effervescence", options(EFFERVESCENCE), value.wine_effervescence), "Still or sparkling.")}
           </div>
           <div class="grid">
@@ -355,7 +356,7 @@ function productInput(body: Bag) {
   return {
     displayName, packagedName, shortName: blank(body.short_name), specLabel: null, upc, familyId,
     brand: blank(body.brand), description: blank(body.description), rating, origin: blank(body.origin),
-    pairing: blank(body.pairing_notes), serve: blank(body.serve_note), abv, amount, unit, wineColor, eff,
+    pairing: blank(body.pairing_notes), serve: blank(body.serve_note), abv, amount, unit, wineColor, eff, grape: blank(body.grape),
     fortified: checked(body.fortified), inStock: checked(body.in_stock), servesNeat, servesRocks,
     servesChilled: checked(body.serves_chilled), mixOnly, servesGlass: checked(body.serves_glass),
     servesBottle: checked(body.serves_bottle), decanting: checked(body.decanting), specIds, primary,
@@ -368,11 +369,12 @@ async function saveProduct(id: string | null, input: ReturnType<typeof productIn
     productId, input.upc, input.packagedName, input.displayName, input.shortName, input.specLabel, input.brand, input.description, input.rating,
     input.origin, input.pairing, input.serve, input.servesNeat, input.servesRocks, input.servesChilled, input.mixOnly,
     input.servesGlass, input.servesBottle, input.familyId, input.wineColor, input.eff, input.fortified, input.amount, input.unit, input.abv, input.inStock, input.decanting,
+    input.grape,
   ];
   const set = `upc = $2, packaged_name = $3, display_name = $4, short_name = $5, spec_label = $6, brand = $7, description = $8, rating = $9,
     origin = $10, pairing_notes = $11, serve_note = $12, serves_neat = $13, serves_rocks = $14, serves_chilled = $15, mix_only = $16,
     serves_glass = $17, serves_bottle = $18, family_id = $19, wine_color = $20, wine_effervescence = $21, fortified = $22,
-    net_contents_amount = $23, net_contents_unit = $24, abv = $25, in_stock = $26, decanting = $27`;
+    net_contents_amount = $23, net_contents_unit = $24, abv = $25, in_stock = $26, decanting = $27, grape = $28`;
   const stmts: [string, unknown[]][] = [];
   if (id) {
     stmts.push(log("product", id, "update", `Edited ${input.displayName}`, { id }, { ...input, id }));
@@ -382,8 +384,8 @@ async function saveProduct(id: string | null, input: ReturnType<typeof productIn
     stmts.push([
       `INSERT INTO products (id, upc, packaged_name, display_name, short_name, spec_label, brand, description, rating, origin, pairing_notes, serve_note,
          serves_neat, serves_rocks, serves_chilled, mix_only, serves_glass, serves_bottle, family_id, wine_color, wine_effervescence, fortified,
-         net_contents_amount, net_contents_unit, abv, in_stock, decanting)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)`,
+         net_contents_amount, net_contents_unit, abv, in_stock, decanting, grape)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`,
       params,
     ]);
     stmts.push(log("product", productId, "create", `Added ${input.displayName}`, null, { ...input, id: productId }));

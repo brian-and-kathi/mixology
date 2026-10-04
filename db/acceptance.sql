@@ -1301,6 +1301,63 @@ BEGIN
   RAISE NOTICE 'check 27 passed';
 END $$;
 
+-- 28. Grape (031): products.grape is optional, never blank or padded, and is the LAST menu_wines column (the
+-- others keep their order). Setting one keeps the bottle in the Cellar, leaves its ingredient links and the
+-- buildable cocktails alone (a grape is not an ingredient, so the red-wine link recipes use survives), shows in
+-- menu_wines and bumps the change signal. No grape in use is also an ingredient name or alias.
+DO $$
+DECLARE
+  v_product uuid;
+  v_before  bigint;
+  v_after   bigint;
+  v_links   text;
+  v_mixed   uuid[];
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name = 'products' AND column_name = 'grape' AND data_type = 'text' AND is_nullable = 'YES') THEN
+    RAISE EXCEPTION 'check 28 failed: products.grape is missing or not optional text';
+  END IF;
+  IF (SELECT string_agg(column_name, ',' ORDER BY ordinal_position) FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'menu_wines')
+     IS DISTINCT FROM 'id,display_name,description,rating,origin,serve_note,pairing_notes,wine_color,wine_effervescence,fortified,style_group,grape' THEN
+    RAISE EXCEPTION 'check 28 failed: menu_wines columns moved or grape is not last';
+  END IF;
+  SELECT p.id INTO v_product FROM products p WHERE is_cellar_wine(p.id) ORDER BY p.id LIMIT 1;
+  IF v_product IS NULL THEN RAISE EXCEPTION 'check 28 failed: no Cellar wine to test with'; END IF;
+  UPDATE products SET in_stock = true, grape = NULL WHERE id = v_product;
+  BEGIN
+    UPDATE products SET grape = '   ' WHERE id = v_product;
+    RAISE EXCEPTION 'check 28 failed: a blank grape was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  BEGIN
+    UPDATE products SET grape = ' Merlot' WHERE id = v_product;
+    RAISE EXCEPTION 'check 28 failed: a padded grape was accepted';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+  SELECT string_agg(spec_id::text || ':' || is_primary, ',' ORDER BY spec_id) INTO v_links FROM product_specs WHERE product_id = v_product;
+  SELECT array_agg(id ORDER BY id) INTO v_mixed FROM menu_mixed;
+  SELECT menu_version INTO v_before FROM bar_versions WHERE id = 1;
+  UPDATE products SET grape = 'Acceptance Grape' WHERE id = v_product;
+  SELECT menu_version INTO v_after FROM bar_versions WHERE id = 1;
+  IF v_after <= v_before THEN RAISE EXCEPTION 'check 28 failed: setting a grape did not bump menu_version'; END IF;
+  IF (SELECT grape FROM menu_wines WHERE id = v_product) IS DISTINCT FROM 'Acceptance Grape' THEN
+    RAISE EXCEPTION 'check 28 failed: menu_wines does not show the grape';
+  END IF;
+  IF NOT is_cellar_wine(v_product) THEN RAISE EXCEPTION 'check 28 failed: a grape took the bottle out of the Cellar'; END IF;
+  IF (SELECT string_agg(spec_id::text || ':' || is_primary, ',' ORDER BY spec_id) FROM product_specs WHERE product_id = v_product) IS DISTINCT FROM v_links THEN
+    RAISE EXCEPTION 'check 28 failed: a grape changed the bottle''s ingredient links';
+  END IF;
+  IF (SELECT array_agg(id ORDER BY id) FROM menu_mixed) IS DISTINCT FROM v_mixed THEN
+    RAISE EXCEPTION 'check 28 failed: a grape changed which cocktails are buildable';
+  END IF;
+  IF EXISTS (SELECT 1 FROM products p JOIN specs s ON lower(s.canonical_name) = lower(p.grape))
+     OR EXISTS (SELECT 1 FROM products p JOIN spec_aliases a ON lower(a.alias) = lower(p.grape)) THEN
+    RAISE EXCEPTION 'check 28 failed: a grape is also an ingredient (grapes are display only)';
+  END IF;
+  RAISE NOTICE 'check 28 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

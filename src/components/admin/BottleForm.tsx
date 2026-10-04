@@ -14,7 +14,7 @@ type Form = {
   display_name: string; short_name: string; spec_label: string; spec_id: string | null; family_id: string; in_stock: boolean; featured: boolean; pourable: boolean;
   serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean; description: string;
   brand: string; origin: string; abv: string; serve_note: string; upc: string; fortified: boolean;
-  wine_color: string; wine_effervescence: string;
+  wine_color: string; wine_effervescence: string; grape: string;
 };
 
 function initial(p: ProductRow | null): Form {
@@ -24,13 +24,14 @@ function initial(p: ProductRow | null): Form {
     serves_rocks: p?.serves_rocks ?? false, serves_chilled: p?.serves_chilled ?? false, description: p?.description ?? "",
     brand: p?.brand ?? "", origin: p?.origin ?? "", abv: p?.abv ? String(Number(p.abv)) : "", serve_note: p?.serve_note ?? "",
     upc: p?.upc ?? "", fortified: p?.fortified ?? false, wine_color: p?.wine_color ?? "not_applicable",
-    wine_effervescence: p?.wine_effervescence ?? "not_applicable",
+    wine_effervescence: p?.wine_effervescence ?? "not_applicable", grape: p?.grape ?? "",
   };
 }
 
 /** Add / edit a bottle. Short form first; rarer fields under "More details". */
 /** `wine` + `presetSpecId`: "Add wine" from the Wines view, with a wine type already chosen in "What is it?". */
-export function BottleForm({ product, specs: initialSpecs, families, shared, wine = false, presetSpecId = null, featuredCount = 0 }: { product: ProductRow | null; specs: SpecOption[]; families: Family[]; shared: boolean | null; wine?: boolean; presetSpecId?: string | null; featuredCount?: number }) {
+/** `grapes`: grapes already on a bottle (migration 031), offered as suggestions in the wine-only Grape field. */
+export function BottleForm({ product, specs: initialSpecs, families, shared, wine = false, presetSpecId = null, featuredCount = 0, grapes = [] }: { product: ProductRow | null; specs: SpecOption[]; families: Family[]; shared: boolean | null; wine?: boolean; presetSpecId?: string | null; featuredCount?: number; grapes?: string[] }) {
   const router = useRouter();
   const [specs, setSpecs] = useState(initialSpecs);
   const kindOf = (s: SpecOption | undefined) => families.find((x) => x.id === s?.family_id)?.kind;
@@ -82,7 +83,8 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
     setSaving(true);
     setError(null);
     try {
-      const body = { ...f, family_id: f.family_id || spec?.family_id || null };
+      // Grape is for wines only: anything else saves none (migration 031).
+      const body = { ...f, family_id: f.family_id || spec?.family_id || null, grape: isWine ? f.grape.trim() : "" };
       if (product) await api(`/api/admin/products/${product.id}`, "PUT", body);
       else await api("/api/admin/products", "POST", body);
       router.push(`/admin?saved=${encodeURIComponent(f.display_name)}`); // Stock (the Bottles list is gone)
@@ -182,6 +184,13 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
               <select value={f.wine_color} onChange={(e) => set("wine_color", e.target.value)}>
                 <option value="not_applicable">Not a wine</option><option value="red">Red</option><option value="white">White</option><option value="rose">Rosé</option><option value="unknown">Not sure</option>
               </select>
+            </label>
+            {/* Grape (migration 031): the wine's category on the Cellar. Free text, with the grapes already in use as
+                suggestions; empty = the type's label (Sangria, Sake). Not an ingredient: recipes still match the type. */}
+            <label className="a-field"><span className="a-label">Grape</span>
+              <input value={f.grape} onChange={(e) => set("grape", e.target.value)} list="grape-suggestions" maxLength={80} placeholder="e.g. Cabernet Sauvignon" autoComplete="off" />
+              <datalist id="grape-suggestions">{grapes.map((g) => <option key={g} value={g} />)}</datalist>
+              <span className="a-quiet a-small">Guests see it as the wine&apos;s category on the Cellar. Leave empty to use the type{spec ? ` (“${specLabel(spec.name)}”)` : ""}.</span>
             </label>
             <label className="a-field"><span className="a-label">Bubbles</span>
               <select value={f.wine_effervescence} onChange={(e) => set("wine_effervescence", e.target.value)}>

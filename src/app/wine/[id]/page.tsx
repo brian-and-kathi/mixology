@@ -7,7 +7,7 @@ import { PhoneShell } from "@/components/PhoneShell";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { cap, wineServeLine } from "@/lib/format";
-import { loadWine, wineGlass } from "@/lib/menu";
+import { loadWine, wineCategory, wineGlass } from "@/lib/menu";
 import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +25,12 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
   const editHref = admin ? `/admin/bottles/${wine.id}` : undefined;
 
   const lower = wine.name.toLowerCase();
+  // The category is the grape (migration 031), else the type ("Sangria"), as on the Cellar; left out when the name says it.
+  const category = wineCategory(wine.grape, wine.type);
   const details = [
     wine.brand && !lower.includes(wine.brand.toLowerCase()) ? wine.brand : null,
     wine.origin,
-    wine.type && !lower.includes(wine.type.toLowerCase()) ? cap(wine.type) : null,
+    category && !lower.includes(category.toLowerCase()) ? cap(category) : null,
     wine.abv && Number(wine.abv) > 0 ? `${Number(wine.abv)}%\u00a0ABV` : null,
   ].filter(Boolean);
   const serve = wineServeLine(wine.serves_chilled, wine.serves_neat, wine.serves_rocks);

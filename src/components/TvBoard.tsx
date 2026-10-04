@@ -48,10 +48,10 @@ function pack(heights: number[], gaps: number[], available: number, reserve: (co
 const TV_FEATURED: "tag" | "star" = "star";
 
 /**
- * Reserved rows (migration 032): the icon before the name. "key": the skeleton key (same as the phone); "padlock":
- * the fallback if the key reads poorly from the couch. The brass "Ask the host" tag ends the line under the name.
+ * Reserved rows (migration 032): the icon before the name. "padlock" (Brian, 2026-10-04: it reads better from the
+ * couch); "key": the skeleton key the phone and admin use. The brass "Ask the host" tag ends the line under the name.
  */
-const TV_RESERVED_ICON: "key" | "padlock" = "key";
+const TV_RESERVED_ICON: "key" | "padlock" = "padlock";
 
 /** Total height of the featured rows (migration 030), pinned to the top of every page's first sub-column. */
 function pinnedHeight(items: MenuItem[], heights: number[]): number {

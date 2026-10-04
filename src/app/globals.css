@@ -88,8 +88,8 @@ h1, h2, p { margin: 0; }
 .tv-no-detail .tv-list > .tv-row.fam-start { margin-top: 0; }
 .tv-row { display: flex; align-items: center; gap: 0.7vw; padding: 1.05vh 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 2.75vh; line-height: 1.25; }
 .tv-row .glass { width: 3.6vh; height: 3.6vh; color: rgba(255, 255, 255, 0.85); }
-/* Subtext under every name (ingredients, region · ABV, region · style): one muted line, truncated by
-   measurement at whole items (FitLine), not CSS text-overflow.
+/* Subtext under every name (ingredients, region · ABV, region · style): one muted line that wraps onto more
+   lines when it is too long, like names (FitLine; never clipped or shortened).
    The glass stays on the name row. Hidden on all columns together when a cast would force paging. */
 .tv-row { align-items: flex-start; }
 .tv-row .glass { margin-top: calc((2.75vh * 1.25 - 3.6vh) / 2); }
@@ -126,7 +126,8 @@ h1, h2, p { margin: 0; }
 .phone-title-text { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; min-width: 0; }
 .spec-badge.title-badge { margin-left: 0; font-size: calc(1.6rem * 0.72); vertical-align: baseline; }
 /* Gold subtext, about 30% smaller than the previous max(1.7vh, 0.72em). */
-.tv-detail { font-size: max(1.19vh, 0.5em); line-height: 1.2; margin-top: 0.05vh; color: var(--gold); font-weight: 400; white-space: nowrap; overflow: hidden; }
+/* Long lines wrap like names (Vincent, 2026-10-04); place names and ingredients stay whole (TvBoard tvWrapText), chips never break. */
+.tv-detail { font-size: max(1.19vh, 0.5em); line-height: 1.2; margin-top: 0.05vh; color: var(--gold); font-weight: 400; white-space: normal; overflow-wrap: anywhere; }
 /* Place names match the bottle icon (white on the TV, the name color on the phone). The rest of the line stays gold. */
 .tv-origin { color: rgba(255, 255, 255, 0.85); }
 .tv-row.on .tv-origin { color: var(--cream); }

@@ -13,7 +13,8 @@ export type SectionId = (typeof SECTIONS)[number]["id"];
 /**
  * Subtext under a name. `detail` is the phone line (items joined with a no-break space before each
  * " · ", so a wrapped line never starts with a dot). `fit` is the TV's candidates, longest first:
- * the TV measures and shows the first one that fits on one line (see TvBoard FitLine).
+ * the TV shows the first (the whole line) and wraps it when it is too long (TvBoard FitLine, 2026-10-04); the
+ * shorter candidates are no longer used.
  */
 export type Sub = { detail: string; fit: string[]; /** Place name as it appears at the start of `detail` (phone) and of the TV line. */ origin?: string; /** Shorter place shown on the TV when the phone line keeps the full origin. */ originTv?: string };
 /**
@@ -202,8 +203,8 @@ const keepAbv = (abv: string) => abv.replace(/ ABV$/, `${NBSP}ABV`);
 
 /**
  * A list line ("Rye · sweet vermouth · cherry liqueur"), only the first word capitalized.
- * TV candidates cut at whole items with a trailing "· …" ("Rye · sweet vermouth · …"); as a last
- * resort the first item loses whole words ("Grand …"). Never mid-word.
+ * Shorter TV candidates cut at whole items with a trailing "· …" ("Rye · sweet vermouth · …"); the TV now
+ * shows only the first (whole) one and wraps it, so these are kept for reference only.
  */
 function listSub(items: string[]): { detail: string; fit: string[] } | null {
   const list = [...new Set(items.map((i) => i.trim()).filter(Boolean))];

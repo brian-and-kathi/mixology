@@ -100,7 +100,7 @@ function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): 
   if (!ctx) return 0;
   const rs = getComputedStyle(row);
   ctx.font = `${rs.fontWeight} ${rs.fontSize} ${rs.fontFamily}`;
-  // Only names set the width; the detail line under a name truncates with an ellipsis instead.
+  // Only names set the width; the detail line under a name wraps instead (FitLine).
   // Pours rows are sized by the bottle's full name (data-measure), not the short name and badge, so every
   // column keeps the width it had before badges; the badge fits in that room or moves to the subtext line.
   const text = Math.max(...[...ruler.querySelectorAll<HTMLElement>(".tv-name")].map((el) => ctx.measureText(el.dataset.measure ?? el.textContent ?? "").width));
@@ -111,49 +111,35 @@ function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): 
   return n * perRow + (n - 1) * subGap + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + 1;
 }
 
-let fitCanvas: HTMLCanvasElement | null = null;
 /**
- * One-line subtext with measured truncation: shows the first candidate (longest first, cut only at
- * whole items or words, e.g. "Rye · sweet vermouth · …") that fits the row. Re-measures when the
- * row or the text size changes (column widths, cast shrink, web fonts).
+ * TV subtext: keeps each place name or ingredient whole (no-break spaces inside "Old Mission Peninsula",
+ * "Traverse City", "sweet vermouth"), so a long line only wraps after a comma or before a " · " item, and a
+ * wrapped line never starts with a dot. Text is never shortened.
+ */
+export function tvWrapText(text: string): string {
+  return text
+    .split(" · ")
+    .map((item) => item.split(/,\s*/).map((part) => part.trim().replace(/\s+/g, "\u00a0")).filter(Boolean).join(", "))
+    .join("\u00a0· ");
+}
+
+/**
+ * The subtext under a TV name (Vincent, 2026-10-04): the whole line (fit[0], the longest candidate), wrapping
+ * onto a second line when it is wider than the row, the same way long names wrap. Never clipped, never cut to
+ * "· …". The Pours badge comes first and a Featured or "Ask the host" tag last; chips never break inside.
+ * Row heights (and so sub-columns and paging) are measured from the rendered rows, so a wrapped line counts.
  */
 function FitLine({ fit, badge = null, origin = null, featured = false, reserved = false }: { fit: string[]; badge?: string | null; origin?: string | null; featured?: boolean; reserved?: boolean }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const badgeRef = useRef<HTMLSpanElement>(null);
-  const tagRef = useRef<HTMLSpanElement>(null);
-  const [text, setText] = useState(fit[0]);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    const box = el?.parentElement;
-    if (!el || !box) return;
-    const run = () => {
-      // The Pours spec badge is always first on this line and a featured tag (migration 030) last; the text
-      // between them gets the room that is left.
-      const room = (n: HTMLElement | null) => (n ? n.getBoundingClientRect().width + parseFloat(getComputedStyle(n).marginRight || "0") + parseFloat(getComputedStyle(n).marginLeft || "0") : 0);
-      const width = box.clientWidth - room(badgeRef.current) - room(tagRef.current);
-      if (!box.clientWidth) return;
-      fitCanvas ??= document.createElement("canvas");
-      const ctx = fitCanvas.getContext("2d");
-      if (!ctx) return;
-      const cs = getComputedStyle(el);
-      ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-      setText(fit.find((t) => ctx.measureText(t).width <= width - 1) ?? fit[fit.length - 1]);
-    };
-    run();
-    const ro = new ResizeObserver(run);
-    ro.observe(box);
-    ro.observe(el);
-    void document.fonts?.ready.then(run);
-    return () => ro.disconnect();
-  }, [fit, badge, featured, reserved]);
-  const place = origin && text.startsWith(origin) ? origin : "";
+  const text = tvWrapText(fit[0] ?? "");
+  const from = origin ? tvWrapText(origin) : "";
+  const place = from && text.startsWith(from) ? from : "";
   return (
-    <span ref={ref} className="tv-detail">
-      {badge ? <span ref={badgeRef} className="spec-badge">{badge}</span> : null}
+    <span className="tv-detail">
+      {badge ? <span className="spec-badge">{badge}</span> : null}
       {place ? <span className="tv-origin">{place}</span> : null}
       {place ? text.slice(place.length) : text}
-      {featured ? <span ref={tagRef} className="feat-tag tv-feat-tag">Featured</span> : null}
-      {reserved ? <span ref={tagRef} className="res-tag tv-res-tag">Ask the host</span> : null}
+      {featured ? <span className="feat-tag tv-feat-tag">Featured</span> : null}
+      {reserved ? <span className="res-tag tv-res-tag">Ask the host</span> : null}
     </span>
   );
 }

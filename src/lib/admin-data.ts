@@ -6,7 +6,8 @@ import { query } from "@/lib/db";
 export type Family = { id: string; slug: string; name: string; kind: string; allows_flavoring: boolean };
 /** `wine`: the bottle belongs in the guest Cellar (is_cellar_wine, migration 020): the admin Wines view. */
 /** `label`: the bottle's own badge label (migration 023), shown instead of the type when set. */
-export type StockItem = { id: string; name: string; in_stock: boolean; featured: boolean; family: string; family_order: number; spec: string | null; label: string | null; wine: boolean };
+/** `origin`: the bottle's Origin field, matched by the Stock search ("michigan", "traverse city"); not shown. */
+export type StockItem = { id: string; name: string; in_stock: boolean; featured: boolean; family: string; family_order: number; spec: string | null; label: string | null; wine: boolean; origin: string | null };
 export type Change = { id: number; at: string; summary: string; entity_id: string; action: string; before: { in_stock?: boolean } | null; after: { in_stock?: boolean } | null; undone: boolean };
 
 export async function loadFamilies(): Promise<Family[]> {
@@ -19,7 +20,7 @@ export async function loadStock(): Promise<StockItem[]> {
             COALESCE(pf.canonical_name, sf.canonical_name, 'other') AS family,
             COALESCE(pf.sort_order, sf.sort_order, 999) AS family_order,
             s.canonical_name AS spec, p.spec_label AS label,
-            is_cellar_wine(p.id) AS wine
+            is_cellar_wine(p.id) AS wine, p.origin
        FROM products p
        LEFT JOIN families pf ON pf.id = p.family_id
        LEFT JOIN LATERAL (SELECT ps.spec_id FROM product_specs ps WHERE ps.product_id = p.id

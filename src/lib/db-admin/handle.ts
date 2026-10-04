@@ -792,7 +792,7 @@ const PRODUCT_FLAGS: [string, string, string][] = [
 
 async function productsPage(saved: string | null) {
   const rows = await q<Bag>(
-    `SELECT p.id, p.display_name, p.packaged_name, p.brand, p.in_stock, p.upc,
+    `SELECT p.id, p.display_name, p.packaged_name, p.brand, p.origin, p.in_stock, p.upc,
             p.serves_neat, p.serves_rocks, p.serves_chilled, p.mix_only, p.serves_glass, p.serves_bottle, p.fortified, p.decanting,
             f.canonical_name AS family_name,
             coalesce(string_agg(s.canonical_name, ', ' ORDER BY ps.is_primary DESC, s.canonical_name), '') AS spec_names
@@ -803,7 +803,7 @@ async function productsPage(saved: string | null) {
       GROUP BY p.id, f.canonical_name
       ORDER BY p.display_name`,
   );
-  const body = rows.map((product) => `<tr data-search="${esc([product.display_name, product.packaged_name, product.brand, product.upc, product.family_name, product.spec_names].filter(Boolean).join(" "))}">
+  const body = rows.map((product) => `<tr data-search="${esc([product.display_name, product.packaged_name, product.brand, product.origin, product.upc, product.family_name, product.spec_names].filter(Boolean).join(" "))}">
     <td><a href="${DB}/products/${product.id}">${esc(product.display_name)}</a><div class="hint">${esc(product.upc ?? "No UPC")}</div></td>
     ${PRODUCT_FLAGS.map(([key, letter, label]) => `<td class="flag"${product[key] ? ` data-tip="${esc(label)}"` : ""}>${product[key] ? letter : ""}</td>`).join("")}
     <td>${esc(product.family_name ?? "")}</td>
@@ -816,7 +816,7 @@ async function productsPage(saved: string | null) {
     active: `${DB}/products`,
     notice: saved ? `Saved ${saved}.` : "",
     body: `${heading("Products", `Each bottle, batch, or piece of produce is one row. Mark bottles in or out on <a href="/admin/stock">Admin stock</a>.`, `<a class="button" href="${DB}/products/new">New product</a>`)}
-      ${searchForm("Find a product by name, brand, UPC, or a flag such as Neat.", "products")}
+      ${searchForm("Find a product by name, brand, origin, UPC, or a flag such as Neat.", "products")}
       <div class="table-scroll"><table><thead><tr><th>Name</th>${flagHeads}<th>Family</th><th>Specs</th><th></th></tr></thead>
       <tbody>${body || `<tr><td colspan="12" class="empty">No products yet.</td></tr>`}</tbody></table></div>`,
   }));

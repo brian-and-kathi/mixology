@@ -110,7 +110,8 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const needle = fold(q.trim());
   const wines = kind === "wines";
-  const matches = (it: StockItem) => !needle || fold(it.name).includes(needle) || fold(it.spec ?? "").includes(needle);
+  // Name, type or Origin ("michigan", "traverse city"), case- and accent-insensitive.
+  const matches = (it: StockItem) => !needle || fold(it.name).includes(needle) || fold(it.spec ?? "").includes(needle) || fold(it.origin ?? "").includes(needle);
   const inView = items.filter((it) => it.wine === wines);
   // Out only: a row tapped this visit stays put (in or out), so nothing jumps away under your thumb.
   const visible = inView.filter((it) => matches(it) && !(outOnly && stockOf(it) && !touched.has(it.id)));

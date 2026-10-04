@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { addSubstitution, deleteSubstitution, RECIPE_UNITS } from "@/lib/admin-write";
+import { formatUpc, upcSearchText } from "@/lib/format";
 import {
   EFFERVESCENCE, KINDS, RATINGS, ROLES, SECTIONS, UNITS, WINE_COLORS,
   area, check, esc, field, heading, options, page, select, text,
@@ -263,7 +264,7 @@ function productForm(product: Bag | null, selectedSpecs: string[], primarySpecId
             ${field("Short name", text("short_name", value.short_name), "The name on Pours, without the type. Leave empty to use the full name.")}
             ${field("Packaged name", text("packaged_name", value.packaged_name, "required"), "The name on the label or from a scan. It can stay wordy.")}
             ${field("Brand", text("brand", value.brand), "The brand on the bottle. A brand is not a spec.")}
-            ${field("UPC", text("upc", value.upc), "The barcode, digits only. Leave empty for homemade items and produce.")}
+            ${field("UPC", `${text("upc", value.upc)}${value.upc && formatUpc(String(value.upc)) !== value.upc ? `<div class="hint">Printed: ${esc(formatUpc(String(value.upc)))}</div>` : ""}`, "The barcode, digits only. Leave empty for homemade items and produce.")}
             ${field("Family", select("family_id", options(families.map((family) => [family.id, family.canonical_name]), "No family yet"), value.family_id), "The browse group.")}
             ${field("Rating", select("rating", options(RATINGS), value.rating ?? ""), "Your score for this bottle, from 1 to 5. This is not the guest star rating.")}
             ${field("Origin", text("origin", value.origin), "Where it is from: a country, region, or appellation.")}
@@ -803,8 +804,8 @@ async function productsPage(saved: string | null) {
       GROUP BY p.id, f.canonical_name
       ORDER BY p.display_name`,
   );
-  const body = rows.map((product) => `<tr data-search="${esc([product.display_name, product.packaged_name, product.brand, product.origin, product.upc, product.family_name, product.spec_names].filter(Boolean).join(" "))}">
-    <td><a href="${DB}/products/${product.id}">${esc(product.display_name)}</a><div class="hint">${esc(product.upc ?? "No UPC")}</div></td>
+  const body = rows.map((product) => `<tr data-search="${esc([product.display_name, product.packaged_name, product.brand, product.origin, upcSearchText(product.upc as string | null), product.family_name, product.spec_names].filter(Boolean).join(" "))}">
+    <td><a href="${DB}/products/${product.id}">${esc(product.display_name)}</a><div class="hint">${esc(product.upc ? formatUpc(String(product.upc)) : "No UPC")}</div></td>
     ${PRODUCT_FLAGS.map(([key, letter, label]) => `<td class="flag"${product[key] ? ` data-tip="${esc(label)}"` : ""}>${product[key] ? letter : ""}</td>`).join("")}
     <td>${esc(product.family_name ?? "")}</td>
     <td>${esc(product.spec_names)}</td>

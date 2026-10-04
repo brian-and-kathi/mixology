@@ -9,6 +9,7 @@ import { SharedPhoto } from "./SharedPhoto";
 import { SpecPicker } from "./SpecPicker";
 import { specLabel } from "@/lib/spec-label";
 import { Disclosure } from "./Disclosure";
+import { formatUpc } from "@/lib/format";
 
 type Form = {
   display_name: string; short_name: string; spec_label: string; spec_id: string | null; family_id: string; in_stock: boolean; featured: boolean; pourable: boolean;
@@ -177,7 +178,10 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
       <Disclosure className="a-more" headClassName="a-more-head" bodyClassName="a-more-body" summary="More details">
         <label className="a-field"><span className="a-label">Brand</span><input value={f.brand} onChange={(e) => set("brand", e.target.value)} maxLength={120} /></label>
         <label className="a-field"><span className="a-label">Serving note</span><input value={f.serve_note} onChange={(e) => set("serve_note", e.target.value)} maxLength={200} placeholder="e.g. Best with a single large cube" /></label>
-        <label className="a-field"><span className="a-label">Barcode</span><input value={f.upc} onChange={(e) => set("upc", e.target.value)} inputMode="numeric" /></label>
+        <label className="a-field"><span className="a-label">Barcode</span><input value={f.upc} onChange={(e) => set("upc", e.target.value)} inputMode="numeric" />
+          {/* The input keeps the stored digits; the printed form (lib/format formatUpc) is shown under it. Display only. */}
+          {f.upc.trim() && formatUpc(f.upc.trim()) !== f.upc.trim() ? <span className="a-quiet a-small">Printed: {formatUpc(f.upc.trim())}</span> : null}
+        </label>
         {isWine ? (
           <>
             <label className="a-field"><span className="a-label">Wine color</span>

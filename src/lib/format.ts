@@ -126,3 +126,29 @@ export function methodParts(description: string | null, style: string | null | u
   const st = style ? cap(style) : parsed.style;
   return { label: st ? `Method · ${st}` : "Method", paragraphs: parsed.paragraphs };
 }
+
+/**
+ * A UPC/EAN as printed under the barcode. DISPLAY ONLY: stored values, saving and scan/lookup matching keep the
+ * plain digits. After stripping non-digits:
+ *   13 digits starting with 0 (an EAN-13 that is really a UPC-A): drop the 0, then as UPC-A;
+ *   12 digits (UPC-A): "0 12345 67890 5";
+ *   13 digits (EAN-13): "5 012345 678900";
+ *   8 digits (UPC-E / EAN-8): "1234 5678";
+ *   anything else (empty, 14-digit GTIN, odd lengths): returned as given.
+ */
+export function formatUpc(upc: string | null | undefined): string {
+  const raw = upc ?? "";
+  let d = raw.replace(/\D/g, "");
+  if (d.length === 13 && d[0] === "0") d = d.slice(1);
+  if (d.length === 12) return `${d[0]} ${d.slice(1, 6)} ${d.slice(6, 11)} ${d[11]}`;
+  if (d.length === 13) return `${d[0]} ${d.slice(1, 7)} ${d.slice(7)}`;
+  if (d.length === 8) return `${d.slice(0, 4)} ${d.slice(4)}`;
+  return raw;
+}
+
+/** Search text for a UPC: the stored digits and the printed form, so "012345678905" and "0 12345 67890 5" both match. */
+export function upcSearchText(upc: string | null | undefined): string {
+  if (!upc) return "";
+  const shown = formatUpc(upc);
+  return shown === upc ? upc : `${upc} ${shown}`;
+}

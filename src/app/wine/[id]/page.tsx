@@ -7,7 +7,7 @@ import { PhoneShell } from "@/components/PhoneShell";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { cap, wineServeLine } from "@/lib/format";
-import { loadWine, wineCategory, wineGlass } from "@/lib/menu";
+import { loadWine, wineGlass } from "@/lib/menu";
 import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
@@ -25,18 +25,19 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
   const editHref = admin ? `/admin/bottles/${wine.id}` : undefined;
 
   const lower = wine.name.toLowerCase();
-  // The category is the grape (migration 031), else the type ("Sangria"), as on the Cellar; left out when the name says it.
-  const category = wineCategory(wine.grape, wine.type);
+  // A grape (migration 031) is always the title badge, as on the Cellar, even when the name says it ("… Merlot 2020").
+  // With no grape, the type stays in the detail line as before ("Sangria"), left out when the name says it.
+  const grape = wine.grape?.trim() || null;
   const details = [
     wine.brand && !lower.includes(wine.brand.toLowerCase()) ? wine.brand : null,
     wine.origin,
-    category && !lower.includes(category.toLowerCase()) ? cap(category) : null,
+    !grape && wine.type && !lower.includes(wine.type.toLowerCase()) ? cap(wine.type) : null,
     wine.abv && Number(wine.abv) > 0 ? `${Number(wine.abv)}%\u00a0ABV` : null,
   ].filter(Boolean);
   const serve = wineServeLine(wine.serves_chilled, wine.serves_neat, wine.serves_rocks);
 
   return (
-    <PhoneShell bar={bar} title={wine.name} titleBadge={wine.featured ? <FeaturedTag /> : undefined} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}
+    <PhoneShell bar={bar} title={wine.name} titleBadge={grape || wine.featured ? <span className="title-badges">{grape ? <span className="spec-badge title-badge">{grape}</span> : null}{wine.featured ? <FeaturedTag /> : null}</span> : undefined} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}
       lead={<DrinkLead glass={wineGlass(wine.sparkling, wine.type)} kind="product" id={wine.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
       {serve ? (

@@ -67,6 +67,16 @@ export function wineCategory(grape: string | null | undefined, type: string | nu
 }
 
 /**
+ * A Cellar wine's badge (list, TV and wine page): its grape whenever it has one, even when the name says it
+ * ("Chateau Grand Traverse Merlot 2020" → "Merlot"); with no grape, the type's label unless the name already
+ * says it (badgeFor: "Señor Sangria Classic Red" gets none, "Bavarian Inn Cranberry" gets "Cranberry wine").
+ */
+export function wineBadge(name: string, grape: string | null | undefined, type: string | null | undefined): string | null {
+  const g = (grape ?? "").trim();
+  return g || badgeFor(name, specLabel(type));
+}
+
+/**
  * Cellar in color-group order (red, rosé, white, sparkling, other), then by category, then by name. Featured
  * wines (migration 030) come first, in the same order, like Pours. Marks the first wine of each category with
  * famStart (the gap Pours puts between spirit families); the first category after the featured wines gets it too.
@@ -120,10 +130,11 @@ export async function loadMenu(): Promise<Menu> {
         family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" };
     })),
     cocktails: featuredFirst(cocktails.map((c) => ({ ...c, href: `/recipe/${c.id}`, ...(lines.get(c.id) ?? {}) })).sort(byName)),
-    // Cellar: the badge is the category (grape, else the type's label), hidden when the name already says it ("… Merlot 2020").
+    // Cellar: the badge is the category. A grape always shows (Brian, 2026-10-04: "… Merlot 2020" still gets "Merlot");
+    // with no grape, the type's label is hidden when the name already says it ("Señor Sangria", "Hakutsuru Sake").
     cellar: byCategory(cellar.map((w) => {
       const category = wineCategory(w.grape, w.type);
-      return { id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: badgeFor(w.name, category), featured: w.featured, ...wineLine(w),
+      return { id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: wineBadge(w.name, w.grape, w.type), featured: w.featured, ...wineLine(w),
         group: wineGroup(w.style_group), category: category ?? "" };
     })),
   };

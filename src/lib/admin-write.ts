@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { UserError } from "@/lib/admin-guard";
 import { isUuid, query, sql } from "@/lib/db";
 import { MAX_MOODS, MOODS } from "@/lib/moods";
+import { normalizeOrigin } from "@/lib/us-states";
 
 // All admin writes: parameterized SQL, and one transaction whenever more than one row changes.
 // Every write also appends a change_log row (who/what/before/after/when).
@@ -113,7 +114,7 @@ export async function saveProduct(id: string | null, body: Record<string, unknow
   if (reserved && note.length > 40) throw new UserError("The occasion note can be at most 40 characters.");
   const reservedNote = reserved && note ? note : null;
   const v = [
-    name, text(body.brand, 120), text(body.description, 2000), text(body.origin, 120), text(body.serve_note, 200), abv, upc,
+    name, text(body.brand, 120), text(body.description, 2000), normalizeOrigin(text(body.origin, 120)), text(body.serve_note, 200), abv, upc,
     familyId, bool(body.in_stock), featured, !pourable, servesNeat, servesRocks, pourable && bool(body.serves_chilled),
     bool(body.fortified), wineColor, eff, shortName, specLabel, grape, reserved, reservedNote, moodsInput(body.moods),
   ];

@@ -9,6 +9,7 @@ import { useRememberedSearch } from "./useRememberedSearch";
 import { SEARCH } from "@/lib/search-cookie";
 import { StockRow } from "./StockToggle";
 import { specLabel } from "@/lib/spec-label";
+import { originSearchExtra } from "@/lib/us-states";
 
 type Result = { name: string; in_stock: boolean; log_id: number | null; blocked: string[]; unlocked: string[] };
 type Toast = { text: string; undo?: { id: string; to: boolean; logId: number | null } };
@@ -110,8 +111,8 @@ export function StockBoard({ items, recent, initialQuery }: { items: StockItem[]
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const needle = fold(q.trim());
   const wines = kind === "wines";
-  // Name, type or Origin ("michigan", "traverse city"), case- and accent-insensitive.
-  const matches = (it: StockItem) => !needle || fold(it.name).includes(needle) || fold(it.spec ?? "").includes(needle) || fold(it.origin ?? "").includes(needle);
+  // Name, type or Origin ("michigan", also for "Lake City, MI"; "traverse city"), case- and accent-insensitive.
+  const matches = (it: StockItem) => !needle || fold(it.name).includes(needle) || fold(it.spec ?? "").includes(needle) || fold(`${it.origin ?? ""} ${originSearchExtra(it.origin) ?? ""}`).includes(needle);
   const inView = items.filter((it) => it.wine === wines);
   // Out only: a row tapped this visit stays put (in or out), so nothing jumps away under your thumb.
   const visible = inView.filter((it) => matches(it) && !(outOnly && stockOf(it) && !touched.has(it.id)));

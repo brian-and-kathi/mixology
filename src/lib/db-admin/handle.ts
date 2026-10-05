@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { addSubstitution, deleteSubstitution, RECIPE_UNITS } from "@/lib/admin-write";
 import { formatUpc, upcSearchText } from "@/lib/format";
+import { normalizeOrigin } from "@/lib/us-states";
 import {
   EFFERVESCENCE, KINDS, RATINGS, ROLES, SECTIONS, UNITS, WINE_COLORS,
   area, check, esc, field, heading, options, page, select, text,
@@ -356,7 +357,7 @@ function productInput(body: Bag) {
   if (!EFFERVESCENCE.some(([v]) => v === eff)) throw new ValidationError("Effervescence is not valid.");
   return {
     displayName, packagedName, shortName: blank(body.short_name), specLabel: null, upc, familyId,
-    brand: blank(body.brand), description: blank(body.description), rating, origin: blank(body.origin),
+    brand: blank(body.brand), description: blank(body.description), rating, origin: normalizeOrigin(blank(body.origin)),
     pairing: blank(body.pairing_notes), serve: blank(body.serve_note), abv, amount, unit, wineColor, eff, grape: blank(body.grape),
     fortified: checked(body.fortified), inStock: checked(body.in_stock), servesNeat, servesRocks,
     servesChilled: checked(body.serves_chilled), mixOnly, servesGlass: checked(body.serves_glass),

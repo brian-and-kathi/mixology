@@ -2,6 +2,7 @@ import { isUuid, query } from "@/lib/db";
 import { spiritFamily } from "@/lib/spirit-family";
 import { badgeFor, specLabel } from "@/lib/spec-label";
 import { CELLAR_COLORS, cellarColor } from "@/lib/moods";
+import { shortRegion } from "@/lib/us-states";
 
 // Section order is fixed everywhere (TV and phone): Pours, Cocktails, Cellar.
 export const SECTIONS = [
@@ -221,12 +222,13 @@ export function ingredientLine(names: string[]) {
 /**
  * Pours. Phone: "Lake City, Michigan · 45% ABV" (one if the other is missing; neither, the type), with
  * no-break spaces inside "Lake City" and "45% ABV" so neither splits across lines.
- * TV: the region only, shortened to its state or country ("Michigan"). The ABV is a superscript on the name.
+ * TV: the region only, shortened to its state or country ("Michigan", also from "Lake City, MI"). The ABV is a superscript on the name.
  */
 export function pourLine(p: { origin: string | null; abv: string | null; type: string | null }): Partial<Sub> {
   const abv = p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% ABV` : "";
   const region = clean(p.origin);
-  const short = region.split(",").map((x) => x.trim()).filter(Boolean).pop() ?? "";
+  // Last segment, a US code spelled out ("Lake City, MI" -> "Michigan"); other places as stored.
+  const short = shortRegion(region);
   if (!region && !abv) {
     const type = clean(p.type);
     return type ? { detail: first(type), fit: [first(type)] } : {};

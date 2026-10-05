@@ -1,7 +1,8 @@
 /**
  * Mood tags (migration 033, Brian via Rachel 2026-10-04): the phone menu's mood chips, in this order. The same
  * 8 values are the CHECK in 033_moods.sql (moods_ok()); adding or renaming one needs a migration too.
- * An item has at most MAX_MOODS. The TV ignores moods.
+ * An item has at most MAX_MOODS. The TV's cast band shows a cocktail's moods under its name (Brian via Vincent,
+ * 2026-10-04); the TV menu itself ignores them.
  */
 export const MOODS = ["Cozy", "Night-Out", "Smoky", "Tropical", "Bitter", "Indulgent", "Clean", "Nostalgic"] as const;
 export type Mood = (typeof MOODS)[number];

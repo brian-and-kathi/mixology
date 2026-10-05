@@ -411,6 +411,9 @@ a.card:active { background: #202020; }
 .tv-feat-star[data-flourish="sparkle"] { font-size: 0.6em; line-height: 0; vertical-align: 0.42em; }
 /* Show on TV band: tag under the name, and a featured bottle in copper in the bottle line. */
 .tv-band-feat { margin: -0.8vh 0 1.4vh; }
+/* Cast cocktail's moods (Brian via Vincent, 2026-10-04): one quiet cream line tucked under the name, above Featured. */
+.tv-band-moods { margin: -0.7vh 0 1.5vh; font-size: calc(2.5vh * var(--s)); line-height: 1.25; font-weight: 500; letter-spacing: 0.02em; color: rgba(243, 234, 211, 0.72); }
+.tv-band-moods .sep { margin: 0 0.5em; color: rgba(243, 234, 211, 0.38); }
 .tv-band-feat .feat-tag { margin-left: 0; font-size: calc(1.85vh * var(--s)); padding: 0.35vh 1vh 0.45vh; }
 .tv-band-line .what .tv-band-bottles .feat-name { color: var(--featured); }
 .tv-band-bottles .feat-tag { font-size: 0.8em; margin-left: 0.4em; padding: 0.15vh 0.7vh 0.25vh; vertical-align: 0.05em; }
@@ -476,7 +479,11 @@ a.card:active { background: #202020; }
 .chip.sm { height: 30px; padding: 0 0.75rem; font-size: 0.85rem; }
 .chip.dim { color: rgba(255, 255, 255, 0.38); border-color: rgba(255, 255, 255, 0.12); }
 .chip-sep { flex: none; width: 1px; align-self: stretch; margin: 6px 0.1rem; background: rgba(255, 255, 255, 0.18); }
-.mood { margin-top: 0.2rem; }
+/* Mood chips wrap (Brian via Vincent, 2026-10-04): every mood in view, no sideways scroll. A little more compact
+   than the section chips; still 32px tall to tap. Top rated and its divider stay first, on the first row. */
+.chips.mood { flex-wrap: wrap; overflow: visible; gap: 6px; margin: 0.2rem 0 0; padding: 0; }
+.chips.mood .chip { height: 32px; padding: 0 0.7rem; font-size: 0.86rem; }
+.chips.mood .chip-sep { margin: 5px 0.15rem; }
 .count { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-top: 0.7rem; font-size: 0.88rem; color: var(--quiet); }
 .count b { color: var(--text); font-weight: 500; }
 .count .clear { flex: none; padding: 0.2rem 0; border: 0; background: none; font: inherit; font-weight: 500; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 import { barVersions } from "@/lib/bar-versions";
 import { altGlassLine, cap, lineText, methodParts, serveParts, tvGlassLine } from "@/lib/format";
 import { bottleLine, bottleParts, loadPour, loadRecipe } from "@/lib/menu";
+import { cleanMoods } from "@/lib/moods";
 
 // "Show on TV": one cast record (tv_cast, migration 015). A cast lasts 5 minutes, a new cast
 // replaces the old one, and anyone on that item's phone page can take it off.
@@ -10,7 +11,7 @@ export type CastType = "recipe" | "pour";
 
 export type CastLine = { amount: string; name: string; out: boolean; use_instead: string | null; optional: boolean; note: string | null; bottles: string | null; bottle_parts: { text: string; featured?: boolean }[] | null };
 export type CastPayload =
-  | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; featured: boolean; lines: CastLine[]; method_label: string; method: string[] }
+  | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; featured: boolean; lines: CastLine[]; method_label: string; method: string[]; moods?: string[] }
   | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean };
 export type Cast = { type: CastType; id: string; started_at: string; expires_at: string; payload: CastPayload };
 
@@ -25,6 +26,8 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
       alt: r.alt_glass ? altGlassLine(r.alt_glass, r.alt_service_style, r.service_style) : null,
       // Same as the phone: an optional ingredient that is out with no stand-in is left off.
       featured: r.featured,
+      // Mood tags (migration 033), the /menu chip labels in MOODS order; none means no line on the band.
+      moods: cleanMoods(r.moods),
       lines: r.lines.filter((l) => l.required || l.available || l.use_instead).map((l) => ({
         ...lineText(l.amount, l.unit, l.name), out: !l.available,
         use_instead: l.use_instead ? cap(l.use_instead) : null, optional: !l.required,

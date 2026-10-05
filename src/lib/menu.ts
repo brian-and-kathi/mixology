@@ -285,6 +285,8 @@ export type Recipe = {
   alt_service_style: string | null;
   glass_note: string | null;
   method_style: string | null;
+  /** Mood tags (migration 033), as stored; cleanMoods() puts them in MOODS order. */
+  moods: string[];
   /** Uses a featured product (featured_recipe_ids(), migration 030). */
   featured: boolean;
   lines: RecipeLine[];
@@ -395,7 +397,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   const [recipe] = await query<Omit<Recipe, "lines">>(
     `SELECT r.id, r.name, r.description, r.rating,
             g.name AS glass, g.description AS glass_description, r.service_style,
-            ag.name AS alt_glass, r.alt_service_style, r.glass_note, r.method_style,
+            ag.name AS alt_glass, r.alt_service_style, r.glass_note, r.method_style, r.moods,
             (r.id IN (SELECT featured_recipe_ids())) AS featured
        FROM recipes r
        LEFT JOIN glassware g ON g.id = r.glass_id

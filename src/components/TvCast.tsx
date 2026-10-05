@@ -204,6 +204,12 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
             </div>
           ) : null}
           <h3 className="tv-band-name">{payload.name}</h3>
+          {/* Moods (Brian via Vincent, 2026-10-04): the /menu chip labels on one quiet line under the name; none, no line. */}
+          {payload.moods?.length ? (
+            <p className="tv-band-moods" aria-label={`Moods: ${payload.moods.join(", ")}`}>
+              {payload.moods.map((m, i) => <span key={m}>{i ? <span className="sep" aria-hidden>·</span> : null}{m}</span>)}
+            </p>
+          ) : null}
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
           {payload.serve ? <p className="tv-band-serve">{payload.serve}</p> : null}
           {payload.alt ? <p className="tv-band-note">{payload.alt}</p> : null}

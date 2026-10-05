@@ -48,6 +48,22 @@ function pack(heights: number[], gaps: number[], available: number, reserve: (co
 const TV_FEATURED: "tag" | "star" = "star";
 
 /**
+ * The "star" look's flourish (Brian, 2026-10-04): the star now means only ratings, so a featured name gets a
+ * decorative mark instead. Swap TV_FEATURED_FLOURISH to try another; each glyph is joined to the name with a
+ * no-break space so it never sits alone on a line. The glyphs come from tiny self-hosted Noto subsets
+ * (public/fonts, the "TV Flourish" face in globals.css), so the TV never shows a tofu box whatever fonts it has.
+ */
+const TV_FLOURISHES = {
+  javanese: { before: "\ua9c1", after: "\ua9c2" }, // ꧁ Name ꧂  (Javanese pada; Noto Sans Javanese)
+  tibetan: { before: "\u0f3a", after: "\u0f3b" }, // ༺ Name ༻  (Tibetan brackets; Noto Serif Tibetan)
+  sparkle: { before: "\u2726", after: "" }, // ✦ Name  (Noto Sans Symbols 2)
+  sparkleOpen: { before: "\u2727", after: "" }, // ✧ Name  (Noto Sans Symbols 2)
+  star: { before: "\u2605", after: "" }, // ★ Name  (the old look)
+} as const;
+type Flourish = keyof typeof TV_FLOURISHES;
+const TV_FEATURED_FLOURISH: Flourish = "sparkle";
+
+/**
  * Reserved rows (migration 032): the icon before the name. "padlock" (Brian, 2026-10-04: it reads better from the
  * couch); "key": the skeleton key the phone and admin use. The brass "Ask the host" tag ends the line under the name.
  */
@@ -103,7 +119,12 @@ function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): 
   // Only names set the width; the detail line under a name wraps instead (FitLine).
   // Pours rows are sized by the bottle's full name (data-measure), not the short name and badge, so every
   // column keeps the width it had before badges; the badge fits in that room or moves to the subtext line.
-  const text = Math.max(...[...ruler.querySelectorAll<HTMLElement>(".tv-name")].map((el) => ctx.measureText(el.dataset.measure ?? el.textContent ?? "").width));
+  // A featured flourish (TV_FLOURISHES) is set in its own small web font, which the canvas can't see, so the
+  // leading glyph's rendered width (plus its no-break space) is added from the ruler row, as the old star was.
+  // A closing glyph is not counted: it rides on the last word and wraps with it, like the ABV superscript.
+  const space = ctx.measureText("\u00a0").width;
+  const flourish = (el: HTMLElement) => { const g = el.querySelector(".tv-feat-star:not(.tv-feat-after)"); return g ? g.getBoundingClientRect().width + space : 0; };
+  const text = Math.max(...[...ruler.querySelectorAll<HTMLElement>(".tv-name")].map((el) => ctx.measureText(el.dataset.measure ?? el.textContent ?? "").width + flourish(el)));
   const icon = (row.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 0;
   const perRow = Math.ceil(text + icon + parseFloat(rs.columnGap || "0") + parseFloat(rs.paddingLeft) + parseFloat(rs.paddingRight)) + 2;
   const cs = getComputedStyle(section);
@@ -169,9 +190,10 @@ function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on
   const cls = "tv-row" + (on ? " on" : "") + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "") + (item.reserved ? " is-reserved" : "");
   // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name.
   // Featured (migration 030): copper name, plus the tag at the end of the line under it ("tag") or a star
-  // before the name ("star"); see TV_FEATURED.
+  // before the name ("star", now the flourish in TV_FEATURED_FLOURISH); see TV_FEATURED.
   const tag = !!item.featured && TV_FEATURED === "tag";
   const star = !!item.featured && TV_FEATURED === "star";
+  const fl = TV_FLOURISHES[TV_FEATURED_FLOURISH];
   // Reserved (migration 032): dimmed, an icon before the name and the "Ask the host" tag under it. Never cast.
   const locked = !!item.reserved;
   const below = !!item.spec || !!item.fit?.length || tag || locked;
@@ -179,11 +201,14 @@ function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on
     <li className={cls}>
       <Lead glass={item.glass} rating={rating} />
       <span className="tv-text">
-        <span className="tv-name" data-measure={star && item.measure ? `\u2605\u00a0${item.measure}` : locked ? `\u2605\u00a0${item.measure ?? item.name}` : item.measure}>
-          {star ? <span className="tv-feat-star" role="img" aria-label="Featured">★</span> : null}
+        <span className="tv-name" data-measure={star ? item.measure ?? item.name : locked ? `\u2605\u00a0${item.measure ?? item.name}` : item.measure}>
+          {star ? <span className="tv-feat-star" role="img" aria-label="Featured">{fl.before}</span> : null}
+          {star ? "\u00a0" : null}
           {locked ? (TV_RESERVED_ICON === "padlock" ? <PadlockIcon className="tv-res-icon" label="Reserved" /> : <KeyIcon className="tv-res-icon" label="Reserved" />) : null}
           {item.name}
-          {item.abv ? <sup className="tv-abv">{item.abv}</sup> : null}
+          {star && fl.after ? <>{"\u00a0"}<span className="tv-feat-star tv-feat-after" aria-hidden>{fl.after}</span></> : null}
+          {/* "45% abv" never splits: a no-break space (TV only; the phone keeps item.detail). */}
+          {item.abv ? <sup className="tv-abv">{item.abv.replace(/ /g, "\u00a0")}</sup> : null}
         </span>
         {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={tag} reserved={locked} /> : null}
       </span>
@@ -307,7 +332,10 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
     for (const ruler of rulers.current) if (ruler) ro.observe(ruler);
     // Web fonts change row heights after first paint; measure again once they are ready.
     void document.fonts?.ready.then(() => measure());
-    return () => ro.disconnect();
+    // The flourish font only loads once its glyph is on screen (unicode-range), so measure again when it lands.
+    const onFonts = () => measure();
+    document.fonts?.addEventListener("loadingdone", onFonts);
+    return () => { ro.disconnect(); document.fonts?.removeEventListener("loadingdone", onFonts); };
   }, [measure]);
 
   const needed = assign.map((a) => { const live = a.filter((v) => v >= 0); return live.length ? Math.max(...live) + 1 : 1; });

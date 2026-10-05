@@ -96,7 +96,7 @@ h1, h2, p { margin: 0; }
 .tv-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .tv-name { overflow-wrap: anywhere; }
 /* Pours ABV, superscript on the title. Gold even when the highlighted row turns the name cream. */
-.tv-abv { font-size: 0.41em; font-weight: 600; line-height: 0; margin-left: 0.15em; color: var(--gold); vertical-align: super; }
+.tv-abv { font-size: 0.41em; font-weight: 600; line-height: 0; margin-left: 0.15em; color: var(--gold); vertical-align: super; white-space: nowrap; }
 /* Spec badge after a Pours name on the TV ("Bowright Recurve [Rye]"), and the base for the phone corner badge and the
    pour page title badge: gold text at
    72% of the name size, weight 500, 1px gold-line border, 4px radius, 1px 6px padding. It rides in one
@@ -408,7 +408,12 @@ a.card:active { background: #202020; }
 .tv-row.is-featured.on .tv-name { color: var(--cream); }
 .tv-detail:has(> .tv-feat-tag) { padding-block: 2px; margin-top: calc(0.05vh - 2px); margin-bottom: -2px; }
 .tv-detail > .tv-feat-tag { margin: -2px 0 -2px 0.45em; padding: 1px 6px; border-radius: 4px; font-size: 1.375vh; font-weight: 500; line-height: 1; letter-spacing: 0.01em; vertical-align: 0; background: var(--featured); border-color: var(--featured); color: #000; }
-.tv-feat-star { color: var(--featured); font-size: 0.72em; margin-right: 0.3em; vertical-align: 0.12em; }
+/* The flourish glyphs (TvBoard TV_FLOURISHES), self-hosted Noto subsets (OFL, public/fonts/OFL-Noto.txt) so the TV
+   never falls back to a tofu box. unicode-range: each file only loads when its glyph is on screen. */
+@font-face { font-family: "TV Flourish"; src: url("/fonts/tv-flourish-javanese.woff2") format("woff2"); unicode-range: U+A9C1-A9C2; font-display: block; }
+@font-face { font-family: "TV Flourish"; src: url("/fonts/tv-flourish-tibetan.woff2") format("woff2"); unicode-range: U+0F3A-0F3B; font-display: block; }
+@font-face { font-family: "TV Flourish"; src: url("/fonts/tv-flourish-sparkle.woff2") format("woff2"); unicode-range: U+2726-2727; font-display: block; }
+.tv-feat-star { font-family: "TV Flourish", var(--font-sans), sans-serif; color: var(--featured); font-size: 0.72em; vertical-align: 0.12em; }
 .tv-row.on .tv-feat-star { color: var(--featured); }
 /* Show on TV band: tag under the name, and a featured bottle in copper in the bottle line. */
 .tv-band-feat { margin: -0.8vh 0 1.4vh; }

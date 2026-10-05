@@ -32,8 +32,8 @@ export async function loadMenuFacets(): Promise<Record<string, Facet>> {
     query<{ id: string; moods: string[]; method_style: string | null; description: string | null; reserved: boolean }>(
       `SELECT m.id, r.moods, r.method_style, r.description, m.reserved FROM menu_mixed m JOIN recipes r ON r.id = m.id`,
     ),
-    query<{ id: string; moods: string[]; style_group: string | null; grape: string | null; description: string | null; pairing_notes: string | null; brand: string | null; reserved: boolean }>(
-      `SELECT w.id, p.moods, w.style_group, w.grape, w.description, w.pairing_notes, p.brand, w.reserved
+    query<{ id: string; moods: string[]; style_group: string | null; fortified: boolean | null; grape: string | null; description: string | null; pairing_notes: string | null; brand: string | null; reserved: boolean }>(
+      `SELECT w.id, p.moods, w.style_group, w.fortified, w.grape, w.description, w.pairing_notes, p.brand, w.reserved
          FROM menu_wines w JOIN products p ON p.id = w.id`,
     ),
   ]);
@@ -47,7 +47,7 @@ export async function loadMenuFacets(): Promise<Record<string, Facet>> {
     out[`cocktails:${c.id}`] = { moods: cleanMoods(c.moods), chip: cocktailStyle(c.method_style), grape: null, notes: c.reserved ? [] : notes(c.description) };
   }
   for (const w of cellar) {
-    out[`cellar:${w.id}`] = { moods: cleanMoods(w.moods), chip: cellarColor(w.style_group), grape: w.grape?.trim() || null,
+    out[`cellar:${w.id}`] = { moods: cleanMoods(w.moods), chip: cellarColor(w.style_group, w.fortified), grape: w.grape?.trim() || null,
       notes: w.reserved ? notes(w.grape) : notes(w.grape, w.brand, w.description, w.pairing_notes?.split(/\s*\n\s*/).filter(Boolean).join(", ")) };
   }
   return out;

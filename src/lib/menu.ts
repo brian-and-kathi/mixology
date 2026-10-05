@@ -1,6 +1,7 @@
 import { isUuid, query } from "@/lib/db";
 import { spiritFamily } from "@/lib/spirit-family";
 import { badgeFor, specLabel } from "@/lib/spec-label";
+import { CELLAR_COLORS, cellarColor } from "@/lib/moods";
 
 // Section order is fixed everywhere (TV and phone): Pours, Cocktails, Cellar.
 export const SECTIONS = [
@@ -59,12 +60,8 @@ export const reservedLast = <T extends { reserved?: boolean }>(items: T[]): T[] 
 const lock = <T extends MenuItem>(item: T, reserved: boolean, note: string | null): T =>
   reserved ? { ...item, reserved: true, reservedNote: note, featured: false } : item;
 
-/** Cellar color groups, in menu order (wine_style_group(), migration 011); anything else ("unsorted": sake, fruit wine) is Other, last. */
-export const WINE_GROUPS = ["red", "rose", "white", "sparkling"] as const;
-const wineGroup = (styleGroup: string | null) => {
-  const i = WINE_GROUPS.indexOf((styleGroup ?? "") as (typeof WINE_GROUPS)[number]);
-  return i < 0 ? WINE_GROUPS.length : i;
-};
+/** Cellar color group, in menu order: Red, White, Rosé, Sparkling, Other (CELLAR_COLORS, lib/moods.ts; the /menu chips). */
+const wineGroup = (styleGroup: string | null, fortified: boolean | null) => CELLAR_COLORS.indexOf(cellarColor(styleGroup, fortified));
 
 /**
  * A Cellar wine's category (migration 031): its grape ("Cabernet Sauvignon"), or with no grape its main
@@ -87,7 +84,7 @@ export function wineBadge(name: string, grape: string | null | undefined, type: 
 }
 
 /**
- * Cellar in color-group order (red, rosé, white, sparkling, other), then by category, then by name. Featured
+ * Cellar in color-group order (red, white, rosé, sparkling, other), then by category, then by name. Featured
  * wines (migration 030) come first, in the same order, like Pours. Marks the first wine of each category with
  * famStart (the gap Pours puts between spirit families); the first category after the featured wines gets it too.
  */
@@ -123,9 +120,9 @@ export async function loadMenu(): Promise<Menu> {
          JOIN recipes r ON r.id = m.id
          LEFT JOIN glassware g ON g.id = r.glass_id`,
     ),
-    query<{ id: string; name: string; origin: string | null; type: string | null; grape: string | null; style_group: string | null; sparkling: boolean; featured: boolean; reserved: boolean; reserved_note: string | null }>(
+    query<{ id: string; name: string; origin: string | null; type: string | null; grape: string | null; style_group: string | null; fortified: boolean | null; sparkling: boolean; featured: boolean; reserved: boolean; reserved_note: string | null }>(
       `SELECT w.id, w.display_name AS name, w.origin, (w.wine_effervescence = 'sparkling') AS sparkling,
-              w.grape, w.style_group, (w.id IN (SELECT featured_product_ids())) AS featured, w.reserved, w.reserved_note,
+              w.grape, w.style_group, w.fortified, (w.id IN (SELECT featured_product_ids())) AS featured, w.reserved, w.reserved_note,
               (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
                 WHERE ps.product_id = w.id AND ps.is_primary) AS type
          FROM menu_wines w`,
@@ -149,7 +146,7 @@ export async function loadMenu(): Promise<Menu> {
     cellar: byCategory(cellar.map((w) => {
       const category = wineCategory(w.grape, w.type);
       return lock({ id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), href: `/wine/${w.id}`, spec: wineBadge(w.name, w.grape, w.type), featured: w.featured, ...wineLine(w),
-        group: wineGroup(w.style_group), category: category ?? "" }, w.reserved, w.reserved_note);
+        group: wineGroup(w.style_group, w.fortified), category: category ?? "" }, w.reserved, w.reserved_note);
     })),
   };
 }

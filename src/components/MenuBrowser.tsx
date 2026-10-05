@@ -8,7 +8,7 @@ import { ReservedTag } from "@/components/ReservedIcon";
 import type { SectionId } from "@/lib/menu";
 import { readMenuMemory, writeMenuMemory } from "@/lib/menu-memory";
 import {
-  NO_PICK, baseFilter, grapeInColor, markRanges, noteExcerpt, sectionChips, sectionItems, visibleMoods, words,
+  NO_PICK, baseFilter, grapeInColor, markRanges, noteExcerpt, sectionChips, sectionItems, validPicks, visibleMoods, words,
   type BrowseItem, type BrowseSection, type Filters, type SectionPick,
 } from "@/lib/menu-filter";
 
@@ -47,7 +47,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   useLayoutEffect(() => {
     const m = readMenuMemory(["all", ...sections.map((s) => s.id)]);
     if (m) {
-      setTab(m.tab); setQ(m.q); setMood(m.mood); setTop(m.top); setPicks(m.picks);
+      setTab(m.tab); setQ(m.q); setMood(m.mood); setTop(m.top); setPicks(validPicks(sections, m.picks));
       restoreY.current = m.y;
     }
     setRestored(true);

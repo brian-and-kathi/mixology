@@ -36,8 +36,16 @@ export function cocktailStyle(method: string | null | undefined): CocktailStyle 
   return null;
 }
 
-/** Cellar color chips: red and white by wine_style_group(); rosé, sparkling, sake and fruit wines are Other. */
-export const CELLAR_COLORS = ["Red", "White", "Other"] as const;
+/**
+ * Cellar color classes (Brian via Rachel, 2026-10-04), in menu order: the /menu Cellar chips and the color grouping of
+ * the Cellar list on the phone and the TV. From wine_style_group() (migration 011: sparkling wins over color), plus:
+ * a fortified wine is Other whatever its color. Other is everything else: sake, fruit wines (cranberry), and any
+ * wine with no color on record. A chip shows only when a wine of that class is on tonight's menu.
+ */
+export const CELLAR_COLORS = ["Red", "White", "Rosé", "Sparkling", "Other"] as const;
 export type CellarColor = (typeof CELLAR_COLORS)[number];
-export const cellarColor = (styleGroup: string | null | undefined): CellarColor =>
-  styleGroup === "red" ? "Red" : styleGroup === "white" ? "White" : "Other";
+export function cellarColor(styleGroup: string | null | undefined, fortified?: boolean | null): CellarColor {
+  if (styleGroup === "sparkling") return "Sparkling";
+  if (fortified) return "Other";
+  return styleGroup === "red" ? "Red" : styleGroup === "white" ? "White" : styleGroup === "rose" ? "Rosé" : "Other";
+}

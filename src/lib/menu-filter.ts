@@ -143,3 +143,19 @@ export const grapeInColor = (s: BrowseSection, grape: string, color: string): bo
   s.items.some((it) => it.facet.grape === grape && it.facet.chip === color);
 
 export { cellarColor };
+
+/**
+ * Remembered section chips checked against tonight's menu (lib/menu-memory.ts): a chip no wine or drink has any more
+ * (e.g. a color class with nothing in stock, or a label from an older build) is dropped with its grape, and a grape
+ * stays only under a color some wine of that grape has.
+ */
+export function validPicks(sections: BrowseSection[], picks: Record<SectionId, SectionPick>): Record<SectionId, SectionPick> {
+  const out = { ...picks };
+  for (const id of Object.keys(out) as SectionId[]) {
+    const s = sections.find((x) => x.id === id);
+    const p = out[id] ?? NO_PICK;
+    const chip = s && p.chip && s.items.some((it) => it.facet.chip === p.chip) ? p.chip : null;
+    out[id] = { chip, grape: s && chip && p.grape && grapeInColor(s, p.grape, chip) ? p.grape : null };
+  }
+  return out;
+}

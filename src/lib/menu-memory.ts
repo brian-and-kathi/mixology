@@ -20,9 +20,11 @@ export type MenuMemory = {
 };
 
 const str = (v: unknown, max = 60): string | null => (typeof v === "string" && v.length <= max ? v : null);
+// A grape only goes with a color: a saved grape under All (e.g. from before grapes left All) is dropped.
 const pick = (v: unknown): SectionPick => {
   const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
-  return { chip: str(o.chip), grape: str(o.grape) };
+  const chip = str(o.chip);
+  return { chip, grape: chip ? str(o.grape) : null };
 };
 
 /** The saved state, or null when there is none (or it can't be read). Unknown tabs fall back to "all". */

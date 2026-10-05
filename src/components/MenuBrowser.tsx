@@ -58,6 +58,8 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
     const done = () => {
       ready.current = true;
       document.documentElement.removeAttribute("data-menu-restore");
+      // Write back what was actually restored, so anything dropped on the way in (e.g. a grape without a color) is gone.
+      writeMenuMemory({ ...state.current, y: window.scrollY });
     };
     if (y == null) return done();
     window.scrollTo(0, y);

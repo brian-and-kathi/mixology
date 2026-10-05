@@ -474,12 +474,10 @@ a.card:active { background: #202020; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { flex: none; display: inline-flex; align-items: center; gap: 0.35em; height: 34px; padding: 0 0.85rem; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; background: #000; font: inherit; font-size: 0.9rem; font-weight: 500; color: rgba(255, 255, 255, 0.86); white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .chip.on { background: var(--gold); border-color: var(--gold); color: #000; font-weight: 600; }
-.chip .star { color: var(--gold); }
-.chip.on .star { color: #000; }
 .chip.sm { height: 32px; padding: 0 0.7rem; font-size: 0.85rem; }
 .chip.dim { color: rgba(255, 255, 255, 0.38); border-color: rgba(255, 255, 255, 0.12); }
 .chip-sep { flex: none; width: 1px; align-self: stretch; margin: 6px 0.1rem; background: rgba(255, 255, 255, 0.18); }
-/* Mood chips: Top rated and its divider stay first, on the first row. */
+/* Mood chips (no Top rated chip since 2026-10-04: the moods start the row). */
 .mood { margin-top: 0.2rem; }
 .chips.mood .chip { height: 32px; padding: 0 0.7rem; font-size: 0.86rem; }
 .chips .chip-sep { margin: 5px 0.15rem; }

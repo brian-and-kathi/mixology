@@ -4,11 +4,11 @@
  *
  * Search: every word typed must appear somewhere in the item (name, badge, place, ingredient line, or a note
  * that isn't on the card: full bottle name, brand, grape, tasting note, pairings, a cocktail's method). Case,
- * accents and no-break spaces don't matter ("reviseur" finds Réviseur). Moods: one at a time, plus the
- * independent "Top rated" toggle. Section chips narrow one section and are ignored while searching.
+ * accents and no-break spaces don't matter ("reviseur" finds Réviseur). Moods: one at a time (no "Top rated"
+ * filter; Brian via Vincent, 2026-10-04). Section chips narrow one section and are ignored while searching.
  */
 import type { MenuItem, SectionId } from "@/lib/menu";
-import { MOOD_MIN_ITEMS, MOODS, TOP_RATED_MIN, CELLAR_COLORS, COCKTAIL_STYLES, cellarColor } from "@/lib/moods";
+import { MOOD_MIN_ITEMS, MOODS, CELLAR_COLORS, COCKTAIL_STYLES, cellarColor } from "@/lib/moods";
 
 /** Server facts for one item (lib/menu-search.ts). `chip`: Pours spirit, Cocktails style, Cellar color. */
 export type Facet = { moods: string[]; chip: string | null; grape: string | null; notes: string[] };
@@ -17,7 +17,7 @@ export type BrowseSection = { id: SectionId; label: string; noun: [string, strin
 
 /** Section chip choice: Pours/Cocktails a chip label; Cellar a color and/or a grape. null = All. */
 export type SectionPick = { chip: string | null; grape: string | null };
-export type Filters = { q: string; mood: string | null; top: boolean; picks: Record<SectionId, SectionPick> };
+export type Filters = { q: string; mood: string | null; picks: Record<SectionId, SectionPick> };
 export const NO_PICK: SectionPick = { chip: null, grape: null };
 
 /** Lower case, no accents, plain spaces and apostrophes: one character in, one character out (so marks line up). */
@@ -92,10 +92,10 @@ export function visibleMoods(sections: BrowseSection[]): { mood: string; count: 
   return MOODS.map((mood) => ({ mood, count: all.filter((it) => it.facet.moods.includes(mood)).length })).filter((m) => m.count >= MOOD_MIN_ITEMS);
 }
 
-/** Search, mood and Top rated (not the section chips): what the tab counts follow. */
-export function baseFilter(items: BrowseItem[], f: Pick<Filters, "q" | "mood" | "top">): BrowseItem[] {
+/** Search and mood (not the section chips): what the tab counts follow. */
+export function baseFilter(items: BrowseItem[], f: Pick<Filters, "q" | "mood">): BrowseItem[] {
   const ws = words(f.q);
-  return items.filter((it) => matchesWords(it, ws) && (!f.mood || it.facet.moods.includes(f.mood)) && (!f.top || (it.rating ?? 0) >= TOP_RATED_MIN));
+  return items.filter((it) => matchesWords(it, ws) && (!f.mood || it.facet.moods.includes(f.mood)));
 }
 
 /** A section chip choice applied (Cellar: color and grape). A grape only counts under a color (never under All). */
@@ -112,7 +112,7 @@ export function sectionItems(s: BrowseSection, f: Filters): BrowseItem[] {
 export type Chip = { label: string; kind: "chip" | "grape"; count: number; dim: boolean };
 /**
  * A section's chips, in menu order: Pours spirits; Cocktails Stirred · Shaken · Hot; Cellar Red · White · Other,
- * then grapes. Only chips some item on tonight's menu has. `count` follows the mood and Top rated filters; a chip
+ * then grapes. Only chips some item on tonight's menu has. `count` follows the mood filter; a chip
  * with nothing under them is dimmed. Cellar grapes follow the chosen color (Brian via Vincent, 2026-10-04): with
  * Red on, only grapes of tonight's red wines, and so on; under All, no grapes at all (the row is hidden; search
  * still finds a wine by its grape). A grape's color comes from the

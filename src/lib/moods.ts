@@ -11,9 +11,6 @@ export const MAX_MOODS = 3;
 /** A mood chip shows only when at least this many items on tonight's menu (in stock or makeable, not reserved) carry it. */
 export const MOOD_MIN_ITEMS = 2;
 
-/** "Top rated ★": a guest average (the same rounding as the cards) of at least this. */
-export const TOP_RATED_MIN = 4.0;
-
 const SET = new Set<string>(MOODS);
 /** Known moods only, in MOODS order, no repeats, at most MAX_MOODS. Unknown values are dropped. */
 export function cleanMoods(value: unknown): Mood[] {

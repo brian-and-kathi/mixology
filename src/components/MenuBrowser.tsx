@@ -18,7 +18,8 @@ const EMPTY_PICKS: Record<SectionId, SectionPick> = { pours: NO_PICK, cocktails:
 /**
  * Phone guest menu with search and filters (Brian via Rachel, 2026-10-04; the approved mock-up in
  * mixology-review/search-mockup). A sticky search box and tabs (All · Pours · Cocktails · Cellar, with counts);
- * mood chips ("Top rated ★", then Brian's moods with 2+ items tonight); per-section chips (Pours by spirit,
+ * mood chips (Brian's moods with 2+ items tonight; no "Top rated" chip, Brian via Vincent 2026-10-04: the ★ ratings
+ * stay on the cards, but the menu isn't filtered by them); per-section chips (Pours by spirit,
  * Cocktails Stirred · Shaken · Hot, Cellar color then grape). All chip rows wrap (no sideways scroll). A section with
  * nothing left collapses to "No matches"; when nothing matches anywhere, one "No matches · Clear filters" line
  * replaces the sections. No visible result line (Brian via Vincent, 2026-10-04: it cost phone space); screen
@@ -32,7 +33,6 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const [tab, setTab] = useState<Tab>(initialTab);
   const [q, setQ] = useState("");
   const [mood, setMood] = useState<string | null>(null);
-  const [top, setTop] = useState(false);
   const [picks, setPicks] = useState<Record<SectionId, SectionPick>>(EMPTY_PICKS);
   const [stuck, setStuck] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
@@ -40,7 +40,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const input = useRef<HTMLInputElement>(null);
   const root = useRef<HTMLDivElement>(null);
 
-  // Remembered for the visit (lib/menu-memory.ts, sessionStorage): search, mood, Top rated, section chips, tab
+  // Remembered for the visit (lib/menu-memory.ts, sessionStorage): search, mood, section chips, tab
   // and scroll come back when the guest returns from a drink, by browser back or any link to /menu. The saved
   // tab wins over ?tab= from a back link. Applied before the first paint (layout effect); the scroll is applied
   // after the restored list has rendered and again on the next frame, after the router's own scroll-to-top.
@@ -50,7 +50,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   useLayoutEffect(() => {
     const m = readMenuMemory(["all", ...sections.map((s) => s.id)]);
     if (m) {
-      setTab(m.tab); setQ(m.q); setMood(m.mood); setTop(m.top); setPicks(validPicks(sections, m.picks));
+      setTab(m.tab); setQ(m.q); setMood(m.mood); setPicks(validPicks(sections, m.picks));
       restoreY.current = m.y;
     }
     setRestored(true);
@@ -74,14 +74,13 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
     return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
   }, [restored]);
 
-  const f: Filters = { q, mood, top, picks };
+  const f: Filters = { q, mood, picks };
   const ws = words(q);
   const searching = ws.length > 0;
   const moods = useMemo(() => visibleMoods(sections), [sections]);
   // A mood that disappears after a data refresh (fewer than 2 items now) stops filtering.
   const moodOn = mood && moods.some((m) => m.mood === mood) ? mood : null;
   const fx: Filters = { ...f, mood: moodOn };
-  const hasRated = sections.some((s) => s.items.some((it) => it.rating != null));
 
   // Tab in the address bar (?tab=), so a reload or a shared link keeps it; no history entries.
   useEffect(() => {
@@ -89,11 +88,11 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
     if (window.location.pathname + window.location.search !== url) window.history.replaceState(window.history.state, "", url);
   }, [tab]);
   // Save on every change (clearing saves the cleared state; the default state removes the entry) and on scroll.
-  const state = useRef({ tab, q, mood, top, picks });
-  state.current = { tab, q, mood, top, picks };
+  const state = useRef({ tab, q, mood, picks });
+  state.current = { tab, q, mood, picks };
   useEffect(() => {
-    if (ready.current) writeMenuMemory({ tab, q, mood, top, picks, y: window.scrollY });
-  }, [tab, q, mood, top, picks, restored]);
+    if (ready.current) writeMenuMemory({ tab, q, mood, picks, y: window.scrollY });
+  }, [tab, q, mood, picks, restored]);
   useEffect(() => {
     let raf = 0;
     const save = () => {
@@ -162,7 +161,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
 
   const totals = Object.fromEntries(sections.map((s) => [s.id, s.items.length])) as Record<SectionId, number>;
   const total = sections.reduce((n, s) => n + s.items.length, 0);
-  const filtered = searching || !!moodOn || top;
+  const filtered = searching || !!moodOn;
   const tabCount = (id: SectionId) => (filtered ? baseFilter(sections.find((s) => s.id === id)!.items, fx).length : totals[id]);
   const allCount = sections.reduce((n, s) => n + tabCount(s.id), 0);
   const shown = sections.filter((s) => tab === "all" || s.id === tab);
@@ -170,9 +169,9 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const pickLabels = searching ? [] : shown.flatMap((s) => [picks[s.id]?.chip, picks[s.id]?.grape]).filter((x): x is string => !!x);
   const anything = filtered || pickLabels.length > 0;
 
-  // "Clear filters" on the empty line: search, mood, Top rated, section chips, and back to All.
+  // "Clear filters" on the empty line: search, mood, section chips, and back to All.
   function clear() {
-    setQ(""); setMood(null); setTop(false); setPicks(EMPTY_PICKS); setTab("all");
+    setQ(""); setMood(null); setPicks(EMPTY_PICKS); setTab("all");
   }
   function pick(s: BrowseSection, label: string | null, kind: "chip" | "grape" | "all") {
     setPicks((o) => {
@@ -190,7 +189,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const scope = tab === "all" ? null : sections.find((s) => s.id === tab)!;
   const scopeShown = scope ? shownItems[0]?.items.length ?? 0 : shownItems.reduce((n, x) => n + x.items.length, 0);
   const scopeTotal = scope ? totals[scope.id] : total;
-  const extras = [top ? "Top rated" : null, moodOn, ...pickLabels].filter(Boolean).join(" · ");
+  const extras = [moodOn, ...pickLabels].filter(Boolean).join(" · ");
   // Nothing left in any section (picks included), whatever the tab: one empty line instead of the sections.
   const noneAnywhere = anything && sections.every((s) => sectionItems(s, fx).length === 0);
   // The result count, for screen readers only (visually hidden live region; the tabs carry the counts on screen).
@@ -229,14 +228,8 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
       </div>
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{countText}</p>
 
-      {hasRated || moods.length ? (
+      {moods.length ? (
         <div className="chips mood" role="group" aria-label="Moods">
-          {hasRated ? (
-            <button type="button" className={`chip${top ? " on" : ""}`} aria-pressed={top} onClick={() => setTop((t) => !t)}>
-              Top rated <span className="star" aria-hidden>★</span>
-            </button>
-          ) : null}
-          {hasRated && moods.length ? <span className="chip-sep" aria-hidden /> : null}
           {moods.map((m) => (
             <button key={m.mood} type="button" className={`chip${moodOn === m.mood ? " on" : ""}`} aria-pressed={moodOn === m.mood} onClick={() => setMood((o) => (o === m.mood ? null : m.mood))}>
               {m.mood}

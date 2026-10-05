@@ -17,9 +17,12 @@ const EMPTY_PICKS: Record<SectionId, SectionPick> = { pours: NO_PICK, cocktails:
 /**
  * Phone guest menu with search and filters (Brian via Rachel, 2026-10-04; the approved mock-up in
  * mixology-review/search-mockup). A sticky search box and tabs (All · Pours · Cocktails · Cellar, with counts);
- * mood chips ("Top rated ★", then Brian's moods with 2+ items tonight); a result line with Clear; per-section
- * chips (Pours by spirit, Cocktails Stirred · Shaken · Hot, Cellar color then grape). A section with nothing
- * left collapses to "No matches". All in the browser: the menu is small, and nothing is sent anywhere.
+ * mood chips ("Top rated ★", then Brian's moods with 2+ items tonight); per-section chips (Pours by spirit,
+ * Cocktails Stirred · Shaken · Hot, Cellar color then grape). All chip rows wrap (no sideways scroll). A section with
+ * nothing left collapses to "No matches"; when nothing matches anywhere, one "No matches · Clear filters" line
+ * replaces the sections. No visible result line (Brian via Vincent, 2026-10-04: it cost phone space); screen
+ * readers still hear the count from a hidden live region. All in the browser: the menu is small, and nothing is
+ * sent anywhere.
  * The TV board is separate and unchanged.
  */
 export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[]; initialTab: Tab }) {
@@ -65,8 +68,9 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const pickLabels = searching ? [] : shown.flatMap((s) => [picks[s.id]?.chip, picks[s.id]?.grape]).filter((x): x is string => !!x);
   const anything = filtered || pickLabels.length > 0;
 
+  // "Clear filters" on the empty line: search, mood, Top rated, section chips, and back to All.
   function clear() {
-    setQ(""); setMood(null); setTop(false); setPicks(EMPTY_PICKS);
+    setQ(""); setMood(null); setTop(false); setPicks(EMPTY_PICKS); setTab("all");
   }
   function pick(s: BrowseSection, label: string | null, kind: "chip" | "grape" | "all") {
     setPicks((o) => {
@@ -84,34 +88,13 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const scopeShown = scope ? shownItems[0]?.items.length ?? 0 : shownItems.reduce((n, x) => n + x.items.length, 0);
   const scopeTotal = scope ? totals[scope.id] : total;
   const extras = [top ? "Top rated" : null, moodOn, ...pickLabels].filter(Boolean).join(" · ");
-  let countLine: ReactNode;
-  if (searching) {
-    countLine = (
-      <span>
-        <b>{scopeShown} {scopeShown === 1 ? "match" : "matches"}</b> for “{q.trim()}”{scope ? ` in ${scope.label}` : ""}{extras ? ` · ${extras}` : ""}
-      </span>
-    );
-  } else if (anything) {
-    countLine = (
-      <span>
-        <b>{scopeShown} of {scopeTotal}</b>{scope ? ` ${noun(scope, scopeTotal)}` : ""} · {extras}
-      </span>
-    );
-  } else {
-    countLine = scope ? (
-      <span>Showing all <b>{scopeTotal}</b> {noun(scope, scopeTotal)}</span>
-    ) : (
-      <span>
-        Showing all <b>{total}</b>{sections.map((s) => ` · ${s.items.length} ${noun(s, s.items.length)}`).join("")}
-      </span>
-    );
-  }
-  const count = (
-    <div className="count" role="status" aria-live="polite">
-      {countLine}
-      {anything ? <button type="button" className="clear" onClick={clear}>Clear</button> : null}
-    </div>
-  );
+  // Nothing left in any section (picks included), whatever the tab: one empty line instead of the sections.
+  const noneAnywhere = anything && sections.every((s) => sectionItems(s, fx).length === 0);
+  // The result count, for screen readers only (visually hidden live region; the tabs carry the counts on screen).
+  let countText: string;
+  if (searching) countText = `${scopeShown} ${scopeShown === 1 ? "match" : "matches"} for “${q.trim()}”${scope ? ` in ${scope.label}` : ""}${extras ? ` · ${extras}` : ""}`;
+  else if (anything) countText = `${scopeShown} of ${scopeTotal}${scope ? ` ${noun(scope, scopeTotal)}` : ""} · ${extras}`;
+  else countText = scope ? `Showing all ${scopeTotal} ${noun(scope, scopeTotal)}` : `Showing all ${total}${sections.map((s) => ` · ${s.items.length} ${noun(s, s.items.length)}`).join("")}`;
 
   return (
     <div className="browse">
@@ -139,8 +122,8 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
             );
           })}
         </nav>
-        {searching ? count : null}
       </div>
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{countText}</p>
 
       {hasRated || moods.length ? (
         <div className="chips mood" role="group" aria-label="Moods">
@@ -157,10 +140,14 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
           ))}
         </div>
       ) : null}
-      {searching ? null : count}
 
+      {noneAnywhere ? (
+        <p className="s-empty">
+          No matches<span className="dot" aria-hidden>·</span><button type="button" className="clear" onClick={clear}>Clear filters</button>
+        </p>
+      ) : null}
       <div className="sections">
-        {shownItems.map(({ s, items }) => {
+        {noneAnywhere ? null : shownItems.map(({ s, items }) => {
           if (!items.length) {
             return (
               <section key={s.id} className="sec sec-empty" aria-label={s.label}>

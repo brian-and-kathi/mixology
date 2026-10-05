@@ -339,6 +339,12 @@ button.icon:hover { color: var(--danger); background: rgba(224, 122, 104, 0.14);
   background: var(--surface);
 }
 .sub-list p { margin: 0; }
+/* Substitution sentence: the two specs in the bright text color and a heavier weight (bold semantics too, so the
+   emphasis isn't color alone); the connecting words and the note in the muted color. First letter capitalized for
+   display only. */
+.sub-list .sub-text { color: var(--muted); }
+.sub-list .sub-text::first-letter { text-transform: uppercase; }
+.sub-list .sub-item { color: var(--text); font-weight: 600; }
 .sub-list form { margin: 0; flex: none; }
 p.empty { color: var(--muted); }
 .form-actions { display: flex; gap: 8px; margin-top: 16px; }

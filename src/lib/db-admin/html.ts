@@ -49,7 +49,7 @@ export function page({ title, active, body, error = null, notice = null }: { tit
   <meta name="theme-color" content="#06140e">
   <meta name="robots" content="noindex">
   <title>${esc(title)} · Database</title>
-  <link rel="stylesheet" href="/db-static/app.css?v=4">
+  <link rel="stylesheet" href="/db-static/app.css?v=5">
 </head>
 <body>
   <header class="top">

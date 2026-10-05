@@ -742,7 +742,12 @@ async function substitutionsPage(error: string | null, body: Bag | null) {
       JOIN specs src ON src.id = sub.source_spec_id
       JOIN specs tgt ON tgt.id = sub.target_spec_id
      ORDER BY src.canonical_name, tgt.canonical_name`);
-  const list = rows.map((row) => `<li><p>${esc(row.source_name)} can be used in lieu of ${esc(row.target_name)}.${row.note ? ` ${esc(row.note)}` : ""}</p>
+  // The two specs stand out (Brian via Vincent, 2026-10-04): <strong class="sub-item"> in the bright text color and
+  // a heavier weight, from the structured fields (source, target; a ratio such as "(1:1)" is part of the spec name,
+  // so it stays with its item); the connecting words and the note stay in the quieter color. The first letter is
+  // capitalized by CSS only (display, not data).
+  const item = (name: string) => `<strong class="sub-item">${esc(name).replace(/ \(/g, "&nbsp;(")}</strong>`; // "(1:1)" never wraps off its word
+  const list = rows.map((row) => `<li><p class="sub-text">${item(row.source_name)} can be used in lieu of ${item(row.target_name)}.${row.note ? ` <span class="sub-note">${esc(row.note)}</span>` : ""}</p>
       ${deleteIcon(`${DB}/substitutions/${row.source_spec_id}/${row.target_spec_id}/delete`, `Remove ${row.source_name} for ${row.target_name}`, "Remove this substitution?")}</li>`).join("");
   const specOptions = options(specs.map((spec) => [spec.id, spec.canonical_name]), "Choose a spec");
   return html(error ? 400 : 200, page({

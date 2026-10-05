@@ -209,9 +209,11 @@ export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }
           <rect x="2.5" y="4" width="19" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
           <path d="M8 20.5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
-        {onTv ? "Take it off the TV" : "Show on TV"}
+        {/* The recipe page's pinned strip (RecipePin) swaps in the short label; elsewhere only the long one shows. */}
+        <span className="cast-label">{onTv ? "Take it off the TV" : "Show on TV"}</span>
+        <span className="cast-label-short">{onTv ? "Take off" : "Show on TV"}</span>
       </button>
-      <p className="cast-status quiet" aria-live="polite">
+      <p className="cast-status quiet" aria-live="polite" data-idle={error || onTv || ended ? undefined : ""}>
         {error ? error : onTv ? `On the TV now · ${mss(remaining)} left` : ended ?? "\u00a0"}
       </p>
     </div>

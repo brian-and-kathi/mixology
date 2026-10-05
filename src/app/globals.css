@@ -250,6 +250,9 @@ h1, h2, p { margin: 0; }
    resize on scroll. Above the frame layer (the top band), below the menu button. Not interactive. */
 .phone-pin { position: sticky; top: calc(var(--ft) + 10px); z-index: 35; margin-bottom: 1.4rem; pointer-events: none; }
 .phone-pin + .phone-header { margin-top: -0.4rem; }
+/* Pinned back link (recipe page): sticky at its resting offset, so it never moves; it keeps the header's 1rem
+   gap to the title row. Above the top band and the pinned "Show on TV" row, below the menu button. */
+.phone-back-pin { position: sticky; top: calc(var(--ft) + 10px); z-index: 35; margin-bottom: 1rem; }
 /* Sized to stay on one line beside the menu button (the script face is ~11 font-sizes wide). */
 .phone-wordmark { font-size: min(1.9rem, calc((100vw - 2 * (12px + 1.1rem) - 64px) / 11.2)); white-space: nowrap; }
 .phone-title { display: flex; align-items: center; gap: 1rem; }
@@ -330,6 +333,44 @@ a.card:active { background: #202020; }
 .cast-btn:disabled { opacity: 0.6; }
 .cast-icon { width: 1.25rem; height: 1.25rem; }
 .cast-status { font-size: 0.9rem; text-align: center; min-height: 1.2em; }
+.cast-label-short { display: none; }
+/* Recipe page (RecipePin): the "Show on TV" row is sticky just below the menu-button row (the same line as the
+   /menu search bar's content). Only this row pins, and its height is identical pinned or not (a fixed 48px
+   button row plus the status line), so pinning never moves the page. Its padding is cancelled by negative
+   margins, so at rest the page lays out exactly as before. Solid black edge to edge inside the frame; above
+   the frame's top band (30), below the pinned back link (35) and the menu button (40). */
+.r-pin-mark { height: 0; margin-bottom: -1.4rem; }
+.r-pin {
+  position: sticky; top: calc(var(--ft) + 58px + 0.4rem); z-index: 34;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 48px auto; row-gap: 0.4rem; column-gap: 0.75rem; align-items: center;
+  background: #000; margin: -0.5rem calc(1px - 1.1rem) -0.5rem; padding: 0.5rem calc(1.1rem - 1px);
+}
+.r-pin .cast { display: contents; }
+.r-pin .cast-btn { grid-column: 1 / -1; grid-row: 1; }
+.r-pin .cast-status { grid-column: 1 / -1; grid-row: 2; }
+/* The small glass + name: in the first cell, invisible (and untouchable) until pinned. */
+.r-pin-id { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 0.55rem; min-width: 0; opacity: 0; visibility: hidden; transition: opacity 160ms ease, visibility 0s linear 160ms; }
+.r-pin-glass { flex-shrink: 0; width: 1.9rem; height: 1.9rem; color: var(--text); }
+.r-pin-title { min-width: 0; font-size: 1.02rem; font-weight: 500; line-height: 1.2; color: var(--text); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+/* Pinned: the name shows, the button narrows to the right (still 40px+ tall, inside the same 48px row),
+   and a hairline marks the edge. The status line keeps its row, so a cast's countdown stays visible. */
+.r-pin.pinned { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 14px -6px rgba(0, 0, 0, 0.9); }
+/* Pinned with an empty status line (nothing cast): paint only the button row, so the pinned strip is ~64px,
+   not ~88px. Paint only, the box keeps its height, so nothing moves; the empty row lets taps through. While a
+   cast is up (or a message shows) the whole strip is painted, countdown included. */
+.r-pin.pinned:has(.cast-status[data-idle]) { background: transparent; box-shadow: none; pointer-events: none; }
+.r-pin.pinned:has(.cast-status[data-idle])::before { content: ""; position: absolute; z-index: -1; inset: 0 0 auto; height: calc(1rem + 48px); background: #000; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 14px -6px rgba(0, 0, 0, 0.9); }
+.r-pin.pinned .cast-btn { pointer-events: auto; }
+.r-pin.pinned .r-pin-id { opacity: 1; visibility: visible; transition: opacity 160ms ease, visibility 0s; }
+.r-pin.pinned .cast-btn { grid-column: 2; min-height: 44px; padding: 0 0.85rem; gap: 0.45rem; font-size: 0.95rem; }
+.r-pin.pinned .cast-label { display: none; }
+.r-pin.pinned .cast-label-short { display: inline; }
+/* Narrow phones: the pinned button is icon-only (its label stays for screen readers), leaving room for the name. */
+@media (max-width: 359px) {
+  .r-pin.pinned .cast-btn { width: 48px; padding: 0; }
+  .r-pin.pinned .cast-label-short { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) { .r-pin-id, .r-pin.pinned .r-pin-id { transition: none; } }
 
 /* Guest ratings (migration 022). Score under the glass on detail pages: the number in the text color,
    a gold star. The line is always there (blank until the first vote), so nothing moves when it fills in. */

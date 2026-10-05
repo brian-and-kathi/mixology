@@ -10,6 +10,7 @@ export function PhoneShell({
   titleBadge,
   lead,
   back,
+  pinBack = false,
   editHref,
   admin = false,
   bar,
@@ -20,6 +21,8 @@ export function PhoneShell({
   titleBadge?: ReactNode;
   lead?: ReactNode;
   back?: { href: string; label: string };
+  /** Keep the back link where it rests, beside the menu button, while the page scrolls (recipe page). */
+  pinBack?: boolean;
   /** Only passed when this device has a valid admin session (checked server-side). */
   editHref?: string;
   /** Signed-in admin: the menu shows the database link. */
@@ -38,9 +41,18 @@ export function PhoneShell({
           <p className="wordmark phone-wordmark">{BAR_NAME}</p>
         </div>
       )}
-      {back || title ? (
+      {back && pinBack ? (
+        // Pinned back link: sticky at exactly its resting position (like the wordmark), so it never moves; it
+        // has to sit outside the header for sticky to hold for the whole page.
+        <div className="phone-top phone-back-pin">
+          <Link href={back.href} className="back">
+            <span aria-hidden>‹</span> {back.label}
+          </Link>
+        </div>
+      ) : null}
+      {(back && !pinBack) || title ? (
         <header className="phone-header">
-          {back ? (
+          {back && !pinBack ? (
             // The top row leaves room on the right for the fixed menu button.
             <div className="phone-top">
               <Link href={back.href} className="back">

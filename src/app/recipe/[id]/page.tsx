@@ -5,6 +5,7 @@ import { CastButton } from "@/components/CastButton";
 import { DrinkLead } from "@/components/DrinkLead";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { PhoneShell } from "@/components/PhoneShell";
+import { RecipePin } from "@/components/RecipePin";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { altGlassLine, cap, glassLine, lineText, methodParts } from "@/lib/format";
@@ -43,6 +44,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
       titleBadge={recipe.featured ? <FeaturedTag /> : undefined}
       editHref={editHref}
       back={{ href: "/menu?tab=cocktails", label: "Cocktails" }}
+      pinBack
       lead={<DrinkLead glass={recipe.glass ?? ""} kind="recipe" id={recipe.id} rating={rating} />}
     >
       {/* Moods (migration 033): the same quiet line as the TV cast card, under the name, above the glass line. */}
@@ -56,7 +58,10 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         </section>
       ) : null}
 
-      <CastButton type="recipe" id={recipe.id} />
+      {/* Pinned while the recipe scrolls; once pinned it shows a small glass and the name beside the button. */}
+      <RecipePin glass={recipe.glass ?? ""} title={recipe.name}>
+        <CastButton type="recipe" id={recipe.id} />
+      </RecipePin>
 
       <section>
         <h2>Ingredients</h2>

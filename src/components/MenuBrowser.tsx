@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { ReservedTag } from "@/components/ReservedIcon";
@@ -22,7 +22,9 @@ const EMPTY_PICKS: Record<SectionId, SectionPick> = { pours: NO_PICK, cocktails:
  * Cocktails Stirred · Shaken · Hot, Cellar color then grape). All chip rows wrap (no sideways scroll). A section with
  * nothing left collapses to "No matches"; when nothing matches anywhere, one "No matches · Clear filters" line
  * replaces the sections. No visible result line (Brian via Vincent, 2026-10-04: it cost phone space); screen
- * readers still hear the count from a hidden live region. All in the browser: the menu is small, and nothing is
+ * readers still hear the count from a hidden live region. Section titles (with their count) pin under the bar while
+ * their section scrolls by (Brian via Vincent, 2026-10-04): plain CSS sticky inside each section, so the next title
+ * pushes the old one up; see the pin line below. All in the browser: the menu is small, and nothing is
  * sent anywhere.
  * The TV board is separate and unchanged.
  */
@@ -34,6 +36,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const [picks, setPicks] = useState<Record<SectionId, SectionPick>>(EMPTY_PICKS);
   const [stuck, setStuck] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const root = useRef<HTMLDivElement>(null);
 
@@ -112,6 +115,51 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
     return () => io.disconnect();
   }, []);
 
+  // Sticky section titles. The push-up is pure CSS (each .sec-head is sticky inside its own section). JS only
+  // measures the pin line, the bottom of the sticky search bar (its CSS top + its real height), into --s-pin on
+  // .browse with a ResizeObserver, before the first paint, so a title never leaves a gap under the bar or slides
+  // under it; and one IntersectionObserver marks the title that is pinned (data-pinned) for its hairline. Neither
+  // changes layout, so the remembered scroll restores exactly.
+  const heads = useRef(new Set<HTMLElement>());
+  const headIO = useRef<IntersectionObserver | null>(null);
+  const watchHeads = useCallback((pin: number) => {
+    headIO.current?.disconnect();
+    if (typeof IntersectionObserver === "undefined") return;
+    // The root starts 1px under the pin line: a pinned title (top at the line) is then cut by 1px, a title resting
+    // lower in the list is not, and one pushed fully under the bar no longer intersects.
+    const io = new IntersectionObserver((es) => {
+      for (const e of es) {
+        const pinned = e.isIntersecting && !!e.rootBounds && e.boundingClientRect.top < e.rootBounds.top;
+        (e.target as HTMLElement).toggleAttribute("data-pinned", pinned);
+      }
+    }, { rootMargin: `${-Math.ceil(pin + 1)}px 0px 0px 0px`, threshold: [0, 1] });
+    heads.current.forEach((el) => io.observe(el));
+    headIO.current = io;
+  }, []);
+  const headRef = useCallback((el: HTMLDivElement | null) => {
+    // React calls this with the element on mount and null on unmount; keep the set in step.
+    heads.current.forEach((h) => { if (!h.isConnected) { heads.current.delete(h); headIO.current?.unobserve(h); } });
+    if (el && !heads.current.has(el)) { heads.current.add(el); headIO.current?.observe(el); }
+  }, []);
+  useLayoutEffect(() => {
+    const el = bar.current, box = root.current;
+    if (!el || !box) return;
+    let last = -1;
+    const measure = () => {
+      const pin = (parseFloat(getComputedStyle(el).top) || 0) + el.getBoundingClientRect().height;
+      if (Math.abs(pin - last) < 0.25) return;
+      last = pin;
+      box.style.setProperty("--s-pin", `${pin}px`);
+      watchHeads(pin);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return () => headIO.current?.disconnect();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure); // the bar's top uses the safe-area inset, which can change on rotate
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); headIO.current?.disconnect(); };
+  }, [watchHeads]);
+
   const totals = Object.fromEntries(sections.map((s) => [s.id, s.items.length])) as Record<SectionId, number>;
   const total = sections.reduce((n, s) => n + s.items.length, 0);
   const filtered = searching || !!moodOn || top;
@@ -156,7 +204,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
     <div ref={root} className="browse" onClickCapture={() => { if (ready.current) writeMenuMemory({ ...state.current, y: window.scrollY }); }}>
       <div className="s-band" aria-hidden />
       <div ref={sentinel} className="s-sentinel" aria-hidden />
-      <div className={`s-sticky${stuck ? " stuck" : ""}`}>
+      <div ref={bar} className={`s-sticky${stuck ? " stuck" : ""}`}>
         <form className="search" role="search" onSubmit={(e) => { e.preventDefault(); input.current?.blur(); }}>
           <SearchIcon />
           <input ref={input} type="search" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") setQ(""); }}
@@ -215,7 +263,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
           const cur = picks[s.id] ?? NO_PICK;
           return (
             <section key={s.id} className="sec" aria-label={s.label}>
-              <div className="sec-head"><h2>{s.label}</h2><span className="n">{items.length}</span></div>
+              <div ref={headRef} className="sec-head"><h2>{s.label}</h2><span className="n">{items.length}</span></div>
               {chips.length > 1 || (s.id === "cellar" && chips.length) ? (
                 <div className="chips" role="group" aria-label={`${s.label} filters`}>
                   <button type="button" className={`chip sm${!cur.chip && !cur.grape ? " on" : ""}`} aria-pressed={!cur.chip && !cur.grape} onClick={() => pick(s, null, "all")}>All</button>

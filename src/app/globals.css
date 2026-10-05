@@ -490,9 +490,29 @@ a.card:active { background: #202020; }
 .s-empty .dot { margin: 0 0.5em; color: rgba(255, 255, 255, 0.3); }
 .s-empty .clear { min-height: 32px; padding: 0 0.1rem; border: 0; background: none; font: inherit; font-weight: 500; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .sections { display: flex; flex-direction: column; }
-.sec { margin-top: 0.95rem; }
-.sec:first-child { margin-top: 0.6rem; }
-.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.45rem; }
+/* Section titles pin under the bar (Brian via Vincent, 2026-10-04): each .sec-head is sticky inside its own
+   section, so when a section ends its title rides up under the bar and the next one takes the line; no JS swap.
+   The line is --s-pin, the bar's measured bottom (MenuBrowser sets it; the fallback is the bar's usual height),
+   less 1px so no sub-pixel gap shows (the bar, a layer up, covers that pixel). Solid black, full frame width like
+   the bar; the vertical padding is taken out of the margins, so the list at rest is laid out exactly as before.
+   The hairline and shadow show only while pinned (data-pinned), and the bar drops its own then, so bar and title
+   read as one block. z-index 2: over the cards, under the black band and frame (29/30) and the bar (34), so a
+   title that has scrolled past hides behind the wordmark like everything else. A "No matches" section is only its
+   title, so it never pins. Chip rows don't pin.
+   The space between sections is a spacer at the end of the section above (inside it, so its title is pushed
+   only when the next section starts): the incoming title meets the outgoing one with no gap while it pushes. */
+.sec { margin-top: 0; }
+.sec:first-child { margin-top: 0.4rem; }
+.sec:has(+ .sec)::after { content: ""; display: block; height: 0.75rem; }
+.sec:has(+ .sec-empty)::after { height: 0.95rem; }
+/* Sticky counts a title's own margin as part of it, so the gap under a sticky title is the next element's margin. */
+.sec:not(.sec-empty) > .sec-head { margin-bottom: 0; }
+.sec:not(.sec-empty) > .sec-head + * { margin-top: 0.3rem; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.3rem; }
+.sec:not(.sec-empty) > .sec-head { position: sticky; z-index: 2; top: calc(var(--s-pin, calc(var(--ft) + 10px + 48px + 0.9rem + 48px + 0.6rem + 40px + 0.55rem)) - 1px); margin-left: calc(1px - 1.1rem); margin-right: calc(1px - 1.1rem); padding: 0.2rem calc(1.1rem - 1px) 0.15rem; background: #000; }
+.sec-empty:first-child { margin-top: 0.6rem; }
+.sec:not(.sec-empty) > .sec-head[data-pinned] { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 14px -6px rgba(0, 0, 0, 0.9); }
+.browse:has(.sec:not(.sec-empty) > .sec-head[data-pinned]) .s-sticky.stuck { box-shadow: none; }
 .phone-body .sec-head h2 { margin: 0; font-family: var(--font-display), Palatino, serif; font-style: italic; font-weight: 500; font-size: 1.75rem; line-height: 1.1; letter-spacing: 0; text-transform: none; color: rgba(255, 255, 255, 0.92); }
 .sec-head .n { font-size: 0.85rem; color: var(--quiet); font-variant-numeric: tabular-nums; }
 .sec .chips { margin-bottom: 0.75rem; }

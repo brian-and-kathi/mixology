@@ -56,7 +56,7 @@ const TV_FEATURED: "tag" | "star" = "star";
 const TV_FLOURISHES = {
   javanese: { before: "\ua9c1", after: "\ua9c2" }, // ꧁ Name ꧂  (Javanese pada; Noto Sans Javanese)
   tibetan: { before: "\u0f3a", after: "\u0f3b" }, // ༺ Name ༻  (Tibetan brackets; Noto Serif Tibetan)
-  sparkle: { before: "\u2726", after: "" }, // ✦ Name  (Noto Sans Symbols 2)
+  sparkle: { before: "\u2726", after: "\u2726" }, // ✦ Name ✦  (Noto Sans Symbols 2; Brian, 2026-10-04: both sides, small and raised)
   sparkleOpen: { before: "\u2727", after: "" }, // ✧ Name  (Noto Sans Symbols 2)
   star: { before: "\u2605", after: "" }, // ★ Name  (the old look)
 } as const;
@@ -202,11 +202,11 @@ function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on
       <Lead glass={item.glass} rating={rating} />
       <span className="tv-text">
         <span className="tv-name" data-measure={star ? item.measure ?? item.name : locked ? `\u2605\u00a0${item.measure ?? item.name}` : item.measure}>
-          {star ? <span className="tv-feat-star" role="img" aria-label="Featured">{fl.before}</span> : null}
+          {star ? <span className="tv-feat-star" data-flourish={TV_FEATURED_FLOURISH} role="img" aria-label="Featured">{fl.before}</span> : null}
           {star ? "\u00a0" : null}
           {locked ? (TV_RESERVED_ICON === "padlock" ? <PadlockIcon className="tv-res-icon" label="Reserved" /> : <KeyIcon className="tv-res-icon" label="Reserved" />) : null}
           {item.name}
-          {star && fl.after ? <>{"\u00a0"}<span className="tv-feat-star tv-feat-after" aria-hidden>{fl.after}</span></> : null}
+          {star && fl.after ? <>{"\u00a0"}<span className="tv-feat-star tv-feat-after" data-flourish={TV_FEATURED_FLOURISH} aria-hidden>{fl.after}</span></> : null}
           {/* "45% abv" never splits: a no-break space (TV only; the phone keeps item.detail). */}
           {item.abv ? <sup className="tv-abv">{item.abv.replace(/ /g, "\u00a0")}</sup> : null}
         </span>

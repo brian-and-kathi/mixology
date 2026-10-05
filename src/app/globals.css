@@ -415,6 +415,8 @@ a.card:active { background: #202020; }
 @font-face { font-family: "TV Flourish"; src: url("/fonts/tv-flourish-sparkle.woff2") format("woff2"); unicode-range: U+2726-2727; font-display: block; }
 .tv-feat-star { font-family: "TV Flourish", var(--font-sans), sans-serif; color: var(--featured); font-size: 0.72em; vertical-align: 0.12em; }
 .tv-row.on .tv-feat-star { color: var(--featured); }
+/* ✦ Name ✦ (Brian, 2026-10-04): both sparkles small and raised, so neither dominates the name; line-height 0 keeps the row height. */
+.tv-feat-star[data-flourish="sparkle"] { font-size: 0.6em; line-height: 0; vertical-align: 0.42em; }
 /* Show on TV band: tag under the name, and a featured bottle in copper in the bottle line. */
 .tv-band-feat { margin: -0.8vh 0 1.4vh; }
 .tv-band-feat .feat-tag { margin-left: 0; font-size: calc(1.85vh * var(--s)); padding: 0.35vh 1vh 0.45vh; }

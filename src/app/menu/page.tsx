@@ -1,22 +1,26 @@
 import { ClosedPage } from "@/components/ClosedPage";
 import { guestGate, publicStatus } from "@/lib/bar-status";
-import Link from "next/link";
 import { AutoRefresh } from "@/components/AutoRefresh";
-import type { CSSProperties } from "react";
-import { FeaturedTag } from "@/components/FeaturedTag";
-import { ReservedTag } from "@/components/ReservedIcon";
-import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
+import { MenuBrowser } from "@/components/MenuBrowser";
 import { PhoneShell } from "@/components/PhoneShell";
 import { isAdmin } from "@/lib/admin-guard";
 import { barVersions } from "@/lib/bar-versions";
-import { loadMenu, SECTIONS, type SectionId } from "@/lib/menu";
+import { loadMenu, SECTIONS } from "@/lib/menu";
+import type { BrowseSection, Facet } from "@/lib/menu-filter";
+import { loadMenuFacets } from "@/lib/menu-search";
 import { ratingKey } from "@/lib/rating-key";
 import { loadAllRatings } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Menu" };
 
-/** Phone guest menu: same sections and order as the TV, one tab per non-empty section. */
+const NOUNS = { pours: ["pour", "pours"], cocktails: ["cocktail", "cocktails"], cellar: ["wine", "wines"] } as const;
+const NO_FACET: Facet = { moods: [], chip: null, grape: null, notes: [] };
+
+/**
+ * Phone guest menu: the same sections and order as the TV, with search and filters (components/MenuBrowser,
+ * 2026-10-04). Tabs: All plus one per non-empty section (?tab=pours|cocktails|cellar opens on that section).
+ */
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams;
   // Open/Closed (DESIGN §3.1): while Closed, guests get the closed page (admins get the page and the pill).
@@ -25,106 +29,45 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
   if (!gate.allowed) return <ClosedPage bar={bar} />;
   // Read before the menu, so a change during the render counts as newer (AutoRefresh).
   const version = await barVersions().catch(() => null);
-  // Guest ratings, the TV board's single query and rounding; a failure just shows no ratings.
-  const [menu, ratings, admin] = await Promise.all([loadMenu().catch(() => null), loadAllRatings().catch((): Record<string, number> => ({})), isAdmin()]);
+  // Guest ratings, the TV board's single query and rounding; a failure just shows no ratings. Facets (moods,
+  // section chips, searchable notes; migration 033): a failure just means plain search and no chips.
+  const [menu, ratings, facets, admin] = await Promise.all([
+    loadMenu().catch(() => null),
+    loadAllRatings().catch((): Record<string, number> => ({})),
+    loadMenuFacets().catch((): Record<string, Facet> => ({})),
+    isAdmin(),
+  ]);
   if (!menu) {
     return (
       <PhoneShell bar={bar} admin={admin}>
-        <p className="notice">The menu can't be loaded right now. Try again in a minute.</p>
+        <p className="notice">The menu can&apos;t be loaded right now. Try again in a minute.</p>
       </PhoneShell>
     );
   }
-  const tabs = SECTIONS.filter((s) => menu[s.id].length > 0);
-  if (tabs.length === 0) {
+  const sections: BrowseSection[] = SECTIONS.filter((s) => menu[s.id].length > 0).map((s) => ({
+    id: s.id,
+    label: s.label,
+    noun: [NOUNS[s.id][0], NOUNS[s.id][1]],
+    items: menu[s.id].map((item) => {
+      // The TV-only fields stay on the server.
+      const { fit: _fit, measure: _measure, originTv: _originTv, abv: _abv, ...rest } = item;
+      return { ...rest, facet: facets[`${s.id}:${item.id}`] ?? NO_FACET, rating: ratings[ratingKey(s.id, item.id)] ?? null };
+    }),
+  }));
+  if (sections.length === 0) {
     return (
       <PhoneShell bar={bar} admin={admin}>
         <p className="notice">Nothing available tonight.</p>
       </PhoneShell>
     );
   }
-  const current: SectionId = tabs.find((t) => t.id === tab)?.id ?? tabs[0].id;
+  const initialTab = sections.find((s) => s.id === tab)?.id ?? "all";
 
   return (
     <PhoneShell bar={bar} admin={admin}>
       {/* Live updates only while the relay is on (no polling from phones otherwise). */}
       <AutoRefresh topic="bar:menu" version={version?.menu ?? null} />
-      <nav className="tabs" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
-        {tabs.map((t) => (
-          <Link key={t.id} href={`/menu?tab=${t.id}`} className={t.id === current ? "tab active" : "tab"} aria-current={t.id === current ? "page" : undefined}>
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-      <ul className="cards">
-        {menu[current].map((item) => {
-          // Every section has a muted second line (ingredients, region · ABV, region · style) when there is data for it.
-          const rating = ratings[ratingKey(current, item.id)];
-          // Taller glasses (highball, collins) end lower: move the rating down by the difference so it clears the foot.
-          const drop = rating != null ? glassFootDrop(item.glass) : 0;
-          const body = (
-            <>
-              {/* Glass, and under it the guests' average ("4.2 ★", as on the TV board). Out of flow: same card height, same column. */}
-              <span className="card-lead" style={drop ? ({ "--card-rating-drop": `${drop}rem` } as CSSProperties) : undefined}>
-                <GlassIcon glass={item.glass} />
-                {rating != null ? (
-                  <span className="card-rating" role="img" aria-label={`Rated ${rating.toFixed(1)} of 5`}>
-                    <span className="card-rating-num">{rating.toFixed(1)}</span>
-                    <span className="card-rating-star" aria-hidden>★</span>
-                  </span>
-                ) : null}
-              </span>
-              <span className="item-text">
-                <span className="item-name">
-                  {/* Pours: an invisible copy of the badge floated at the right of the name's first line keeps the room
-                      the corner badge takes, plus 8px, so the name wraps before it and never runs under it. */}
-                  {item.spec ? <span className="spec-badge badge-reserve" aria-hidden>{item.spec}</span> : null}
-                  {item.reserved ? <span className="res-dim">{item.name}</span> : item.name}
-                  {/* Featured (migration 030): sorted first (lib/menu.ts), copper hairline and this tag. */}
-                  {item.featured ? <FeaturedTag /> : null}
-                  {/* Reserved (migration 032): dimmed, after the available items, brass key tag; the link opens the locked page. */}
-                  {item.reserved ? <ReservedTag /> : null}
-                </span>
-                {item.detail ? <ItemDetail text={item.detail} origin={item.origin} /> : null}
-              </span>
-              {/* Pours: the type badge as a tab in the card's top-right corner, out of flow. */}
-              {item.spec ? <span className="spec-badge corner-badge">{item.spec}</span> : null}
-            </>
-          );
-          const two = (item.detail ? " two-line" : "") + (item.spec ? " has-badge" : "") + (item.featured ? " is-featured" : "") + (item.reserved ? " is-reserved" : "");
-          return (
-            // Pours: a little extra space above the first bottle of each spirit family (lib/spirit-family.ts).
-            <li key={item.id} className={item.famStart ? "fam-start" : undefined}>
-              {item.href ? (
-                <Link href={item.href} className={`card${two}`}>{body}</Link>
-              ) : (
-                // Every section links to a detail page now (Cellar wines: /wine/:id); kept for items without one.
-                <div className={`card card-static${two}`}>{body}</div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      <MenuBrowser sections={sections} initialTab={initialTab} />
     </PhoneShell>
   );
-}
-
-/**
- * Browsers may wrap after a hyphen ("semi-" / "dry"). Words that are kept whole with no-break spaces
- * (see lib/menu.ts) are wrapped in a nowrap span when they contain one, so lines still only break at " · ".
- */
-function ItemDetail({ text, origin }: { text: string; origin?: string | null }) {
-  const place = origin && text.startsWith(origin) ? origin : "";
-  const rest = place ? text.slice(place.length) : text;
-  return (
-    <span className="item-detail">
-      {place ? <span className="origin">{keepHyphens(place)}</span> : null}
-      {keepHyphens(rest)}
-    </span>
-  );
-}
-
-function keepHyphens(text: string) {
-  const parts = text.split(/([^ ]*-[^ ]*)/);
-  if (parts.length === 1) return text;
-  return parts.map((part, i) => (i % 2 ? <span key={i} className="nobr">{part}</span> : part));
 }

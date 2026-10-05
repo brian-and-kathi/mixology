@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { UserError } from "@/lib/admin-guard";
 import { isUuid, query, sql } from "@/lib/db";
+import { MAX_MOODS, MOODS } from "@/lib/moods";
 
 // All admin writes: parameterized SQL, and one transaction whenever more than one row changes.
 // Every write also appends a change_log row (who/what/before/after/when).
@@ -18,6 +19,20 @@ const text = (v: unknown, max = 500): string | null => {
 };
 const bool = (v: unknown) => v === true || v === "true" || v === "on";
 const uuidOrNull = (v: unknown) => (typeof v === "string" && isUuid(v) ? v : null);
+/**
+ * Mood tags (migration 033): undefined = leave as stored (a caller that doesn't send moods never clears them);
+ * otherwise known moods only, at most MAX_MOODS, saved in MOODS order without repeats (the CHECK agrees).
+ */
+function moodsInput(v: unknown): string[] | null {
+  if (v === undefined) return null;
+  if (v === null) return [];
+  if (!Array.isArray(v)) throw new UserError("Moods must be a list.");
+  const list = [...new Set(v.map((m) => (typeof m === "string" ? m.trim() : "")))];
+  const bad = list.filter((m) => !(MOODS as readonly string[]).includes(m));
+  if (bad.length) throw new UserError(`Unknown mood "${bad[0]}".`);
+  if (list.length > MAX_MOODS) throw new UserError(`Pick at most ${MAX_MOODS} moods.`);
+  return MOODS.filter((m) => list.includes(m));
+}
 function num(v: unknown, label: string): number | null {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
@@ -100,12 +115,12 @@ export async function saveProduct(id: string | null, body: Record<string, unknow
   const v = [
     name, text(body.brand, 120), text(body.description, 2000), text(body.origin, 120), text(body.serve_note, 200), abv, upc,
     familyId, bool(body.in_stock), featured, !pourable, servesNeat, servesRocks, pourable && bool(body.serves_chilled),
-    bool(body.fortified), wineColor, eff, shortName, specLabel, grape, reserved, reservedNote,
+    bool(body.fortified), wineColor, eff, shortName, specLabel, grape, reserved, reservedNote, moodsInput(body.moods),
   ];
   const cols = `display_name = $2, brand = $3, description = $4, origin = $5, serve_note = $6, abv = $7, upc = $8,
     family_id = $9, in_stock = $10, featured = $11, mix_only = $12, serves_neat = $13, serves_rocks = $14, serves_chilled = $15,
     fortified = $16, wine_color = $17, wine_effervescence = $18, short_name = $19, spec_label = $20, grape = $21,
-    reserved = $22, reserved_note = $23`;
+    reserved = $22, reserved_note = $23, moods = COALESCE($24::text[], moods)`;
   const pid = id ?? randomUUID();
   const stmts: Stmt[] = [];
   if (id) {
@@ -121,8 +136,8 @@ export async function saveProduct(id: string | null, body: Record<string, unknow
       `WITH ins AS (
          INSERT INTO products (id, packaged_name, display_name, brand, description, origin, serve_note, abv, upc, family_id,
                                in_stock, featured, mix_only, serves_neat, serves_rocks, serves_chilled, fortified, wine_color, wine_effervescence,
-                               short_name, spec_label, grape, reserved, reserved_note)
-         VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                               short_name, spec_label, grape, reserved, reserved_note, moods)
+         VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, COALESCE($24::text[], '{}'))
          RETURNING to_jsonb(products.*) j)
        INSERT INTO change_log (entity, entity_id, action, summary, after)
        SELECT 'product', $1::text, 'create', 'Added ' || $2, ins.j FROM ins`,
@@ -307,6 +322,7 @@ function recipeInput(body: Record<string, unknown>) {
     alt_service_style: style(body.alt_service_style),
     glass_note: text(body.glass_note, 120),
     method_style: methodStyle(body.method_style),
+    moods: moodsInput(body.moods),
     lines,
   };
 }
@@ -329,7 +345,7 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
   );
   if (found.glasses !== new Set(glassIds).size) throw new UserError("Unknown glass.");
   if (found.specs !== specIds.length) throw new UserError("One of the ingredients no longer exists. Pick it again.");
-  const vals = [rid, r.name, r.description, r.glass_id, r.service_style, r.alt_glass_id, r.alt_service_style, r.glass_note, r.method_style];
+  const vals = [rid, r.name, r.description, r.glass_id, r.service_style, r.alt_glass_id, r.alt_service_style, r.glass_note, r.method_style, r.moods];
   const stmts: Stmt[] = [];
   if (id) {
     stmts.push([
@@ -339,14 +355,14 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
     ]);
     stmts.push([
       `UPDATE recipes SET name = $2, description = $3, glass_id = $4, service_style = $5, alt_glass_id = $6,
-              alt_service_style = $7, glass_note = $8, method_style = $9 WHERE id = $1`,
+              alt_service_style = $7, glass_note = $8, method_style = $9, moods = COALESCE($10::text[], moods) WHERE id = $1`,
       vals,
     ]);
     stmts.push(["DELETE FROM recipe_lines WHERE recipe_id = $1", [rid]]);
   } else {
     stmts.push([
-      `INSERT INTO recipes (id, name, description, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, section)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'mixed')`,
+      `INSERT INTO recipes (id, name, description, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, moods, section)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::text[], '{}'), 'mixed')`,
       vals,
     ]);
   }
@@ -383,8 +399,8 @@ export async function duplicateRecipe(id: string) {
   const nid = randomUUID();
   await tx([
     [
-      `INSERT INTO recipes (id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style)
-       SELECT $2, $3, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style FROM recipes WHERE id = $1`,
+      `INSERT INTO recipes (id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, moods)
+       SELECT $2, $3, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, moods FROM recipes WHERE id = $1`,
       [id, nid, name],
     ],
     [

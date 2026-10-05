@@ -445,3 +445,7 @@ body:has(.admin-root) { background: #07101c; }
 .a-reserved-label .res-icon { width: 1.2em; height: 1.2em; vertical-align: 0; }
 .a-srow-res { white-space: nowrap; }
 .a-srow-res .res-icon { width: 1.25em; height: 1.25em; margin-right: 0.3em; vertical-align: -0.3em; }
+/* Mood tags (migration 033): MoodPicker on the bottle and recipe forms. */
+.a-moods .a-chips { margin: 0.2rem 0 0.4rem; }
+.a-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+.a-chip.on::before { content: "✓ "; }

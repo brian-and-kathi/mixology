@@ -11,12 +11,13 @@ import { specLabel } from "@/lib/spec-label";
 import { Disclosure } from "./Disclosure";
 import { formatUpc } from "@/lib/format";
 import { KeyIcon } from "@/components/ReservedIcon";
+import { MoodPicker } from "./MoodPicker";
 
 type Form = {
   display_name: string; short_name: string; spec_label: string; spec_id: string | null; family_id: string; in_stock: boolean; featured: boolean; reserved: boolean; reserved_note: string; pourable: boolean;
   serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean; description: string;
   brand: string; origin: string; abv: string; serve_note: string; upc: string; fortified: boolean;
-  wine_color: string; wine_effervescence: string; grape: string;
+  wine_color: string; wine_effervescence: string; grape: string; moods: string[];
 };
 
 function initial(p: ProductRow | null): Form {
@@ -26,7 +27,7 @@ function initial(p: ProductRow | null): Form {
     serves_rocks: p?.serves_rocks ?? false, serves_chilled: p?.serves_chilled ?? false, description: p?.description ?? "",
     brand: p?.brand ?? "", origin: p?.origin ?? "", abv: p?.abv ? String(Number(p.abv)) : "", serve_note: p?.serve_note ?? "",
     upc: p?.upc ?? "", fortified: p?.fortified ?? false, wine_color: p?.wine_color ?? "not_applicable",
-    wine_effervescence: p?.wine_effervescence ?? "not_applicable", grape: p?.grape ?? "",
+    wine_effervescence: p?.wine_effervescence ?? "not_applicable", grape: p?.grape ?? "", moods: p?.moods ?? [],
   };
 }
 
@@ -188,6 +189,9 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
         <span className="a-label">Notes</span>
         <textarea value={f.description} onChange={(e) => set("description", e.target.value)} rows={3} placeholder="Tasting note guests see on the pour card" maxLength={2000} />
       </label>
+
+      {/* Mood tags (migration 033): the phone menu's mood chips. */}
+      <MoodPicker value={f.moods} onChange={(m) => set("moods", m)} />
 
       <Disclosure className="a-more" headClassName="a-more-head" bodyClassName="a-more-body" summary="More details">
         <label className="a-field"><span className="a-label">Brand</span><input value={f.brand} onChange={(e) => set("brand", e.target.value)} maxLength={120} /></label>

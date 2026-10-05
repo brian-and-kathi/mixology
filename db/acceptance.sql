@@ -1452,6 +1452,48 @@ BEGIN
   RAISE NOTICE 'check 29 passed';
 END $$;
 
+-- 30. Mood tags (033): products.moods and recipes.moods default to empty, take only the 8 moods, at most 3,
+-- no repeats or NULLs; an edit bumps the change signal; the menu views are unchanged.
+DO $$
+DECLARE
+  v_product uuid;
+  v_recipe uuid;
+  v_before bigint;
+  v_after bigint;
+BEGIN
+  IF (SELECT count(*) FROM information_schema.columns
+       WHERE table_name IN ('products', 'recipes') AND column_name = 'moods'
+         AND is_nullable = 'NO' AND column_default = '''{}''::text[]') <> 2 THEN
+    RAISE EXCEPTION 'check 30 failed: products.moods or recipes.moods is missing, nullable or not default empty';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE column_name = 'moods' AND table_name IN ('menu_neat', 'menu_mixed', 'menu_wines')) THEN
+    RAISE EXCEPTION 'check 30 failed: a menu view gained a moods column';
+  END IF;
+  SELECT id INTO v_product FROM menu_neat ORDER BY id LIMIT 1;
+  SELECT id INTO v_recipe FROM recipes ORDER BY id LIMIT 1;
+  UPDATE products SET moods = ARRAY['Cozy', 'Night-Out', 'Clean'] WHERE id = v_product;
+  UPDATE recipes SET moods = ARRAY['Smoky', 'Tropical', 'Bitter'] WHERE id = v_recipe;
+  UPDATE recipes SET moods = ARRAY['Indulgent', 'Nostalgic'] WHERE id = v_recipe;
+  UPDATE recipes SET moods = '{}' WHERE id = v_recipe;
+  BEGIN UPDATE products SET moods = ARRAY['Sweet'] WHERE id = v_product; RAISE EXCEPTION 'check 30 failed: an unknown mood was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE products SET moods = ARRAY['cozy'] WHERE id = v_product; RAISE EXCEPTION 'check 30 failed: a lower-case mood was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE products SET moods = ARRAY['Cozy', 'Clean', 'Bitter', 'Smoky'] WHERE id = v_product; RAISE EXCEPTION 'check 30 failed: four moods were accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE recipes SET moods = ARRAY['Cozy', 'Cozy'] WHERE id = v_recipe; RAISE EXCEPTION 'check 30 failed: a repeated mood was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE recipes SET moods = ARRAY['Cozy', NULL] WHERE id = v_recipe; RAISE EXCEPTION 'check 30 failed: a NULL mood was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE recipes SET moods = NULL WHERE id = v_recipe; RAISE EXCEPTION 'check 30 failed: NULL moods were accepted';
+  EXCEPTION WHEN not_null_violation OR check_violation THEN NULL; END;
+  SELECT menu_version INTO v_before FROM bar_versions WHERE id = 1;
+  UPDATE products SET moods = ARRAY['Bitter'] WHERE id = v_product;
+  SELECT menu_version INTO v_after FROM bar_versions WHERE id = 1;
+  IF v_after <= v_before THEN RAISE EXCEPTION 'check 30 failed: a mood edit did not bump menu_version'; END IF;
+  RAISE NOTICE 'check 30 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

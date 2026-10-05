@@ -9,9 +9,10 @@ import { altGlassLine, cap, glassLine, lineText, methodParts, METHOD_STYLES, NO_
 import { api } from "./api";
 import { BackLink, SaveBar, useUnsavedGuard } from "./SaveBar";
 import { SpecPicker } from "./SpecPicker";
+import { MoodPicker } from "./MoodPicker";
 
 type Line = { key: number; spec_id: string | null; amount: string; unit: string; required: boolean; role: string; note: string };
-type Form = { name: string; description: string; method_style: string; glass_id: string; service_style: string; alt_glass_id: string; alt_service_style: string; glass_note: string; lines: Line[] };
+type Form = { name: string; description: string; method_style: string; glass_id: string; service_style: string; alt_glass_id: string; alt_service_style: string; glass_note: string; moods: string[]; lines: Line[] };
 
 const SERVICES: [string, string][] = [["", "—"], ["up", "Up (chilled, no ice)"], ["on the rocks", "Rocks (over ice)"], ["neat", "Neat (no ice)"], ["hot", "Hot"]];
 const ROLE_LABELS: [string, string][] = [["", "—"], ["base", "Base"], ["modifier", "Modifier"], ["juice", "Juice"], ["sweetener", "Sweetener"], ["garnish", "Garnish"], ["other", "Other"]];
@@ -22,7 +23,7 @@ function initial(r: RecipeRow | null): Form {
     name: r?.name ?? "", description: r?.description ?? "", method_style: r?.method_style ?? "",
     glass_id: r?.glass_id ? String(r.glass_id) : "", service_style: r?.service_style ?? "",
     alt_glass_id: r?.alt_glass_id ? String(r.alt_glass_id) : "", alt_service_style: r?.alt_service_style ?? "",
-    glass_note: r?.glass_note ?? "",
+    glass_note: r?.glass_note ?? "", moods: r?.moods ?? [],
     lines: (r?.lines ?? []).map((l) => ({
       key: ++seq, spec_id: l.spec_id, amount: l.amount ? String(Number(l.amount)) : "", unit: l.unit ?? "",
       required: l.required, role: l.role ?? "", note: l.note ?? "",
@@ -191,6 +192,9 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
       <label className="a-field"><span className="a-label">Method</span>
         <textarea value={f.description} onChange={(e) => set("description", e.target.value)} rows={5} maxLength={4000} placeholder="How to make it. A blank line starts a new paragraph." />
       </label>
+
+      {/* Mood tags (migration 033): the phone menu's mood chips. */}
+      <MoodPicker value={f.moods} onChange={(m) => set("moods", m)} />
 
       <section className="a-preview" aria-label="Guest preview">
         <h2 className="a-label">Guest preview</h2>

@@ -171,13 +171,15 @@ export type ProductRow = {
   origin: string | null; serve_note: string | null; abv: string | null; upc: string | null; family_id: string | null;
   in_stock: boolean; featured: boolean; reserved: boolean; reserved_note: string | null; mix_only: boolean; serves_neat: boolean; serves_rocks: boolean; serves_chilled: boolean;
   fortified: boolean; wine_color: string; wine_effervescence: string; grape: string | null; spec_id: string | null; other_spec_ids: string[];
+  /** Mood tags (migration 033), up to 3, in MOODS order (lib/moods.ts). */
+  moods: string[];
 };
 
 export async function loadProduct(id: string): Promise<ProductRow | null> {
   const [p] = await query<ProductRow>(
     `SELECT p.id, p.display_name, p.short_name, p.spec_label, p.packaged_name, p.brand, p.description, p.origin, p.serve_note, p.abv::text AS abv,
             p.upc, p.family_id, p.in_stock, p.featured, p.reserved, p.reserved_note, p.mix_only, p.serves_neat, p.serves_rocks, p.serves_chilled,
-            p.fortified, p.wine_color, p.wine_effervescence, p.grape,
+            p.fortified, p.wine_color, p.wine_effervescence, p.grape, p.moods,
             (SELECT ps.spec_id FROM product_specs ps WHERE ps.product_id = p.id ORDER BY ps.is_primary DESC LIMIT 1) AS spec_id,
             COALESCE((SELECT array_agg(ps.spec_id) FROM product_specs ps WHERE ps.product_id = p.id AND NOT ps.is_primary), '{}') AS other_spec_ids
        FROM products p WHERE p.id = $1`,
@@ -196,12 +198,14 @@ export const loadGlassware = () => query<Glass>("SELECT id, name FROM glassware 
 export type RecipeLineRow = { spec_id: string; position: number; required: boolean; amount: string | null; unit: string | null; role: string | null; note: string | null };
 export type RecipeRow = {
   id: string; name: string; description: string | null; section: string; glass_id: number | null; service_style: string | null;
-  alt_glass_id: number | null; alt_service_style: string | null; glass_note: string | null; method_style: string | null; lines: RecipeLineRow[];
+  alt_glass_id: number | null; alt_service_style: string | null; glass_note: string | null; method_style: string | null;
+  /** Mood tags (migration 033), up to 3. */
+  moods: string[]; lines: RecipeLineRow[];
 };
 
 export async function loadRecipeRow(id: string): Promise<RecipeRow | null> {
   const [r] = await query<Omit<RecipeRow, "lines">>(
-    `SELECT id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style
+    `SELECT id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, moods
        FROM recipes WHERE id = $1`,
     [id],
   );

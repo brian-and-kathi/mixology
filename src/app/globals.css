@@ -443,3 +443,53 @@ a.card:active { background: #202020; }
 .tv-detail:has(> .tv-res-tag) { padding-block: 2px; margin-top: calc(0.05vh - 2px); margin-bottom: -2px; }
 .tv-detail > .tv-res-tag { margin: -2px 0 -2px 0.45em; padding: 1px 6px; border-radius: 4px; font-size: 1.375vh; font-weight: 500; line-height: 1; letter-spacing: 0.01em; vertical-align: 0; gap: 0; }
 .tv-detail > .tv-res-tag:first-child { margin-left: 0; }
+
+/* ---------- Phone menu search and filters (2026-10-04; components/MenuBrowser, the approved mock-up) ----------
+   Under the pinned wordmark, a sticky bar (search, tabs, and the result line while searching) on a solid black
+   band; mood chips, the result line, then the sections, each with its own chips. Dark only, like the rest. */
+.phone:has(.s-sticky) .phone-pin { margin-bottom: 0.9rem; }
+.browse { display: flex; flex-direction: column; }
+.s-band { position: fixed; z-index: 29; top: 0; left: 0; right: 0; height: calc(var(--ft) + 10px + 48px + 0.9rem); background: #000; pointer-events: none; }
+.s-sentinel { height: 0; }
+.s-sticky { position: sticky; top: calc(var(--ft) + 10px + 48px + 0.9rem); z-index: 34; background: #000; margin: 0 calc(1px - 1.1rem); padding: 0 calc(1.1rem - 1px) 0.55rem; }
+.s-sticky.stuck { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 14px -6px rgba(0, 0, 0, 0.9); }
+.search { display: flex; align-items: center; gap: 0.6rem; height: 48px; margin: 0; padding: 0 0.35rem 0 0.9rem; background: var(--card); border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14); }
+.search:focus-within { box-shadow: inset 0 0 0 1px var(--gold-line), 0 0 0 3px rgba(184, 144, 60, 0.16); }
+.search svg { flex: none; width: 20px; height: 20px; color: var(--quiet); }
+.search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--text); caret-color: var(--gold); font: inherit; font-size: 1rem; -webkit-appearance: none; appearance: none; }
+.search input::placeholder { color: rgba(255, 255, 255, 0.42); }
+.search input::-webkit-search-cancel-button, .search input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
+.search .x { flex: none; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.search .x span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); color: #000; font-size: 14px; font-weight: 700; line-height: 1; }
+.s-tabs { margin-top: 0.6rem; }
+.s-tabs .tab { gap: 0.3em; min-height: 40px; border: 0; background: none; font: inherit; font-size: 0.95rem; font-weight: 500; color: var(--quiet); cursor: pointer; padding: 0 2px; white-space: nowrap; }
+.s-tabs .tab.active { background: #000; color: var(--text); }
+.tab .n { font-size: 0.78em; font-weight: 500; color: var(--quiet); font-variant-numeric: tabular-nums; }
+.tab.active .n { color: var(--gold); }
+.tab.zero, .tab.zero .n { color: rgba(255, 255, 255, 0.3); }
+.chips { display: flex; gap: 0.5rem; overflow-x: auto; scrollbar-width: none; margin: 0 -1.1rem; padding: 0 1.1rem; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; display: inline-flex; align-items: center; gap: 0.35em; height: 34px; padding: 0 0.85rem; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; background: #000; font: inherit; font-size: 0.9rem; font-weight: 500; color: rgba(255, 255, 255, 0.86); white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.chip.on { background: var(--gold); border-color: var(--gold); color: #000; font-weight: 600; }
+.chip .star { color: var(--gold); }
+.chip.on .star { color: #000; }
+.chip.sm { height: 30px; padding: 0 0.75rem; font-size: 0.85rem; }
+.chip.dim { color: rgba(255, 255, 255, 0.38); border-color: rgba(255, 255, 255, 0.12); }
+.chip-sep { flex: none; width: 1px; align-self: stretch; margin: 6px 0.1rem; background: rgba(255, 255, 255, 0.18); }
+.mood { margin-top: 0.2rem; }
+.count { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-top: 0.7rem; font-size: 0.88rem; color: var(--quiet); }
+.count b { color: var(--text); font-weight: 500; }
+.count .clear { flex: none; padding: 0.2rem 0; border: 0; background: none; font: inherit; font-weight: 500; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.sections { display: flex; flex-direction: column; }
+.sec { margin-top: 0.95rem; }
+.sec:first-child { margin-top: 0.6rem; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.45rem; }
+.phone-body .sec-head h2 { margin: 0; font-family: var(--font-display), Palatino, serif; font-style: italic; font-weight: 500; font-size: 1.75rem; line-height: 1.1; letter-spacing: 0; text-transform: none; color: rgba(255, 255, 255, 0.92); }
+.sec-head .n { font-size: 0.85rem; color: var(--quiet); font-variant-numeric: tabular-nums; }
+.sec .chips { margin-bottom: 0.75rem; }
+.sec-empty .sec-head { align-items: center; margin-bottom: 0; }
+.phone-body .sec-empty .sec-head h2 { color: rgba(255, 255, 255, 0.45); }
+.sec-head .none { display: inline-flex; align-items: center; height: 30px; padding: 0 0.8rem; border: 1px dashed rgba(255, 255, 255, 0.22); border-radius: 999px; font-size: 0.85rem; color: var(--quiet); }
+.card mark, .item-match mark { background: none; color: var(--cream); box-shadow: inset 0 -0.42em 0 rgba(184, 144, 60, 0.38); border-radius: 2px; }
+.corner-badge mark { color: #000; box-shadow: inset 0 -0.42em 0 rgba(0, 0, 0, 0.22); }
+.item-match { margin-top: 0.2rem; font-size: 0.8em; line-height: 1.35; color: var(--quiet); font-style: italic; }

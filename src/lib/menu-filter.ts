@@ -15,7 +15,7 @@ export type Facet = { moods: string[]; chip: string | null; grape: string | null
 export type BrowseItem = MenuItem & { facet: Facet; rating: number | null };
 export type BrowseSection = { id: SectionId; label: string; noun: [string, string]; items: BrowseItem[] };
 
-/** Section chip choice: Pours/Cocktails a chip label; Cellar a color and/or a grape. null = All. */
+/** Section chip choice: Pours/Cocktails a chip label; Cellar a color and/or a grape. null = nothing chosen (the whole section). */
 export type SectionPick = { chip: string | null; grape: string | null };
 export type Filters = { q: string; mood: string | null; picks: Record<SectionId, SectionPick> };
 export const NO_PICK: SectionPick = { chip: null, grape: null };
@@ -98,7 +98,7 @@ export function baseFilter(items: BrowseItem[], f: Pick<Filters, "q" | "mood">):
   return items.filter((it) => matchesWords(it, ws) && (!f.mood || it.facet.moods.includes(f.mood)));
 }
 
-/** A section chip choice applied (Cellar: color and grape). A grape only counts under a color (never under All). */
+/** A section chip choice applied (Cellar: color and grape). A grape only counts under a color (never with no color). */
 export function pickFilter(items: BrowseItem[], pick: SectionPick): BrowseItem[] {
   return items.filter((it) => (!pick.chip || it.facet.chip === pick.chip) && (!pick.grape || !pick.chip || it.facet.grape === pick.grape));
 }
@@ -114,7 +114,7 @@ export type Chip = { label: string; kind: "chip" | "grape"; count: number; dim: 
  * A section's chips, in menu order: Pours spirits; Cocktails Stirred · Shaken · Hot; Cellar Red · White · Other,
  * then grapes. Only chips some item on tonight's menu has. `count` follows the mood filter; a chip
  * with nothing under them is dimmed. Cellar grapes follow the chosen color (Brian via Vincent, 2026-10-04): with
- * Red on, only grapes of tonight's red wines, and so on; under All, no grapes at all (the row is hidden; search
+ * Red on, only grapes of tonight's red wines, and so on; with no color chosen, no grapes at all (search
  * still finds a wine by its grape). A grape's color comes from the
  * wines on the menu that carry it (grapeInColor), so a grape poured as more than one color shows under each.
  */
@@ -128,7 +128,7 @@ export function sectionChips(s: BrowseSection, f: Filters): Chip[] {
   });
   if (s.id === "cellar") {
     const color = f.picks.cellar?.chip ?? null;
-    // Under All: no grape chips (Brian via Vincent, 2026-10-04). Other shows grapes only if one of its wines has one.
+    // No color chosen: no grape chips (Brian via Vincent, 2026-10-04). Other shows grapes only if one of its wines has one.
     const grapes = color ? [...new Set(s.items.map((it) => it.facet.grape).filter((g): g is string => !!g && grapeInColor(s, g, color)))] : [];
     for (const g of grapes) {
       const count = base.filter((it) => it.facet.grape === g && it.facet.chip === color).length;

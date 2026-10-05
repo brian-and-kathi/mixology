@@ -17,10 +17,11 @@ const EMPTY_PICKS: Record<SectionId, SectionPick> = { pours: NO_PICK, cocktails:
 
 /**
  * Phone guest menu with search and filters (Brian via Rachel, 2026-10-04; the approved mock-up in
- * mixology-review/search-mockup). A sticky search box and tabs (All · Pours · Cocktails · Cellar, with counts);
+ * mixology-review/search-mockup). A sticky search box and tabs (All · Pours · Cocktails · Cellar; no counts);
  * mood chips (Brian's moods with 2+ items tonight; no "Top rated" chip, Brian via Vincent 2026-10-04: the ★ ratings
  * stay on the cards, but the menu isn't filtered by them); per-section chips (Pours by spirit,
- * Cocktails Stirred · Shaken · Hot, Cellar color then grape). All chip rows wrap (no sideways scroll). A section with
+ * Cocktails Stirred · Shaken · Hot, Cellar color then grape; no "All" chip: nothing chosen shows everything, and a
+ * chosen chip toggles off). All chip rows wrap (no sideways scroll). A section with
  * nothing left collapses to "No matches"; when nothing matches anywhere, one "No matches · Clear filters" line
  * replaces the sections. No visible result line (Brian via Vincent, 2026-10-04: it cost phone space); screen
  * readers still hear the count from a hidden live region. Section titles (with their count) pin under the bar while
@@ -162,6 +163,8 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const totals = Object.fromEntries(sections.map((s) => [s.id, s.items.length])) as Record<SectionId, number>;
   const total = sections.reduce((n, s) => n + s.items.length, 0);
   const filtered = searching || !!moodOn;
+  // Tabs carry no numbers (Brian via Vincent, 2026-10-04); a tab with nothing left under the filters is still dimmed,
+  // and the hidden live region reads the counts.
   const tabCount = (id: SectionId) => (filtered ? baseFilter(sections.find((s) => s.id === id)!.items, fx).length : totals[id]);
   const allCount = sections.reduce((n, s) => n + tabCount(s.id), 0);
   const shown = sections.filter((s) => tab === "all" || s.id === tab);
@@ -169,17 +172,28 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const pickLabels = searching ? [] : shown.flatMap((s) => [picks[s.id]?.chip, picks[s.id]?.grape]).filter((x): x is string => !!x);
   const anything = filtered || pickLabels.length > 0;
 
-  // "Clear filters" on the empty line: search, mood, section chips, and back to All.
+  // "Clear filters" on the empty line: search, mood, section chips (none chosen), and back to the All tab.
   function clear() {
     setQ(""); setMood(null); setPicks(EMPTY_PICKS); setTab("all");
   }
-  function pick(s: BrowseSection, label: string | null, kind: "chip" | "grape" | "all") {
+  // A mood chip (Brian via Vincent, 2026-10-04): choosing a mood, or switching to another one, sets every section's
+  // chips back to none chosen (Pours spirit, Cocktails style, Cellar color and grape), so the mood shows its whole list;
+  // turning the mood off changes nothing else. Search and tab stay. The save effect stores the reset, so a reload
+  // or back restores it, and the live region's count follows on its own.
+  function pickMood(m: string) {
+    if (moodOn === m) { setMood(null); return; }
+    setMood(m);
+    setPicks(EMPTY_PICKS);
+  }
+  // Section chips have no "All" chip (Brian via Vincent, 2026-10-04): nothing chosen shows the whole section, and
+  // tapping the chosen chip again turns it off. Turning a Cellar color off clears its grape too (grapes only show
+  // under a color).
+  function pick(s: BrowseSection, label: string, kind: "chip" | "grape") {
     setPicks((o) => {
       const cur = o[s.id] ?? NO_PICK;
       let next: SectionPick;
-      if (kind === "all") next = NO_PICK;
       // A new color keeps the chosen grape only if some wine of that color has it; the grape row shows only that color's grapes.
-      else if (kind === "chip") next = cur.chip === label ? NO_PICK : { chip: label, grape: cur.grape && label && grapeInColor(s, cur.grape, label) ? cur.grape : null };
+      if (kind === "chip") next = cur.chip === label ? NO_PICK : { chip: label, grape: cur.grape && label && grapeInColor(s, cur.grape, label) ? cur.grape : null };
       else next = cur.grape === label ? { ...cur, grape: null } : { chip: cur.chip, grape: label };
       return { ...o, [s.id]: next };
     });
@@ -192,7 +206,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const extras = [moodOn, ...pickLabels].filter(Boolean).join(" · ");
   // Nothing left in any section (picks included), whatever the tab: one empty line instead of the sections.
   const noneAnywhere = anything && sections.every((s) => sectionItems(s, fx).length === 0);
-  // The result count, for screen readers only (visually hidden live region; the tabs carry the counts on screen).
+  // The result count, for screen readers only (visually hidden live region; on screen only the section titles carry counts).
   let countText: string;
   if (searching) countText = `${scopeShown} ${scopeShown === 1 ? "match" : "matches"} for “${q.trim()}”${scope ? ` in ${scope.label}` : ""}${extras ? ` · ${extras}` : ""}`;
   else if (anything) countText = `${scopeShown} of ${scopeTotal}${scope ? ` ${noun(scope, scopeTotal)}` : ""} · ${extras}`;
@@ -206,6 +220,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
       <div ref={bar} className={`s-sticky${stuck ? " stuck" : ""}`}>
         <form className="search" role="search" onSubmit={(e) => { e.preventDefault(); input.current?.blur(); }}>
           <SearchIcon />
+          {/* Only the guest clears the search: the ×, Clear filters, or Escape here (Brian via Vincent, 2026-10-04). */}
           <input ref={input} type="search" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") setQ(""); }}
             placeholder="Search drinks, spirits, grapes, notes…" aria-label="Search the menu" enterKeyHint="search" autoComplete="off" autoCorrect="off" spellCheck={false} maxLength={60} />
           {q ? (
@@ -214,13 +229,13 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
         </form>
         <nav className="tabs s-tabs" style={{ gridTemplateColumns: `repeat(${sections.length + 1}, 1fr)` }} aria-label="Sections">
           <button type="button" className={`tab${tab === "all" ? " active" : ""}${filtered && allCount === 0 ? " zero" : ""}`} aria-pressed={tab === "all"} onClick={() => setTab("all")}>
-            All{filtered ? <span className="n">{allCount}</span> : null}
+            All
           </button>
           {sections.map((s) => {
             const n = tabCount(s.id);
             return (
               <button key={s.id} type="button" className={`tab${tab === s.id ? " active" : ""}${filtered && n === 0 ? " zero" : ""}`} aria-pressed={tab === s.id} onClick={() => setTab(s.id)}>
-                {s.label}<span className="n">{n}</span>
+                {s.label}
               </button>
             );
           })}
@@ -231,7 +246,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
       {moods.length ? (
         <div className="chips mood" role="group" aria-label="Moods">
           {moods.map((m) => (
-            <button key={m.mood} type="button" className={`chip${moodOn === m.mood ? " on" : ""}`} aria-pressed={moodOn === m.mood} onClick={() => setMood((o) => (o === m.mood ? null : m.mood))}>
+            <button key={m.mood} type="button" className={`chip${moodOn === m.mood ? " on" : ""}`} aria-pressed={moodOn === m.mood} onClick={() => pickMood(m.mood)}>
               {m.mood}
             </button>
           ))}
@@ -259,7 +274,6 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
               <div ref={headRef} className="sec-head"><h2>{s.label}</h2><span className="n">{items.length}</span></div>
               {chips.length > 1 || (s.id === "cellar" && chips.length) ? (
                 <div className="chips" role="group" aria-label={`${s.label} filters`}>
-                  <button type="button" className={`chip sm${!cur.chip && !cur.grape ? " on" : ""}`} aria-pressed={!cur.chip && !cur.grape} onClick={() => pick(s, null, "all")}>All</button>
                   {chips.map((c, i) => {
                     const on = c.kind === "grape" ? cur.grape === c.label : cur.chip === c.label;
                     return (

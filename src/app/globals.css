@@ -465,11 +465,13 @@ a.card:active { background: #202020; }
 .search .x { flex: none; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .search .x span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); color: #000; font-size: 14px; font-weight: 700; line-height: 1; }
 .s-tabs { margin-top: 0.6rem; }
-.s-tabs .tab { gap: 0.3em; min-height: 40px; border: 0; background: none; font: inherit; font-size: 0.95rem; font-weight: 500; color: var(--quiet); cursor: pointer; padding: 0 2px; white-space: nowrap; }
+.s-tabs .tab { gap: 0.3em; min-height: 40px; border: 0; background: none; font: inherit; font-size: 0.95rem; font-weight: 500; color: var(--quiet); cursor: pointer; padding: 0; white-space: nowrap; }
 .s-tabs .tab.active { background: #000; color: var(--text); }
-.tab .n { font-size: 0.78em; font-weight: 500; color: var(--quiet); font-variant-numeric: tabular-nums; }
-.tab.active .n { color: var(--gold); }
-.tab.zero, .tab.zero .n { color: rgba(255, 255, 255, 0.3); }
+/* Plain labels, no counts (Brian via Vincent, 2026-10-04): four equal columns (1fr each), each label centered.
+   "Cocktails" (67px at 0.95rem) fills a quarter from about 353px wide; narrower, the tab text steps down a little so
+   the four stay equal (1fr keeps its min-content floor, so a label is never clipped, only ever wider). */
+@media (max-width: 352px) { .s-tabs .tab { font-size: 0.84rem; } }
+.tab.zero { color: rgba(255, 255, 255, 0.3); }
 /* Chip rows wrap (Brian via Vincent, 2026-10-04): every chip in view, no sideways scroll, 32px tap targets. */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { flex: none; display: inline-flex; align-items: center; gap: 0.35em; height: 34px; padding: 0 0.85rem; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; background: #000; font: inherit; font-size: 0.9rem; font-weight: 500; color: rgba(255, 255, 255, 0.86); white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; }

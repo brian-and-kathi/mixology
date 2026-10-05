@@ -19,7 +19,8 @@ export type MenuMemory = {
 };
 
 const str = (v: unknown, max = 60): string | null => (typeof v === "string" && v.length <= max ? v : null);
-// A grape only goes with a color: a saved grape under All (e.g. from before grapes left All) is dropped.
+// A grape only goes with a color: a saved grape with no color is dropped. Older builds saved "nothing chosen" as null
+// too; any other value that isn't a chip on tonight's menu (e.g. "all") is dropped by validPicks() in MenuBrowser.
 const pick = (v: unknown): SectionPick => {
   const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
   const chip = str(o.chip);

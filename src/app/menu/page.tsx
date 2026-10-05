@@ -8,6 +8,7 @@ import { barVersions } from "@/lib/bar-versions";
 import { loadMenu, SECTIONS } from "@/lib/menu";
 import type { BrowseSection, Facet } from "@/lib/menu-filter";
 import { loadMenuFacets } from "@/lib/menu-search";
+import { MENU_RESTORE_GUARD } from "@/lib/menu-memory";
 import { ratingKey } from "@/lib/rating-key";
 import { loadAllRatings } from "@/lib/ratings";
 
@@ -67,6 +68,8 @@ export default async function MenuPage({ searchParams }: { searchParams: Promise
     <PhoneShell bar={bar} admin={admin}>
       {/* Live updates only while the relay is on (no polling from phones otherwise). */}
       <AutoRefresh topic="bar:menu" version={version?.menu ?? null} />
+      {/* Full page load with a remembered state: keep the list hidden until it is restored (no unfiltered flash). */}
+      <script dangerouslySetInnerHTML={{ __html: MENU_RESTORE_GUARD }} />
       <MenuBrowser sections={sections} initialTab={initialTab} />
     </PhoneShell>
   );

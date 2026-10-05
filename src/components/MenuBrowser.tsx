@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { ReservedTag } from "@/components/ReservedIcon";
 import type { SectionId } from "@/lib/menu";
+import { readMenuMemory, writeMenuMemory } from "@/lib/menu-memory";
 import {
   NO_PICK, baseFilter, grapeInColor, markRanges, noteExcerpt, sectionChips, sectionItems, visibleMoods, words,
   type BrowseItem, type BrowseSection, type Filters, type SectionPick,
@@ -34,6 +35,39 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   const [stuck, setStuck] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+
+  // Remembered for the visit (lib/menu-memory.ts, sessionStorage): search, mood, Top rated, section chips, tab
+  // and scroll come back when the guest returns from a drink, by browser back or any link to /menu. The saved
+  // tab wins over ?tab= from a back link. Applied before the first paint (layout effect); the scroll is applied
+  // after the restored list has rendered and again on the next frame, after the router's own scroll-to-top.
+  const restoreY = useRef<number | null>(null);
+  const [restored, setRestored] = useState(false);
+  const ready = useRef(false); // saving starts once the restore is done, so the restore never saves over itself
+  useLayoutEffect(() => {
+    const m = readMenuMemory(["all", ...sections.map((s) => s.id)]);
+    if (m) {
+      setTab(m.tab); setQ(m.q); setMood(m.mood); setTop(m.top); setPicks(m.picks);
+      restoreY.current = m.y;
+    }
+    setRestored(true);
+  }, []);
+  useLayoutEffect(() => {
+    if (!restored) return;
+    const y = restoreY.current;
+    const done = () => {
+      ready.current = true;
+      document.documentElement.removeAttribute("data-menu-restore");
+    };
+    if (y == null) return done();
+    window.scrollTo(0, y);
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      window.scrollTo(0, y);
+      raf2 = requestAnimationFrame(() => { window.scrollTo(0, y); done(); });
+    });
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+  }, [restored]);
 
   const f: Filters = { q, mood, top, picks };
   const ws = words(q);
@@ -49,6 +83,24 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
     const url = tab === "all" ? "/menu" : `/menu?tab=${tab}`;
     if (window.location.pathname + window.location.search !== url) window.history.replaceState(window.history.state, "", url);
   }, [tab]);
+  // Save on every change (clearing saves the cleared state; the default state removes the entry) and on scroll.
+  const state = useRef({ tab, q, mood, top, picks });
+  state.current = { tab, q, mood, top, picks };
+  useEffect(() => {
+    if (ready.current) writeMenuMemory({ tab, q, mood, top, picks, y: window.scrollY });
+  }, [tab, q, mood, top, picks, restored]);
+  useEffect(() => {
+    let raf = 0;
+    const save = () => {
+      // Only while this page is showing: leaving for a drink scrolls the next page to the top.
+      if (!ready.current || !root.current?.isConnected) return;
+      writeMenuMemory({ ...state.current, y: window.scrollY });
+    };
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(save); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pagehide", save);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("scroll", onScroll); window.removeEventListener("pagehide", save); };
+  }, []);
   // The search bar gets a hairline and shadow once it is pinned.
   useEffect(() => {
     const el = sentinel.current;
@@ -98,7 +150,8 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
   else countText = scope ? `Showing all ${scopeTotal} ${noun(scope, scopeTotal)}` : `Showing all ${total}${sections.map((s) => ` · ${s.items.length} ${noun(s, s.items.length)}`).join("")}`;
 
   return (
-    <div className="browse">
+    // A tap on a card saves the exact scroll first (capture), before the router moves to the drink.
+    <div ref={root} className="browse" onClickCapture={() => { if (ready.current) writeMenuMemory({ ...state.current, y: window.scrollY }); }}>
       <div className="s-band" aria-hidden />
       <div ref={sentinel} className="s-sentinel" aria-hidden />
       <div className={`s-sticky${stuck ? " stuck" : ""}`}>

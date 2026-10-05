@@ -510,3 +510,7 @@ a.card:active { background: #202020; }
 .drink-moods { font-size: 0.98rem; line-height: 1.3; font-weight: 500; letter-spacing: 0.02em; color: rgba(243, 234, 211, 0.72); }
 .drink-moods .sep { margin: 0 0.5em; color: rgba(243, 234, 211, 0.38); }
 .phone-body > .drink-moods + .serve { margin-top: -0.85rem; }
+
+/* /menu remembers its state for the visit (lib/menu-memory.ts): while a full page load restores it, the browse
+   area is hidden for that first moment instead of flashing the unfiltered list. */
+html[data-menu-restore] .browse { visibility: hidden; }

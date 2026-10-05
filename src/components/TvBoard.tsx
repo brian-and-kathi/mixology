@@ -185,9 +185,10 @@ function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
   );
 }
 
-function Row({ item, rating, on = false }: { item: MenuItem; rating?: number; on?: boolean }) {
+// A cast (Show on TV) never restyles the row (Brian, 2026-10-04): the band at the bottom is the only cue.
+function Row({ item, rating }: { item: MenuItem; rating?: number }) {
   // Pours are grouped by spirit family: the first bottle of a family gets a small gap above it (.fam-start).
-  const cls = "tv-row" + (on ? " on" : "") + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "") + (item.reserved ? " is-reserved" : "");
+  const cls = "tv-row" + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "") + (item.reserved ? " is-reserved" : "");
   // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name.
   // Featured (migration 030): copper name, plus the tag at the end of the line under it ("tag") or a star
   // before the name ("star", now the flourish in TV_FEATURED_FLOURISH); see TV_FEATURED.
@@ -383,8 +384,8 @@ export function TvBoard({ columns, ratings = {} }: { columns: Column[]; ratings?
                 {subcols.map((v, sc) => (
                   <ul key={v} className="tv-list">
                     {/* Guaranteed slot (migration 030): featured rows are the first cells of every page, in normal flow. */}
-                    {sc === 0 ? col.items.map((item) => (item.featured ? <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} on={cast?.id === item.id} /> : null)) : null}
-                    {col.items.map((item, i) => (!item.featured && (assign[ci]?.[i] ?? 0) === v ? <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} on={cast?.id === item.id} /> : null))}
+                    {sc === 0 ? col.items.map((item) => (item.featured ? <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} /> : null)) : null}
+                    {col.items.map((item, i) => (!item.featured && (assign[ci]?.[i] ?? 0) === v ? <Row key={item.id} item={item} rating={ratings[ratingKey(col.id, item.id)]} /> : null))}
                   </ul>
                 ))}
               </div>

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon } from "@/components/GlassIcon";
+import { MoodLine } from "@/components/MoodLine";
 import type { Cast, CastPayload } from "@/lib/cast";
 import { onBarStatus } from "@/lib/bar-events";
 import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
@@ -205,11 +206,7 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
           ) : null}
           <h3 className="tv-band-name">{payload.name}</h3>
           {/* Moods (Brian via Vincent, 2026-10-04): the /menu chip labels on one quiet line under the name; none, no line. */}
-          {payload.moods?.length ? (
-            <p className="tv-band-moods" aria-label={`Moods: ${payload.moods.join(", ")}`}>
-              {payload.moods.map((m, i) => <span key={m}>{i ? <span className="sep" aria-hidden>·</span> : null}{m}</span>)}
-            </p>
-          ) : null}
+          <MoodLine moods={payload.moods} className="tv-band-moods" />
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
           {payload.serve ? <p className="tv-band-serve">{payload.serve}</p> : null}
           {payload.alt ? <p className="tv-band-note">{payload.alt}</p> : null}

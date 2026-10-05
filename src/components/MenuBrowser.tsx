@@ -7,7 +7,7 @@ import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { ReservedTag } from "@/components/ReservedIcon";
 import type { SectionId } from "@/lib/menu";
 import {
-  NO_PICK, baseFilter, grapeColor, markRanges, noteExcerpt, sectionChips, sectionItems, visibleMoods, words,
+  NO_PICK, baseFilter, grapeInColor, markRanges, noteExcerpt, sectionChips, sectionItems, visibleMoods, words,
   type BrowseItem, type BrowseSection, type Filters, type SectionPick,
 } from "@/lib/menu-filter";
 
@@ -77,8 +77,9 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
       const cur = o[s.id] ?? NO_PICK;
       let next: SectionPick;
       if (kind === "all") next = NO_PICK;
-      else if (kind === "chip") next = cur.chip === label ? NO_PICK : { chip: label, grape: cur.grape && grapeColor(s, cur.grape) === label ? cur.grape : null };
-      else next = cur.grape === label ? { ...cur, grape: null } : { chip: cur.chip && grapeColor(s, label!) !== cur.chip ? grapeColor(s, label!) : cur.chip, grape: label };
+      // A new color keeps the chosen grape only if some wine of that color has it; the grape row shows only that color's grapes.
+      else if (kind === "chip") next = cur.chip === label ? NO_PICK : { chip: label, grape: cur.grape && label && grapeInColor(s, cur.grape, label) ? cur.grape : null };
+      else next = cur.grape === label ? { ...cur, grape: null } : { chip: cur.chip, grape: label };
       return { ...o, [s.id]: next };
     });
   }

@@ -504,3 +504,9 @@ a.card:active { background: #202020; }
 .card mark, .item-match mark { background: none; color: var(--cream); box-shadow: inset 0 -0.42em 0 rgba(184, 144, 60, 0.38); border-radius: 2px; }
 .corner-badge mark { color: #000; box-shadow: inset 0 -0.42em 0 rgba(0, 0, 0, 0.22); }
 .item-match { margin-top: 0.2rem; font-size: 0.8em; line-height: 1.35; color: var(--quiet); font-style: italic; }
+
+/* Phone recipe page: the drink's moods (Brian via Vincent, 2026-10-04), the TV cast card's quiet cream line, tucked
+   just above the glass line. */
+.drink-moods { font-size: 0.98rem; line-height: 1.3; font-weight: 500; letter-spacing: 0.02em; color: rgba(243, 234, 211, 0.72); }
+.drink-moods .sep { margin: 0 0.5em; color: rgba(243, 234, 211, 0.38); }
+.phone-body > .drink-moods + .serve { margin-top: -0.85rem; }

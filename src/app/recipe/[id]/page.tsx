@@ -10,6 +10,8 @@ import { isAdmin } from "@/lib/admin-guard";
 import { altGlassLine, cap, glassLine, lineText, methodParts } from "@/lib/format";
 import { bottleParts, loadLocked, loadRecipe, PHONE_DOT } from "@/lib/menu";
 import { LockedPage } from "@/components/LockedPage";
+import { MoodLine } from "@/components/MoodLine";
+import { cleanMoods } from "@/lib/moods";
 import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +45,8 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
       back={{ href: "/menu?tab=cocktails", label: "Cocktails" }}
       lead={<DrinkLead glass={recipe.glass ?? ""} kind="recipe" id={recipe.id} rating={rating} />}
     >
+      {/* Moods (migration 033): the same quiet line as the TV cast card, under the name, above the glass line. */}
+      <MoodLine moods={cleanMoods(recipe.moods)} className="drink-moods" />
       {recipe.glass ? (
         <section className="serve">
           <p>{glassLine(recipe.glass, recipe.service_style, recipe.glass_note)}</p>

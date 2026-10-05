@@ -113,7 +113,9 @@ export type Chip = { label: string; kind: "chip" | "grape"; count: number; dim: 
 /**
  * A section's chips, in menu order: Pours spirits; Cocktails Stirred · Shaken · Hot; Cellar Red · White · Other,
  * then grapes. Only chips some item on tonight's menu has. `count` follows the mood and Top rated filters; a chip
- * with nothing under them is dimmed, and so is a grape outside the chosen color.
+ * with nothing under them is dimmed. Cellar grapes follow the chosen color (Brian via Vincent, 2026-10-04): with
+ * Red on, only grapes of tonight's red wines, and so on; with no color, every grape. A grape's color comes from the
+ * wines on the menu that carry it (grapeInColor), so a grape poured as more than one color shows under each.
  */
 export function sectionChips(s: BrowseSection, f: Filters): Chip[] {
   const base = baseFilter(s.items, { ...f, q: "" });
@@ -127,6 +129,7 @@ export function sectionChips(s: BrowseSection, f: Filters): Chip[] {
     const color = f.picks.cellar?.chip ?? null;
     const grapes = [...new Set(s.items.map((it) => it.facet.grape).filter((g): g is string => !!g))];
     for (const g of grapes) {
+      if (color && !grapeInColor(s, g, color)) continue;
       const count = base.filter((it) => it.facet.grape === g && (!color || it.facet.chip === color)).length;
       chips.push({ label: g, kind: "grape", count, dim: count === 0 });
     }
@@ -134,8 +137,8 @@ export function sectionChips(s: BrowseSection, f: Filters): Chip[] {
   return chips;
 }
 
-/** The color a grape is grown as tonight (its wines' color), for switching the color chip when a dimmed grape is tapped. */
-export const grapeColor = (s: BrowseSection, grape: string): string | null =>
-  s.items.find((it) => it.facet.grape === grape)?.facet.chip ?? null;
+/** True when some wine on tonight's list has this grape and this color. */
+export const grapeInColor = (s: BrowseSection, grape: string, color: string): boolean =>
+  s.items.some((it) => it.facet.grape === grape && it.facet.chip === color);
 
 export { cellarColor };

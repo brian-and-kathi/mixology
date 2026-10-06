@@ -55,10 +55,10 @@ UPDATE recipes SET description = description || ' Scotch is the classic.'
  WHERE id = '6bb2ba12-e7e6-4762-b2ed-93706d2bde2a' AND description LIKE '%Equal parts Bowright bourbon and Knight Gabriello amaretto.';
 UPDATE recipe_lines SET note = NULL
  WHERE recipe_id = '81f3ee02-f4d7-4c13-acec-213ef2ffba97' AND position = 4
-   AND spec_id = 'f197ed49-a59a-4b6e-b879-e5398b478c02' AND note = 'or a maraschino cherry';
+   AND spec_id = 'a6afe900-afab-407c-b216-7909e43f150f' AND note = 'or a maraschino cherry';
 UPDATE recipe_lines SET note = '1 tbsp per batch'
  WHERE recipe_id = '97f9bba0-dc8e-42ab-8a28-5b0b6701ec65' AND position = 6
-   AND spec_id = '90064736-2200-4ef1-bdcd-0b9ebe628a78' AND note = '1 tbsp per batch, or 2 cinnamon sticks + 4 whole cloves';
+   AND spec_id = '9888db80-0ac4-4f7e-a52b-8b2163c4f982' AND note = '1 tbsp per batch, or 2 cinnamon sticks + 4 whole cloves';
 
 DO $$
 DECLARE n int;

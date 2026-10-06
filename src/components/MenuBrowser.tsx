@@ -246,7 +246,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
       {moods.length ? (
         <div className="chips mood" role="group" aria-label="Moods">
           {moods.map((m) => (
-            <button key={m.mood} type="button" className={`chip${moodOn === m.mood ? " on" : ""}`} aria-pressed={moodOn === m.mood} onClick={() => pickMood(m.mood)}>
+            <button key={m.mood} type="button" className={`chip${moodOn === m.mood ? " on" : ""}`} data-label={m.mood} aria-pressed={moodOn === m.mood} onClick={() => pickMood(m.mood)}>
               {m.mood}
             </button>
           ))}

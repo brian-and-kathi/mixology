@@ -561,7 +561,19 @@ a.card:active { background: #202020; }
 .chip-sep { flex: none; width: 1px; align-self: stretch; margin: 6px 0.1rem; background: rgba(255, 255, 255, 0.18); }
 /* Mood chips (no Top rated chip since 2026-10-04: the moods start the row). */
 .mood { margin-top: 0.2rem; }
-.chips.mood .chip { height: 32px; padding: 0 0.7rem; font-size: 0.86rem; }
+.chips.mood { gap: 6px; }
+/* Option A, slate outlines (Brian via Vincent, 2026-10-06): moods are slate pills, unlike the gold section chips
+   (which square off, below). Selected = solid slate. 28px tall; the ::after stretches the tap target to 34px.
+   (0,3,0)/(0,4,0) selectors beat .chip / .chip.on / .chip.sm (0,1,0)-(0,2,0). Copper stays Featured-only. */
+.chips.mood .chip { position: relative; height: 28px; padding: 0 0.65rem; border: 1px solid #7d8fa3; border-radius: 999px; background: transparent; color: #7d8fa3; font-size: 0.82rem; font-weight: 500; letter-spacing: 0.02em; }
+.chips.mood .chip::after { content: ""; position: absolute; inset: -3px 0; } /* 34px tap height */
+.chips.mood .chip.on { background: #7d8fa3; border-color: #7d8fa3; color: #0b0e12; font-weight: 600; }
+/* No width jump on select: a hidden, zero-height bold copy of the label (data-label) sits in a column flex with the
+   text, so every chip is already as wide as its bold self (visibility: hidden keeps it out of the accessibility tree). */
+.chips.mood .chip[data-label] { flex-direction: column; justify-content: center; gap: 0; }
+.chips.mood .chip[data-label]::before { content: attr(data-label); height: 0; overflow: hidden; visibility: hidden; font-weight: 600; pointer-events: none; user-select: none; }
+/* Section chips square off, so the pill means mood. */
+.sec .chips .chip.sm { border-radius: 8px; }
 .chips .chip-sep { margin: 5px 0.15rem; }
 /* No visible result line (Brian via Vincent, 2026-10-04); the count is a hidden live region. Nothing matches
    anywhere: one short line with Clear filters, in place of the sections. */

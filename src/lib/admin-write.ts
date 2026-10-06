@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { UserError } from "@/lib/admin-guard";
 import { ALTERNATES_JSON, lineStatements, readAlternates } from "@/lib/alternates-db";
+import { cleanAlternates } from "@/lib/alternates";
 import { isUuid, query, sql } from "@/lib/db";
 import { MAX_MOODS, MOODS } from "@/lib/moods";
 import { normalizeOrigin } from "@/lib/us-states";
@@ -301,7 +302,21 @@ function recipeInput(body: Record<string, unknown>) {
       if (unit && !UNITS.includes(unit)) throw new UserError(`Unknown unit "${unit}".`);
       const role = text(l.role, 20);
       if (role && !ROLES.includes(role)) throw new UserError("Unknown role.");
-      return { spec_id: String(l.spec_id), position: i + 1, required: l.required !== false, amount, unit, role, note: text(l.note, 200) };
+      // Alternates (migration 034): sent by the editor; when absent (older clients) the saved ones are carried over.
+      const alternates = Array.isArray(l.alternates)
+        ? cleanAlternates(String(l.spec_id), (l.alternates as Record<string, unknown>[]).filter((a) => uuidOrNull(a?.spec_id)).map((a) => {
+            let aAmount = num(a.amount, "Amount");
+            const aUnit = text(a.unit, 20);
+            if (aUnit && NO_AMOUNT.includes(aUnit)) aAmount = null;
+            else {
+              if (aAmount !== null && aAmount <= 0) throw new UserError("Amounts must be more than zero.");
+              if ((aAmount === null) !== (aUnit === null)) throw new UserError("An alternate's different amount needs both an amount and a unit.");
+            }
+            if (aUnit && !UNITS.includes(aUnit)) throw new UserError(`Unknown unit "${aUnit}".`);
+            return { spec_id: String(a.spec_id), amount: aAmount, unit: aUnit, note: text(a.note, 200) };
+          }))
+        : undefined;
+      return { spec_id: String(l.spec_id), position: i + 1, required: l.required !== false, amount, unit, role, note: text(l.note, 200), alternates };
     });
   if (lines.length === 0) throw new UserError("Add at least one ingredient.");
   // Blank means "not set"; anything else must be a known value (never silently cleared).
@@ -340,7 +355,7 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
     if (!exists) throw new UserError("That recipe no longer exists.");
   }
   const glassIds = [r.glass_id, r.alt_glass_id].filter((g): g is number => g !== null);
-  const specIds = [...new Set(r.lines.map((l) => l.spec_id))];
+  const specIds = [...new Set(r.lines.flatMap((l) => [l.spec_id, ...(l.alternates ?? []).map((a) => a.spec_id)]))];
   const [found] = await query<{ glasses: number; specs: number }>(
     `SELECT (SELECT count(*)::int FROM glassware WHERE id = ANY($1::int[])) AS glasses,
             (SELECT count(*)::int FROM specs WHERE id = ANY($2::uuid[])) AS specs`,

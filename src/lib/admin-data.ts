@@ -50,16 +50,22 @@ export type RecipeStatus = { id: string; name: string; on_menu: boolean; missing
  * see WINES_IN_TO_BUY for what "To buy" does with them.
  */
 export async function loadRecipeStatus(): Promise<RecipeStatus[]> {
+  // A missing line with alternates (migration 034) is named with them, "bourbon / cognac": any one would do.
   return query<RecipeStatus>(
-    `SELECT r.id, r.name,
+    `WITH miss AS (
+       SELECT s.recipe_id, is_cellar_wine_spec(s.spec_id) AS wine,
+              s.spec_name || COALESCE((SELECT ' / ' || string_agg(sp.canonical_name, ' / ' ORDER BY a.position)
+                                         FROM recipe_lines rl
+                                         JOIN recipe_line_alternates a ON a.recipe_line_id = rl.id
+                                         JOIN specs sp ON sp.id = a.spec_id
+                                        WHERE rl.recipe_id = s.recipe_id AND rl.position = s.position), '') AS label
+         FROM recipe_line_status s
+        WHERE s.required AND NOT s.available)
+     SELECT r.id, r.name,
             r.id IN (SELECT id FROM menu_mixed) AS on_menu,
-            COALESCE((SELECT array_agg(DISTINCT s.spec_name ORDER BY s.spec_name)
-                        FROM recipe_line_status s
-                       WHERE s.recipe_id = r.id AND s.required AND NOT s.available), '{}') AS missing,
-            EXISTS (SELECT 1 FROM recipe_line_status s
-                     WHERE s.recipe_id = r.id AND s.required AND NOT s.available AND is_cellar_wine_spec(s.spec_id)) AS needs_wine,
-            COALESCE((SELECT array_agg(DISTINCT s.spec_name) FROM recipe_line_status s
-                       WHERE s.recipe_id = r.id AND s.required AND NOT s.available AND is_cellar_wine_spec(s.spec_id)), '{}') AS missing_wines
+            COALESCE((SELECT array_agg(DISTINCT m.label ORDER BY m.label) FROM miss m WHERE m.recipe_id = r.id), '{}') AS missing,
+            EXISTS (SELECT 1 FROM miss m WHERE m.recipe_id = r.id AND m.wine) AS needs_wine,
+            COALESCE((SELECT array_agg(DISTINCT m.label) FROM miss m WHERE m.recipe_id = r.id AND m.wine), '{}') AS missing_wines
        FROM recipes r
       WHERE r.section = 'mixed'
       ORDER BY lower(r.name)`,
@@ -196,7 +202,11 @@ export const loadGrapes = () =>
 export type Glass = { id: number; name: string };
 export const loadGlassware = () => query<Glass>("SELECT id, name FROM glassware ORDER BY id");
 
-export type RecipeLineRow = { spec_id: string; position: number; required: boolean; amount: string | null; unit: string | null; role: string | null; note: string | null };
+export type RecipeLineRow = {
+  spec_id: string; position: number; required: boolean; amount: string | null; unit: string | null; role: string | null; note: string | null;
+  /** Alternates (migration 034) in priority order; amount and unit both null = the line's. */
+  alternates: { spec_id: string; amount: string | null; unit: string | null; note: string | null }[];
+};
 export type RecipeRow = {
   id: string; name: string; description: string | null; section: string; glass_id: number | null; service_style: string | null;
   alt_glass_id: number | null; alt_service_style: string | null; glass_note: string | null; method_style: string | null;
@@ -212,8 +222,10 @@ export async function loadRecipeRow(id: string): Promise<RecipeRow | null> {
   );
   if (!r) return null;
   const lines = await query<RecipeLineRow>(
-    `SELECT spec_id, position, required, amount::text AS amount, unit, role, note
-       FROM recipe_lines WHERE recipe_id = $1 ORDER BY position`,
+    `SELECT l.spec_id, l.position, l.required, l.amount::text AS amount, l.unit, l.role, l.note,
+            COALESCE((SELECT json_agg(json_build_object('spec_id', a.spec_id, 'amount', a.amount::text, 'unit', a.unit, 'note', a.note) ORDER BY a.position)
+                        FROM recipe_line_alternates a WHERE a.recipe_line_id = l.id), '[]'::json) AS alternates
+       FROM recipe_lines l WHERE l.recipe_id = $1 ORDER BY l.position`,
     [id],
   );
   return { ...r, lines };

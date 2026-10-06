@@ -321,6 +321,14 @@ a.card:active { background: #202020; }
 /* In-stock bottles behind the ingredient (loadRecipe / spec_supply), under the name column. */
 .ingredient .bottles { display: block; font-size: 0.9rem; margin-top: 0.15rem; color: var(--gold); }
 .out { color: var(--quiet); }
+/* Alternates (migration 034): muted grey "or Cognac" on the ingredient's line; "+2" opens the rest. */
+.alt-or { color: var(--quiet); }
+.alt-more { margin-left: 0.3em; padding: 0 0.15em; min-height: 0; border: 0; background: none; color: var(--quiet); font: inherit; text-decoration: underline dotted; text-underline-offset: 0.2em; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.alt-more::before { content: ""; position: absolute; inset: -12px -8px; }
+.alt-more { position: relative; }
+.tv-band-line .what .alt-or { color: var(--quiet); }
+.alt-more-tv { margin-left: 0.3em; }
+.alt-or-keep { white-space: nowrap; }
 .tag-out { margin-left: 0.4rem; font-size: 0.75rem; letter-spacing: 0.04em; color: var(--quiet); }
 .method { font-size: 1.05rem; line-height: 1.55; }
 .method + .method { margin-top: 0.7rem; }

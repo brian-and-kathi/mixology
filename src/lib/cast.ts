@@ -1,7 +1,7 @@
 import { query } from "@/lib/db";
 import { barVersions } from "@/lib/bar-versions";
 import { altGlassLine, cap, lineText, methodParts, serveParts, tvGlassLine } from "@/lib/format";
-import { bottleLine, bottleParts, loadPour, loadRecipe } from "@/lib/menu";
+import { altWords, bottleLine, bottleParts, loadPour, loadRecipe } from "@/lib/menu";
 import { cleanMoods } from "@/lib/moods";
 
 // "Show on TV": one cast record (tv_cast, migration 015). A cast lasts 5 minutes, a new cast
@@ -9,7 +9,9 @@ import { cleanMoods } from "@/lib/moods";
 export const CAST_SECONDS = 300;
 export type CastType = "recipe" | "pour";
 
-export type CastLine = { amount: string; name: string; out: boolean; use_instead: string | null; optional: boolean; note: string | null; bottles: string | null; bottle_parts: { text: string; featured?: boolean }[] | null };
+export type CastLine = { amount: string; name: string; out: boolean; use_instead: string | null; optional: boolean; note: string | null; bottles: string | null; bottle_parts: { text: string; featured?: boolean }[] | null;
+  /** Alternates (migration 034): the muted "or Cognac" / "or Cognac, Brandy" / "or Cognac" + or_more ("+2"), and their notes. */
+  or?: string | null; or_more?: number; alt_notes?: string[] };
 export type CastPayload =
   | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; featured: boolean; lines: CastLine[]; method_label: string; method: string[]; moods?: string[] }
   | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean };
@@ -28,14 +30,20 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
       featured: r.featured,
       // Mood tags (migration 033), the /menu chip labels in MOODS order; none means no line on the band.
       moods: cleanMoods(r.moods),
-      lines: r.lines.filter((l) => l.required || l.available || l.use_instead).map((l) => ({
+      lines: r.lines.filter((l) => l.required || l.available || l.use_instead).map((l) => {
+        const or = altWords(l);
+        return {
         ...lineText(l.amount, l.unit, l.name), out: !l.available,
         use_instead: l.use_instead ? cap(l.use_instead) : null, optional: !l.required,
         // A preferred bottle is already named in the bottle line, same as the phone.
         note: l.note && !l.preferred ? l.note : null,
-        bottles: l.bottles ? bottleLine(l.bottles, " · ", l.preferred) : null,
-        bottle_parts: l.bottles ? bottleParts(l.bottles, " · ", l.preferred, 3, l.featured) : null,
-      })),
+        // With alternates, the leading ingredient's bottles stop at 2 + "+N more" (same as the phone).
+        bottles: l.bottles ? bottleLine(l.bottles, " · ", l.preferred, or.text ? 2 : 3) : null,
+        bottle_parts: l.bottles ? bottleParts(l.bottles, " · ", l.preferred, or.text ? 2 : 3, l.featured) : null,
+        // The TV can't be tapped: three or more stay "or Cognac +2".
+        or: or.text || null, or_more: or.more.length, alt_notes: or.notes,
+        };
+      }),
       method_label: methodParts(r.description, r.method_style).label,
       method: methodParts(r.description, r.method_style).paragraphs,
     };

@@ -49,7 +49,7 @@ export function RecipeList({ recipes, initialQuery = "" }: { recipes: RecipeStat
             <li key={r.id}>
               <Link href={`/admin/recipes/${r.id}`} className="a-list-row">
                 <span>{r.name}</span>
-                <span className={r.on_menu ? "a-badge ok" : "a-badge"}>{r.on_menu ? "On the menu" : `Missing: ${r.missing.map(cap).join(", ")}`}</span>
+                <span className={r.on_menu ? "a-badge ok" : "a-badge"}>{r.on_menu ? "On the menu" : `Missing: ${r.missing.map((m) => m.split(" / ").map(cap).join(" / ")).join(", ")}`}</span>
               </Link>
             </li>
           ))}

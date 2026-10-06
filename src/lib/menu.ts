@@ -301,7 +301,8 @@ export function altWords(line: Pick<RecipeLine, "amount" | "unit" | "alternates"
     const same = num(a.amount) === num(line.amount) && (a.unit ?? null) === (line.unit ?? null);
     if (same) return line.unit === "top" ? a.name.toLowerCase() : cap(a.name);
     const t = lineText(a.amount, a.unit, a.name);
-    return t.amount ? `${t.amount}\u00a0${t.name}` : t.name;
+    // "½ oz" never splits from itself or from the name.
+    return t.amount ? `${t.amount.replace(/ /g, "\u00a0")}\u00a0${t.name}` : t.name;
   };
   const { text, more } = orText(alts.map(label));
   return { text, more, notes: alts.filter((a) => a.note).map((a) => `${cap(a.name)}: ${a.note}`) };

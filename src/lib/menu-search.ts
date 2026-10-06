@@ -19,7 +19,8 @@ const notes = (...texts: (string | null | undefined)[]) => texts.map((t) => (t ?
 
 /**
  * The phone menu's search and filter facts for every item on tonight's menu, keyed "section:id" ("pours:<uuid>"). Phone /menu only: the TV board never loads this. `notes` are the searchable texts that aren't
- * on the card (full bottle name, brand, grape, tasting note, wine pairings; a cocktail's method and note), plus the
+ * on the card (full bottle name, brand, grape, tasting note, wine pairings; a cocktail's method and note, and its in-stock
+ * alternates, migration 034), plus the
  * spelled-out state of an origin stored as "City, ST" ("Michigan" for "Lake City, MI"; the card shows the place). A
  * reserved (locked) item keeps only what its card shows: no notes, like its locked page.
  */
@@ -31,8 +32,17 @@ export async function loadMenuFacets(): Promise<Record<string, Facet>> {
                  JOIN families f ON f.id = sf.family_id WHERE s.canonical_name = n.primary_spec_name) AS family
          FROM menu_neat n JOIN products p ON p.id = n.id`,
     ),
-    query<{ id: string; moods: string[]; method_style: string | null; description: string | null; reserved: boolean }>(
-      `SELECT m.id, r.moods, r.method_style, r.description, m.reserved FROM menu_mixed m JOIN recipes r ON r.id = m.id`,
+    query<{ id: string; moods: string[]; method_style: string | null; description: string | null; reserved: boolean; alternates: string[] | null }>(
+      // Alternates (migration 034) a guest could be served tonight: a bottle on the shelf (in stock, not reserved).
+      `SELECT m.id, r.moods, r.method_style, r.description, m.reserved,
+              (SELECT array_agg(sp.canonical_name ORDER BY rl.position, a.position)
+                 FROM recipe_lines rl
+                 JOIN recipe_line_alternates a ON a.recipe_line_id = rl.id
+                 JOIN specs sp ON sp.id = a.spec_id
+                WHERE rl.recipe_id = m.id
+                  AND (sp.always_available OR EXISTS (SELECT 1 FROM product_specs ps JOIN products p ON p.id = ps.product_id
+                                                       WHERE ps.spec_id = sp.id AND p.in_stock AND NOT p.reserved))) AS alternates
+         FROM menu_mixed m JOIN recipes r ON r.id = m.id`,
     ),
     query<{ id: string; moods: string[]; origin: string | null; style_group: string | null; fortified: boolean | null; grape: string | null; description: string | null; pairing_notes: string | null; brand: string | null; reserved: boolean }>(
       `SELECT w.id, p.moods, w.origin, w.style_group, w.fortified, w.grape, w.description, w.pairing_notes, p.brand, w.reserved
@@ -47,7 +57,10 @@ export async function loadMenuFacets(): Promise<Record<string, Facet>> {
       notes: p.reserved ? notes(p.full, state) : notes(p.full, state, badge, p.brand, p.description) };
   }
   for (const c of cocktails) {
-    out[`cocktails:${c.id}`] = { moods: cleanMoods(c.moods), chip: cocktailStyle(c.method_style), grape: null, notes: c.reserved ? [] : notes(c.description) };
+    // A cocktail is found by its in-stock alternates too ("cognac" finds the Hot Toddy), as "or Cognac".
+    const alts = [...new Set(c.alternates ?? [])].map((n) => n.charAt(0).toUpperCase() + n.slice(1));
+    out[`cocktails:${c.id}`] = { moods: cleanMoods(c.moods), chip: cocktailStyle(c.method_style), grape: null,
+      notes: c.reserved ? [] : notes(c.description, alts.length ? `or ${alts.join(", ")}` : null) };
   }
   for (const w of cellar) {
     out[`cellar:${w.id}`] = { moods: cleanMoods(w.moods), chip: cellarColor(w.style_group, w.fortified), grape: w.grape?.trim() || null,

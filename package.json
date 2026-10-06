@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "notify": "node scripts/notify.mjs",
-    "test:origins": "node --test scripts/us-states.test.mjs"
+    "test:origins": "node --test scripts/us-states.test.mjs",
+    "test:alternates": "node --test scripts/alternates.test.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

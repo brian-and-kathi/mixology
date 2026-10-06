@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { lineStatements, readAlternates } from "@/lib/alternates-db";
 import { addSubstitution, deleteSubstitution, RECIPE_UNITS } from "@/lib/admin-write";
 import { formatUpc, upcSearchText } from "@/lib/format";
 import { normalizeOrigin } from "@/lib/us-states";
@@ -513,6 +514,8 @@ async function saveRecipe(id: string | null, input: ReturnType<typeof recipeInpu
   const recipeId = id ?? randomUUID();
   const vals = [recipeId, input.name, input.description, input.rating, input.section, input.glass_id, input.service_style, input.alt_glass_id, input.alt_service_style, input.glass_note, input.method];
   const stmts: [string, unknown[]][] = [];
+  // Lines are replaced; their alternates (migration 034) are read first and written back onto the new lines.
+  const before = id ? await readAlternates(id) : null;
   if (id) {
     stmts.push(log("recipe", id, "update", `Edited ${input.name}`, { id }, { ...input, id }));
     stmts.push([
@@ -529,12 +532,7 @@ async function saveRecipe(id: string | null, input: ReturnType<typeof recipeInpu
     ]);
     stmts.push(log("recipe", recipeId, "create", `Added ${input.name}`, null, { ...input, id: recipeId }));
   }
-  stmts.push([
-    `INSERT INTO recipe_lines (recipe_id, spec_id, position, required, amount, unit, role, note)
-     SELECT $1, l.spec_id, l.position, l.required, l.amount, l.unit, l.role, l.note
-       FROM jsonb_to_recordset($2::jsonb) AS l(spec_id uuid, position int, required boolean, amount numeric, unit text, role text, note text)`,
-    [recipeId, JSON.stringify(input.lines)],
-  ]);
+  stmts.push(...lineStatements(recipeId, input.lines, before));
   await tx(stmts);
 }
 

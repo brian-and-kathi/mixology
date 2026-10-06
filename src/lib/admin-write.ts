@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { UserError } from "@/lib/admin-guard";
+import { ALTERNATES_JSON, lineStatements, readAlternates } from "@/lib/alternates-db";
 import { isUuid, query, sql } from "@/lib/db";
 import { MAX_MOODS, MOODS } from "@/lib/moods";
 import { normalizeOrigin } from "@/lib/us-states";
@@ -328,7 +329,8 @@ function recipeInput(body: Record<string, unknown>) {
   };
 }
 
-const RECIPE_JSON = `to_jsonb(r) || jsonb_build_object('lines', (SELECT jsonb_agg(to_jsonb(l) - 'id' - 'recipe_id' ORDER BY l.position) FROM recipe_lines l WHERE l.recipe_id = r.id))`;
+// Each line carries its alternates (migration 034), so the log shows them before and after an edit.
+const RECIPE_JSON = `to_jsonb(r) || jsonb_build_object('lines', (SELECT jsonb_agg((to_jsonb(l) - 'id' - 'recipe_id') || jsonb_build_object('alternates', ${ALTERNATES_JSON("l")}) ORDER BY l.position) FROM recipe_lines l WHERE l.recipe_id = r.id))`;
 
 export async function saveRecipe(id: string | null, body: Record<string, unknown>) {
   const r = recipeInput(body);
@@ -347,6 +349,8 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
   if (found.glasses !== new Set(glassIds).size) throw new UserError("Unknown glass.");
   if (found.specs !== specIds.length) throw new UserError("One of the ingredients no longer exists. Pick it again.");
   const vals = [rid, r.name, r.description, r.glass_id, r.service_style, r.alt_glass_id, r.alt_service_style, r.glass_note, r.method_style, r.moods];
+  // Lines are replaced; their alternates (migration 034) are read first and written back onto the new lines.
+  const before = id ? await readAlternates(rid) : null;
   const stmts: Stmt[] = [];
   if (id) {
     stmts.push([
@@ -367,12 +371,7 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
       vals,
     ]);
   }
-  stmts.push([
-    `INSERT INTO recipe_lines (recipe_id, spec_id, position, required, amount, unit, role, note)
-     SELECT $1, l.spec_id, l.position, l.required, l.amount, l.unit, l.role, l.note
-       FROM jsonb_to_recordset($2::jsonb) AS l(spec_id uuid, position int, required boolean, amount numeric, unit text, role text, note text)`,
-    [rid, JSON.stringify(r.lines)],
-  ]);
+  stmts.push(...lineStatements(rid, r.lines, before));
   if (id) {
     stmts.push([
       `UPDATE change_log SET after = (SELECT ${RECIPE_JSON} FROM recipes r WHERE r.id = $1::uuid)
@@ -407,6 +406,15 @@ export async function duplicateRecipe(id: string) {
     [
       `INSERT INTO recipe_lines (recipe_id, spec_id, position, required, amount, unit, role, note)
        SELECT $2, spec_id, position, required, amount, unit, role, note FROM recipe_lines WHERE recipe_id = $1`,
+      [id, nid],
+    ],
+    // The copy keeps each line's alternates (migration 034).
+    [
+      `INSERT INTO recipe_line_alternates (recipe_line_id, spec_id, position, amount, unit, note)
+       SELECT nl.id, a.spec_id, a.position, a.amount, a.unit, a.note
+         FROM recipe_line_alternates a
+         JOIN recipe_lines ol ON ol.id = a.recipe_line_id AND ol.recipe_id = $1
+         JOIN recipe_lines nl ON nl.recipe_id = $2 AND nl.position = ol.position`,
       [id, nid],
     ],
     [

@@ -155,8 +155,8 @@ export async function loadMenu(): Promise<Menu> {
 /**
  * Ingredient line for each cocktail on the menu: required lines in recipe order, no amounts,
  * leaving out garnishes (role "garnish"), ice and water (the "staple" family) and optional lines.
- * A line that is out tonight names its stocked stand-in, with the same shelf rule as the recipe
- * page (loadRecipe): a stand-in only counts when a bottle of it is on the shelf. Reserved bottles (migration 032)
+ * A line that is out tonight names its first alternate on the shelf (migration 034), else its stocked stand-in,
+ * with the same shelf rule as the recipe page (loadRecipe): only a bottle on the shelf counts. Reserved bottles (migration 032)
  * are not on the shelf here; a locked cocktail shows no line at all.
  */
 async function loadCocktailLines(): Promise<Map<string, Sub>> {
@@ -169,16 +169,23 @@ async function loadCocktailLines(): Promise<Map<string, Sub>> {
      staple AS (
        SELECT sf.spec_id FROM spec_families sf JOIN families f ON f.id = sf.family_id WHERE f.slug = 'staple')
      SELECT s.recipe_id,
+            -- The ingredient the guest would get: the line's own when it's on the shelf, else its first alternate
+            -- on the shelf (migration 034, by position), else a stocked global stand-in, else the line's own name.
             array_agg(
-              CASE WHEN s.spec_id IN (SELECT id FROM shelf) THEN s.spec_name
-                   ELSE COALESCE((SELECT src.canonical_name
-                                    FROM spec_substitutions ss
-                                    JOIN specs src ON src.id = ss.source_spec_id
-                                   WHERE ss.target_spec_id = s.spec_id
-                                     AND ss.source_spec_id IN (SELECT id FROM shelf)
-                                   ORDER BY src.canonical_name
-                                   LIMIT 1), s.spec_name)
-              END ORDER BY s.position) AS names
+              COALESCE((SELECT sp.canonical_name
+                          FROM recipe_line_options o JOIN specs sp ON sp.id = o.spec_id
+                         WHERE o.recipe_line_id = rl.id AND o.spec_id IN (SELECT id FROM shelf)
+                         ORDER BY o.rank
+                         LIMIT 1),
+                       (SELECT src.canonical_name
+                          FROM spec_substitutions ss
+                          JOIN specs src ON src.id = ss.source_spec_id
+                         WHERE ss.target_spec_id = s.spec_id
+                           AND ss.source_spec_id IN (SELECT id FROM shelf)
+                         ORDER BY src.canonical_name
+                         LIMIT 1),
+                       s.spec_name)
+              ORDER BY s.position) AS names
        FROM recipe_line_status s
        JOIN recipe_lines rl ON rl.recipe_id = s.recipe_id AND rl.position = s.position
       WHERE s.recipe_id IN (SELECT id FROM menu_mixed)
@@ -270,6 +277,13 @@ export type RecipeLine = {
   preferred: boolean;
   /** Shown names in `bottles` that are featured (migration 030; in stock by definition). */
   featured: string[];
+  /**
+   * The line's other choices a guest may use tonight (migration 034): its alternates with a bottle on the shelf
+   * (in stock, not reserved), in priority order, not counting the one that leads. When the line's own ingredient is
+   * out, its first such alternate leads instead (name, amount, note and bottles above are the alternate's) and the
+   * own ingredient isn't offered at all.
+   */
+  alternates: { name: string; amount: string | null; unit: string | null; note: string | null }[];
 };
 
 export type Recipe = {
@@ -421,23 +435,40 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
          LEFT JOIN products p ON p.id = x.product_id
         WHERE x.product_id IS NULL OR NOT p.reserved OR src.always_available),
      shelf AS (SELECT DISTINCT spec_id AS id FROM supply WHERE hops = 0),
-     base AS (
-       SELECT s.position, s.spec_id, s.spec_name AS name, s.required,
-              (s.spec_id IN (SELECT id FROM shelf)) AS available,
-              rl.amount::text AS amount, rl.unit, rl.note,
-              sub.id AS use_instead_id, sub.canonical_name AS use_instead
+     -- Alternates (migration 034): when the line's own ingredient isn't on the shelf, its first alternate that is
+     -- (by position) leads: its name, its amount (or the line's), its note, its bottles.
+     line AS (
+       SELECT s.position, rl.id AS line_id, s.spec_id AS own_id, s.spec_name AS own_name, s.required,
+              rl.amount, rl.unit, rl.note, lead.spec_id AS alt_id, lead.name AS alt_name,
+              lead.amount AS alt_amount, lead.unit AS alt_unit, lead.note AS alt_note
          FROM recipe_line_status s
          JOIN recipe_lines rl ON rl.recipe_id = s.recipe_id AND rl.position = s.position
+         LEFT JOIN LATERAL (
+           SELECT a.spec_id, sp.canonical_name AS name, a.amount, a.unit, a.note
+             FROM recipe_line_alternates a JOIN specs sp ON sp.id = a.spec_id
+            WHERE a.recipe_line_id = rl.id
+              AND s.spec_id NOT IN (SELECT id FROM shelf)
+              AND a.spec_id IN (SELECT id FROM shelf)
+            ORDER BY a.position
+            LIMIT 1) lead ON true
+        WHERE s.recipe_id = $1),
+     base AS (
+       SELECT l.position, l.line_id, COALESCE(l.alt_id, l.own_id) AS spec_id, COALESCE(l.alt_name, l.own_name) AS name, l.required,
+              (COALESCE(l.alt_id, l.own_id) IN (SELECT id FROM shelf)) AS available,
+              (CASE WHEN l.alt_id IS NULL OR (l.alt_amount IS NULL AND l.alt_unit IS NULL) THEN l.amount ELSE l.alt_amount END)::text AS amount,
+              CASE WHEN l.alt_id IS NULL OR (l.alt_amount IS NULL AND l.alt_unit IS NULL) THEN l.unit ELSE l.alt_unit END AS unit,
+              CASE WHEN l.alt_id IS NULL THEN l.note ELSE l.alt_note END AS note,
+              sub.id AS use_instead_id, sub.canonical_name AS use_instead
+         FROM line l
          LEFT JOIN LATERAL (
            SELECT src.id, src.canonical_name
              FROM spec_substitutions ss
              JOIN specs src ON src.id = ss.source_spec_id
-            WHERE ss.target_spec_id = s.spec_id
+            WHERE ss.target_spec_id = COALESCE(l.alt_id, l.own_id)
               AND ss.source_spec_id IN (SELECT id FROM shelf)
-              AND s.spec_id NOT IN (SELECT id FROM shelf)
+              AND COALESCE(l.alt_id, l.own_id) NOT IN (SELECT id FROM shelf)
             ORDER BY src.canonical_name
-            LIMIT 1) sub ON true
-        WHERE s.recipe_id = $1),
+            LIMIT 1) sub ON true),
      src AS (
        SELECT b.*,
               CASE WHEN b.available THEN b.spec_id
@@ -457,7 +488,12 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
                                                         'short', CASE WHEN is_cellar_wine(p.id) THEN NULL ELSE p.short_name END,
                                                         'featured', p.id IN (SELECT featured_product_ids())))
                         FROM supply x JOIN products p ON p.id = x.product_id
-                       WHERE x.spec_id = s.from_spec AND x.hops = 0), '[]'::json) AS stock
+                       WHERE x.spec_id = s.from_spec AND x.hops = 0), '[]'::json) AS stock,
+            -- The other alternates a guest may use tonight: on the shelf (in stock, not reserved), not the leader.
+            COALESCE((SELECT json_agg(json_build_object('name', sp.canonical_name, 'amount', a.amount::text, 'unit', a.unit, 'note', a.note) ORDER BY a.position)
+                        FROM recipe_line_alternates a JOIN specs sp ON sp.id = a.spec_id
+                       WHERE a.recipe_line_id = s.line_id AND a.spec_id <> s.spec_id
+                         AND a.spec_id IN (SELECT id FROM shelf)), '[]'::json) AS alternates
        FROM src s
       ORDER BY s.position`,
     [id],

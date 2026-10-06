@@ -94,6 +94,7 @@ export async function loadGlance(): Promise<Glance> {
             SELECT 1 FROM product_specs ps
              WHERE ps.product_id = p.id
                AND (EXISTS (SELECT 1 FROM recipe_lines rl WHERE rl.spec_id = ps.spec_id)
+                 OR EXISTS (SELECT 1 FROM recipe_line_alternates a WHERE a.spec_id = ps.spec_id)
                  OR EXISTS (SELECT 1 FROM spec_substitutions ss JOIN recipe_lines rl ON rl.spec_id = ss.target_spec_id
                              WHERE ss.source_spec_id = ps.spec_id)))
         ORDER BY lower(p.display_name)`,

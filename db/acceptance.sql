@@ -1494,6 +1494,130 @@ BEGIN
   RAISE NOTICE 'check 30 passed';
 END $$;
 
+-- 31. Drink-specific alternates (034): a required line is satisfied by its own ingredient OR any alternate (in
+-- stock, or reached through a global stand-in); neither = not buildable. A reserved main with a free alternate
+-- leaves the cocktail unlocked; with only reserved choices it is locked with the note. recipe_line_status says which
+-- choice leads; featured follows the leading choice. No repeats, never the line's own ingredient (checked at commit,
+-- so "make main" swaps in one transaction), at most 3, amount override shaped like recipe_lines. An edit bumps the
+-- change signal. With no alternates, nothing changes (the 033 checks above still pass).
+DO $$
+DECLARE
+  v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid; v_f uuid;
+  v_pa uuid; v_pb uuid; v_pc uuid;
+  v_recipe uuid; v_line uuid; v_alt uuid;
+  v_before bigint; v_after bigint;
+BEGIN
+  IF (SELECT string_agg(column_name, ',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'recipe_line_status')
+     IS DISTINCT FROM 'recipe_id,position,spec_id,spec_name,required,available,status,own_available,lead_spec_id' THEN
+    RAISE EXCEPTION 'check 31 failed: recipe_line_status columns moved or the new columns are not last';
+  END IF;
+  v_a := create_spec('acc-alt-main', 'Acc alt main', 'whiskey');
+  v_b := create_spec('acc-alt-second', 'Acc alt second', 'whiskey');
+  v_c := create_spec('acc-alt-standin', 'Acc alt stand-in', 'whiskey');
+  v_d := create_spec('acc-alt-x', 'Acc alt x', 'whiskey');
+  v_e := create_spec('acc-alt-y', 'Acc alt y', 'whiskey');
+  v_f := create_spec('acc-alt-z', 'Acc alt z', 'whiskey');
+  INSERT INTO spec_substitutions (source_spec_id, target_spec_id) VALUES (v_c, v_b);  -- C stands in for B, globally
+  v_pa := create_product_from_lookup(p_title => 'Acc alt main bottle', p_source => 'acceptance', p_raw => '{}'::jsonb, p_in_stock => true, p_upc => '999000000311');
+  v_pb := create_product_from_lookup(p_title => 'Acc alt second bottle', p_source => 'acceptance', p_raw => '{}'::jsonb, p_in_stock => false, p_upc => '999000000312');
+  v_pc := create_product_from_lookup(p_title => 'Acc alt stand-in bottle', p_source => 'acceptance', p_raw => '{}'::jsonb, p_in_stock => false, p_upc => '999000000313');
+  PERFORM link_product_spec(v_pa, v_a, true);
+  PERFORM link_product_spec(v_pb, v_b, true);
+  PERFORM link_product_spec(v_pc, v_c, true);
+  INSERT INTO recipes (name, section) VALUES ('Acc alternates sour', 'mixed') RETURNING id INTO v_recipe;
+  INSERT INTO recipe_lines (recipe_id, spec_id, position, required, amount, unit) VALUES (v_recipe, v_a, 1, true, 2, 'oz') RETURNING id INTO v_line;
+  INSERT INTO recipe_line_alternates (recipe_line_id, spec_id, position, note) VALUES (v_line, v_b, 1, 'rounder');
+
+  -- 1. Own ingredient in stock: buildable, led by its own ingredient.
+  IF NOT recipe_is_makeable(v_recipe) OR NOT EXISTS (SELECT 1 FROM menu_mixed WHERE id = v_recipe AND NOT reserved)
+     OR (SELECT row(available, own_available, lead_spec_id) FROM recipe_line_status WHERE recipe_id = v_recipe AND position = 1) IS DISTINCT FROM row(true, true, v_a) THEN
+    RAISE EXCEPTION 'check 31 failed: a line with its own ingredient in stock is not satisfied by it';
+  END IF;
+  -- 2. Only the alternate in stock: still buildable, the alternate leads.
+  UPDATE products SET in_stock = false WHERE id = v_pa;
+  UPDATE products SET in_stock = true WHERE id = v_pb;
+  IF NOT recipe_is_makeable(v_recipe) OR NOT EXISTS (SELECT 1 FROM menu_mixed WHERE id = v_recipe AND NOT reserved)
+     OR (SELECT row(available, status, own_available, lead_spec_id) FROM recipe_line_status WHERE recipe_id = v_recipe AND position = 1) IS DISTINCT FROM row(true, 'available'::text, false, v_b) THEN
+    RAISE EXCEPTION 'check 31 failed: a line with only its alternate in stock is not satisfied by the alternate';
+  END IF;
+  -- 3. Neither: not buildable, and the line keeps its own reason.
+  UPDATE products SET in_stock = false WHERE id = v_pb;
+  IF recipe_is_makeable(v_recipe) OR EXISTS (SELECT 1 FROM menu_mixed WHERE id = v_recipe)
+     OR (SELECT row(available, status, lead_spec_id) FROM recipe_line_status WHERE recipe_id = v_recipe AND position = 1) IS DISTINCT FROM row(false, 'out_of_stock'::text, NULL::uuid) THEN
+    RAISE EXCEPTION 'check 31 failed: a line with nothing in stock was satisfied';
+  END IF;
+  -- 4. A global stand-in for the alternate counts (C stands in for B).
+  UPDATE products SET in_stock = true WHERE id = v_pc;
+  IF NOT recipe_is_makeable(v_recipe) OR NOT EXISTS (SELECT 1 FROM menu_mixed WHERE id = v_recipe)
+     OR (SELECT lead_spec_id FROM recipe_line_status WHERE recipe_id = v_recipe AND position = 1) IS DISTINCT FROM v_b THEN
+    RAISE EXCEPTION 'check 31 failed: a global stand-in for an alternate did not satisfy the line';
+  END IF;
+  UPDATE products SET in_stock = false WHERE id = v_pc;
+  -- 5. Reserved main + free alternate: unlocked, the alternate leads; only reserved choices: locked with the note.
+  UPDATE products SET in_stock = true, reserved = true, reserved_note = 'Acc party' WHERE id = v_pa;
+  UPDATE products SET in_stock = true WHERE id = v_pb;
+  IF NOT EXISTS (SELECT 1 FROM menu_mixed WHERE id = v_recipe AND NOT reserved)
+     OR (SELECT lead_spec_id FROM recipe_line_status WHERE recipe_id = v_recipe AND position = 1) IS DISTINCT FROM v_b THEN
+    RAISE EXCEPTION 'check 31 failed: a reserved main with a free alternate locked the cocktail or led with the reserved bottle';
+  END IF;
+  UPDATE products SET in_stock = false WHERE id = v_pb;
+  IF (SELECT row(reserved, reserved_note) FROM menu_mixed WHERE id = v_recipe) IS DISTINCT FROM row(true, 'Acc party'::text) THEN
+    RAISE EXCEPTION 'check 31 failed: a line with only a reserved choice did not lock the cocktail with its note';
+  END IF;
+  UPDATE products SET in_stock = true, reserved = true, reserved_note = 'Acc alt party' WHERE id = v_pb;
+  UPDATE products SET reserved = false, reserved_note = NULL WHERE id = v_pa;
+  UPDATE products SET in_stock = false WHERE id = v_pa;
+  IF (SELECT row(reserved, reserved_note) FROM menu_mixed WHERE id = v_recipe) IS DISTINCT FROM row(true, 'Acc alt party'::text) THEN
+    RAISE EXCEPTION 'check 31 failed: a reserved alternate did not lock the cocktail with its note';
+  END IF;
+  UPDATE products SET reserved = false, reserved_note = NULL WHERE id = v_pb;
+  -- 6. Featured follows the leading choice.
+  UPDATE products SET featured = true WHERE id = v_pb;          -- main out, alternate leads and is featured
+  IF v_recipe NOT IN (SELECT featured_recipe_ids()) THEN RAISE EXCEPTION 'check 31 failed: a featured leading alternate did not feature the drink'; END IF;
+  UPDATE products SET in_stock = true WHERE id = v_pa;           -- main back: it leads, the alternate is not offered
+  IF v_recipe IN (SELECT featured_recipe_ids()) THEN RAISE EXCEPTION 'check 31 failed: a featured alternate behind an in-stock main featured the drink'; END IF;
+  UPDATE products SET featured = false WHERE id = v_pb;
+
+  -- Rules: no repeats, never the line's own ingredient, at most 3, amount shape.
+  BEGIN INSERT INTO recipe_line_alternates (recipe_line_id, spec_id, position) VALUES (v_line, v_b, 2); RAISE EXCEPTION 'check 31 failed: a repeated alternate was accepted';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO recipe_line_alternates (recipe_line_id, spec_id, position) VALUES (v_line, v_a, 2);
+    SET CONSTRAINTS recipe_line_alternates_not_self, recipe_lines_alternates_not_self, recipe_line_alternates_position_uq IMMEDIATE;
+    RAISE EXCEPTION 'check 31 failed: the line''s own ingredient was accepted as its alternate';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  SET CONSTRAINTS recipe_line_alternates_not_self, recipe_lines_alternates_not_self, recipe_line_alternates_position_uq DEFERRED;
+  INSERT INTO recipe_line_alternates (recipe_line_id, spec_id, position) VALUES (v_line, v_d, 2), (v_line, v_e, 3);
+  BEGIN INSERT INTO recipe_line_alternates (recipe_line_id, spec_id, position) VALUES (v_line, v_f, 4); RAISE EXCEPTION 'check 31 failed: a fourth alternate was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO recipe_line_alternates (recipe_line_id, spec_id, position) VALUES (v_line, v_f, 3);
+    SET CONSTRAINTS recipe_line_alternates_not_self, recipe_lines_alternates_not_self, recipe_line_alternates_position_uq IMMEDIATE;
+    RAISE EXCEPTION 'check 31 failed: two alternates in one position were accepted';
+  EXCEPTION WHEN unique_violation THEN NULL; END;
+  SET CONSTRAINTS recipe_line_alternates_not_self, recipe_lines_alternates_not_self, recipe_line_alternates_position_uq DEFERRED;
+  BEGIN UPDATE recipe_line_alternates SET amount = 0.5 WHERE recipe_line_id = v_line AND spec_id = v_b; RAISE EXCEPTION 'check 31 failed: an amount without a unit was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  UPDATE recipe_line_alternates SET amount = 0.5, unit = 'oz' WHERE recipe_line_id = v_line AND spec_id = v_b;
+  -- Reorder (swap positions 2 and 3) and "make main" (swap the line's ingredient with an alternate), checked at the end.
+  UPDATE recipe_line_alternates SET position = CASE position WHEN 2 THEN 3 ELSE 2 END WHERE recipe_line_id = v_line AND position IN (2, 3);
+  UPDATE recipe_lines SET spec_id = v_b WHERE id = v_line;
+  UPDATE recipe_line_alternates SET spec_id = v_a WHERE recipe_line_id = v_line AND position = 1;
+  SET CONSTRAINTS recipe_line_alternates_not_self, recipe_lines_alternates_not_self, recipe_line_alternates_position_uq IMMEDIATE;
+  SET CONSTRAINTS recipe_line_alternates_not_self, recipe_lines_alternates_not_self, recipe_line_alternates_position_uq DEFERRED;
+  IF (SELECT array_agg(spec_id ORDER BY rank) FROM recipe_line_options WHERE recipe_line_id = v_line) IS DISTINCT FROM ARRAY[v_b, v_a, v_e, v_d] THEN
+    RAISE EXCEPTION 'check 31 failed: reorder or make-main did not leave the expected choices';
+  END IF;
+  -- Change signal; deleting the line removes its alternates.
+  SELECT menu_version INTO v_before FROM bar_versions WHERE id = 1;
+  DELETE FROM recipe_line_alternates WHERE recipe_line_id = v_line AND position = 3;
+  SELECT menu_version INTO v_after FROM bar_versions WHERE id = 1;
+  IF v_after <= v_before THEN RAISE EXCEPTION 'check 31 failed: removing an alternate did not bump menu_version'; END IF;
+  DELETE FROM recipe_lines WHERE id = v_line;
+  IF EXISTS (SELECT 1 FROM recipe_line_alternates WHERE recipe_line_id = v_line) THEN RAISE EXCEPTION 'check 31 failed: alternates outlived their line'; END IF;
+  RAISE NOTICE 'check 31 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

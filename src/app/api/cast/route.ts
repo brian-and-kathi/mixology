@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { castRateLimited, castRevision, currentCast, startCast, stopCast, type CastType } from "@/lib/cast";
+import { castRateLimited, castRevision, currentCast, isCastType, startCast, stopCast, type CastType } from "@/lib/cast";
 import { guestGate } from "@/lib/bar-status";
 import { isUuid } from "@/lib/db";
 import { publish } from "@/lib/relay";
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
 async function parse(req: NextRequest): Promise<{ type: CastType; id: string; started_at: string | null } | null> {
   const body = (await req.json().catch(() => null)) as { type?: unknown; id?: unknown; started_at?: unknown } | null;
-  const type = body?.type === "recipe" || body?.type === "pour" ? body.type : null;
+  const type = isCastType(body?.type) ? body.type : null;
   const id = typeof body?.id === "string" && isUuid(body.id) ? body.id : null;
   const started_at = typeof body?.started_at === "string" && body.started_at ? body.started_at : null;
   return type && id ? { type, id, started_at } : null;
@@ -35,12 +35,12 @@ async function parse(req: NextRequest): Promise<{ type: CastType; id: string; st
 
 const ip = (req: NextRequest) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
 
-/** POST {type, id}: show a cocktail or pour on the TV (replaces whatever is showing). While the bar is Closed, admins only (403). */
+/** POST {type, id}: show a cocktail, pour or Cellar wine on the TV (replaces whatever is showing). While the bar is Closed, admins only (403). */
 export async function POST(req: NextRequest) {
   if (!(await guestGate()).allowed) return json({ error: "The bar is closed." }, 403);
   if (castRateLimited(ip(req))) return json({ error: "Too many requests. Try again in a minute." }, 429);
   const item = await parse(req);
-  if (!item) return json({ error: "Send {type: 'recipe' | 'pour', id}." }, 400);
+  if (!item) return json({ error: "Send {type: 'recipe' | 'pour' | 'wine', id}." }, 400);
   const cast = await startCast(item.type, item.id);
   if (!cast) return json({ error: "That item isn't on the menu." }, 404);
   publish("bar:cast", "cast"); // after the response; TVs and phones refetch GET (lib/relay)
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   if (castRateLimited(ip(req))) return json({ error: "Too many requests. Try again in a minute." }, 429);
   const item = await parse(req);
-  if (!item) return json({ error: "Send {type: 'recipe' | 'pour', id}." }, 400);
+  if (!item) return json({ error: "Send {type: 'recipe' | 'pour' | 'wine', id}." }, 400);
   const stopped = await stopCast(item.type, item.id, item.started_at);
   if (stopped) publish("bar:cast", "clear");
   return json({ stopped, cast: await currentCast(), now: new Date().toISOString() });

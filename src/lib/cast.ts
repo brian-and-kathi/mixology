@@ -1,18 +1,40 @@
 import { query } from "@/lib/db";
 import { barVersions } from "@/lib/bar-versions";
 import { altGlassLine, cap, lineText, methodParts, serveParts, tvGlassLine } from "@/lib/format";
-import { bottleLine, bottleParts, loadPour, loadRecipe } from "@/lib/menu";
+import { bottleLine, bottleParts, loadPour, loadRecipe, loadWine, wineGlass } from "@/lib/menu";
 import { cleanMoods } from "@/lib/moods";
+import { normalizeOrigin } from "@/lib/us-states";
+import { wineColorLabel, wineGrapes, wineTemp, wineVintage } from "@/lib/wine-facts";
 
 // "Show on TV": one cast record (tv_cast, migration 015). A cast lasts 5 minutes, a new cast
 // replaces the old one, and anyone on that item's phone page can take it off.
+// Types (migration 035 added "wine"): the guest page a cast comes from, /recipe, /pour or /wine. Pours and Cellar
+// wines are both products, but each keeps its own type so its card can show what its page shows.
 export const CAST_SECONDS = 300;
-export type CastType = "recipe" | "pour";
+export const CAST_TYPES = ["recipe", "pour", "wine"] as const;
+export type CastType = (typeof CAST_TYPES)[number];
+export const isCastType = (v: unknown): v is CastType => typeof v === "string" && (CAST_TYPES as readonly string[]).includes(v);
 
 export type CastLine = { amount: string; name: string; out: boolean; use_instead: string | null; optional: boolean; note: string | null; bottles: string | null; bottle_parts: { text: string; featured?: boolean }[] | null };
 export type CastPayload =
   | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; featured: boolean; lines: CastLine[]; method_label: string; method: string[]; moods?: string[] }
-  | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean };
+  | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean }
+  | WinePayload;
+/** A Cellar wine's card (Brian via Rachel, 2026-10-06). Every field but the name may be missing; the card leaves it out. */
+export type WinePayload = {
+  type: "wine"; id: string; name: string; glass: string; featured: boolean;
+  /** Grape badge(s), from products.grape (migration 031). */
+  grapes: string[];
+  /** products.brand, left out when the name already says it (as on the pour card). */
+  producer: string | null;
+  /** products.origin through normalizeOrigin(): "Traverse City, MI", a state alone spelled out, other places as stored. */
+  origin: string | null;
+  color: string | null; vintage: string | null; abv: string | null;
+  /** Serving temperature (lib/wine-facts wineTemp: the serve flags, else the color group). */
+  temp: string | null;
+  serve_note: string | null;
+  note: string | null;
+};
 export type Cast = { type: CastType; id: string; started_at: string; expires_at: string; payload: CastPayload };
 
 /** Build what the TV band shows, using the same rules as the phone pages. Null if not on the menu. */
@@ -40,6 +62,7 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
       method: methodParts(r.description, r.method_style).paragraphs,
     };
   }
+  if (type === "wine") return winePayload(id);
   const p = await loadPour(id);
   if (!p) return null;
   const [spec] = await query<{ spec: string | null }>("SELECT primary_spec_name AS spec FROM menu_neat WHERE id = $1", [id]);
@@ -49,6 +72,26 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
   return {
     type, id: p.id, name: p.full_name, glass: "rocks", detail: detail || null,
     serve: s.main, serve_quiet: [...(p.serve_note ? [p.serve_note] : []), ...s.quiet], note: p.description, featured: p.featured,
+  };
+}
+
+/** Cellar wine card: only while the wine is in the guest Cellar and not reserved (loadWine). */
+async function winePayload(id: string): Promise<WinePayload | null> {
+  const w = await loadWine(id);
+  if (!w) return null;
+  const brand = w.brand?.trim() || null;
+  const origin = normalizeOrigin(w.origin?.trim() || null) || null;
+  return {
+    type: "wine", id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), featured: w.featured,
+    grapes: wineGrapes(w.grape),
+    producer: brand && !w.name.toLowerCase().includes(brand.toLowerCase()) ? brand : null,
+    origin,
+    color: wineColorLabel(w.wine_color, w.wine_effervescence, w.fortified),
+    vintage: wineVintage([w.name, w.packaged_name]),
+    abv: w.abv && Number(w.abv) > 0 ? `${Number(w.abv)}% ABV` : null,
+    temp: wineTemp({ chilled: w.serves_chilled, neat: w.serves_neat, rocks: w.serves_rocks, styleGroup: w.style_group }),
+    serve_note: w.serve_note?.trim() || null,
+    note: w.description?.trim() || null,
   };
 }
 

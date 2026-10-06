@@ -475,6 +475,10 @@ a.card:active { background: #202020; }
    name and no taller than the old one-line mood text, so the band's fit and scale don't change. */
 .mood-badges.tv-band-moods { margin: -0.7vh 0 1.5vh; gap: 0.7vh; font-size: calc(2.05vh * var(--s)); }
 .tv-band-moods .mood-badge { padding: 0.12em 0.6em; border-width: max(1px, 0.1vh); }
+/* Cellar wine cast card (2026-10-06): grape badges in the gold type/grape tag style (squared, outlined, like the phone
+   title badge), sized and placed like the cocktail card's mood badges so the hero column keeps the same rhythm. */
+.tv-band-grapes { display: flex; flex-wrap: wrap; align-items: center; list-style: none; padding: 0; margin: -0.7vh 0 1.5vh; gap: 0.7vh; font-size: calc(2.05vh * var(--s)); }
+.tv-band-grape { display: inline-flex; align-items: center; padding: 0.12em 0.5em; border: max(1px, 0.1vh) solid var(--gold-line); border-radius: 0.3em; color: var(--gold); font-weight: 500; line-height: 1.1; letter-spacing: 0.01em; white-space: nowrap; }
 .tv-band-feat .feat-tag { margin-left: 0; font-size: calc(1.85vh * var(--s)); padding: 0.35vh 1vh 0.45vh; }
 .tv-band-line .what .tv-band-bottles .feat-name { color: var(--featured); }
 .tv-band-bottles .feat-tag { font-size: 0.8em; margin-left: 0.4em; padding: 0.15vh 0.7vh 0.25vh; vertical-align: 0.05em; }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { onBarStatus } from "@/lib/bar-events";
+import type { CastType } from "@/lib/cast";
 import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
 
 type CastState = { type: string; id: string; started_at: string; expires_at: string } | null;
@@ -68,10 +69,10 @@ const mss = (ms: number) => {
 };
 
 /**
- * "Show on TV" on every cocktail and pour page (DESIGN §10). Casting replaces whatever is on
+ * "Show on TV" on every cocktail, pour and Cellar wine page (DESIGN §10). Casting replaces whatever is on
  * the TV with no confirmation; while this item is showing, anyone on this page can take it off.
  */
-export function CastButton({ type, id }: { type: "recipe" | "pour"; id: string }) {
+export function CastButton({ type, id }: { type: CastType; id: string }) {
   const [cast, setCast] = useState<CastState>(null);
   const [offset, setOffset] = useState(0);
   const [now, setNow] = useState(() => Date.now());

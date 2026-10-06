@@ -1,6 +1,7 @@
 import { ClosedPage } from "@/components/ClosedPage";
 import { guestGate, publicStatus } from "@/lib/bar-status";
 import { notFound } from "next/navigation";
+import { CastButton } from "@/components/CastButton";
 import { DrinkLead } from "@/components/DrinkLead";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { PhoneShell } from "@/components/PhoneShell";
@@ -13,7 +14,7 @@ import { loadRating } from "@/lib/ratings";
 
 export const dynamic = "force-dynamic";
 
-/** Cellar wine card: same layout as the pour page. Wines aren't cast to the TV. */
+/** Cellar wine card: same layout as the pour page, with the same Show on TV button (type "wine", migration 035). */
 export default async function WinePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   // Open/Closed (DESIGN §3.1): while Closed, guests get the closed page (admins get the page and the pill).
@@ -46,6 +47,7 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
     <PhoneShell bar={bar} title={wine.name} titleBadge={grape || wine.featured ? <span className="title-badges">{grape ? <span className="spec-badge title-badge">{grape}</span> : null}{wine.featured ? <FeaturedTag /> : null}</span> : undefined} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}
       lead={<DrinkLead glass={wineGlass(wine.sparkling, wine.type)} kind="product" id={wine.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
+      <CastButton type="wine" id={wine.id} />
       {serve ? (
         <section>
           <h2>How it's served</h2>

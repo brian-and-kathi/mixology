@@ -532,15 +532,22 @@ export type Wine = {
   serves_neat: boolean;
   serves_rocks: boolean;
   featured: boolean;
+  /** For the TV card (lib/wine-facts): the label name (vintage), products.wine_color / wine_effervescence / fortified, wine_style_group(). */
+  packaged_name: string | null;
+  wine_color: string | null;
+  wine_effervescence: string | null;
+  fortified: boolean;
+  style_group: string | null;
 };
 
-/** A Cellar wine's detail page: only while it's in the guest Cellar (menu_wines) and not reserved (migration 032). */
+/** A Cellar wine's detail page and cast: only while it's in the guest Cellar (menu_wines) and not reserved (migration 032). */
 export async function loadWine(id: string): Promise<Wine | null> {
   if (!isUuid(id)) return null;
   const [wine] = await query<Wine>(
     `SELECT w.id, w.display_name AS name, p.brand, w.origin, w.grape, p.abv::text AS abv, w.description, w.serve_note, w.pairing_notes,
             (w.wine_effervescence = 'sparkling') AS sparkling, p.serves_chilled, p.serves_neat, p.serves_rocks,
             (w.id IN (SELECT featured_product_ids())) AS featured,
+            p.packaged_name, w.wine_color, w.wine_effervescence, COALESCE(w.fortified, false) AS fortified, w.style_group,
             (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
               WHERE ps.product_id = w.id ORDER BY ps.is_primary DESC LIMIT 1) AS type
        FROM menu_wines w JOIN products p ON p.id = w.id

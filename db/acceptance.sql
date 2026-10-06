@@ -1618,6 +1618,27 @@ BEGIN
   RAISE NOTICE 'check 31 passed';
 END $$;
 
+-- 32. Show on TV for Cellar wines (035): tv_cast takes 'wine' as well as
+-- 'recipe' and 'pour', and still nothing else; still one row.
+DO $$
+DECLARE
+  v_wine uuid := gen_random_uuid();
+BEGIN
+  DELETE FROM tv_cast;
+  INSERT INTO tv_cast (id, item_type, item_id, started_at, expires_at) VALUES (1, 'wine', v_wine, now(), now() + interval '5 minutes');
+  IF NOT EXISTS (SELECT 1 FROM tv_cast WHERE id = 1 AND item_type = 'wine' AND item_id = v_wine) THEN
+    RAISE EXCEPTION 'check 32 failed: a wine cast was not stored';
+  END IF;
+  UPDATE tv_cast SET item_type = 'pour' WHERE id = 1;
+  UPDATE tv_cast SET item_type = 'recipe' WHERE id = 1;
+  BEGIN UPDATE tv_cast SET item_type = 'product' WHERE id = 1; RAISE EXCEPTION 'check 32 failed: an unknown item_type was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN INSERT INTO tv_cast (id, item_type, item_id, expires_at) VALUES (2, 'wine', v_wine, now() + interval '5 minutes');
+    RAISE EXCEPTION 'check 32 failed: a second cast row was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  RAISE NOTICE 'check 32 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

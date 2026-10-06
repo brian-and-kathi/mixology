@@ -250,6 +250,47 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
         </>
       ),
     });
+  } else if (payload.type === "wine") {
+    // Cellar wine (Brian via Rachel, 2026-10-06): the pour card's three columns. Hero: glass and stars, name, grape
+    // badge(s), Featured, then "Producer · City, ST" and "Color · vintage · ABV". Missing facts are simply left out.
+    const place = [payload.producer, payload.origin].filter(Boolean).join(" \u00b7 ");
+    const facts = [payload.color, payload.vintage, payload.abv].filter(Boolean).join(" \u00b7 ");
+    cols.push({
+      key: "hero", weight: 30, body: (
+        <>
+          <div className="tv-band-lead">
+            <GlassIcon glass={payload.glass} className="tv-band-glass" />
+            <BandStars avg={avg} />
+          </div>
+          <h3 className="tv-band-name">{payload.name}</h3>
+          {payload.grapes.length ? (
+            <ul className="tv-band-grapes" aria-label={payload.grapes.length > 1 ? "Grapes" : "Grape"}>
+              {payload.grapes.map((g) => <li key={g} className="tv-band-grape">{g}</li>)}
+            </ul>
+          ) : null}
+          {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
+          {place ? <p className="tv-band-serve">{place}</p> : null}
+          {facts ? <p className="tv-band-note">{facts}</p> : null}
+        </>
+      ),
+    });
+    if (payload.temp || payload.serve_note) cols.push({
+      key: "serve", weight: 35, body: (
+        <>
+          <p className="tv-band-label">How it&rsquo;s served</p>
+          {payload.temp ? <p className="tv-band-text">{payload.temp}</p> : null}
+          {payload.serve_note ? <p className="tv-band-text quiet">{payload.serve_note}</p> : null}
+        </>
+      ),
+    });
+    if (payload.note) cols.push({
+      key: "note", weight: 35, body: (
+        <>
+          <p className="tv-band-label">Tasting note</p>
+          <p className="tv-band-text">{payload.note}</p>
+        </>
+      ),
+    });
   } else {
     cols.push({
       key: "hero", weight: 30, body: (

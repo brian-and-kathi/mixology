@@ -1,7 +1,8 @@
 /**
  * US state names and their 2-letter postal codes (50 states + DC), for product origins
  * (Brian via Rachel, 2026-10-04): "City, ST" when there is a city ("Lake City, MI"); a state alone stays
- * spelled out ("Kentucky"). Pure helpers, no imports: used by the TV line, /menu search and admin saves.
+ * spelled out ("Kentucky"). Pure helpers, no imports: used by every guest place line (spelledOrigin), /menu search
+ * and admin saves.
  */
 export const US_STATES: Readonly<Record<string, string>> = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut",
@@ -31,8 +32,9 @@ export function lastSegment(origin: string | null | undefined): string {
 }
 
 /**
- * The TV Pours place: the origin's last segment, with an exact US code spelled out ("Lake City, MI" -> "Michigan").
- * Non-US or unknown values come back as they are ("Scotland", "Jalisco, Mexico" -> "Mexico").
+ * The origin's last segment, with an exact US code spelled out ("Lake City, MI" -> "Michigan"). Non-US or unknown
+ * values come back as they are ("Scotland", "Jalisco, Mexico" -> "Mexico"). Was the TV Pours place on its own; since
+ * 2026-10-06 every guest place is spelledOrigin(), which builds on this.
  */
 export function shortRegion(origin: string | null | undefined): string {
   const last = lastSegment(origin);
@@ -40,8 +42,9 @@ export function shortRegion(origin: string | null | undefined): string {
 }
 
 /**
- * The wine TV card's place (Vincent, 2026-10-06): the whole origin, with its last segment spelled out by
- * shortRegion() (the board's Pours helper), so "Paso Robles, CA" -> "Paso Robles, California" and "Lake City, MI"
+ * Every guest-facing place (Vincent, 2026-10-06: TV board Pours and Cellar lines, /menu cards, pour and wine
+ * pages, the wine cast card), at display time only; stored values stay "City, ST". The whole origin, with its last
+ * segment spelled out by shortRegion(), so "Paso Robles, CA" -> "Paso Robles, California" and "Lake City, MI"
  * -> "Lake City, Michigan". Spelled-out, non-US and unknown values stay as stored ("Jalisco, Mexico", "Japan").
  * Blank: "".
  */

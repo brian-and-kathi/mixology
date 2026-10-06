@@ -11,6 +11,7 @@ import { serveLine } from "@/lib/format";
 import { loadLocked, loadPour } from "@/lib/menu";
 import { LockedPage } from "@/components/LockedPage";
 import { loadRating } from "@/lib/ratings";
+import { spelledOrigin } from "@/lib/us-states";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,8 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
   const [admin, rating] = await Promise.all([isAdmin(), loadRating("product", pour.id)]);
   const editHref = admin ? `/admin/bottles/${pour.id}` : undefined;
 
-  const details = [pour.brand && pour.brand !== pour.full_name ? pour.brand : null, pour.origin, pour.abv ? `${Number(pour.abv)}%\u00a0ABV` : null].filter(Boolean);
+  // Origin: stored "City, ST", shown "City, State" like the board (display only, Vincent 2026-10-06).
+  const details = [pour.brand && pour.brand !== pour.full_name ? pour.brand : null, spelledOrigin(pour.origin) || null, pour.abv ? `${Number(pour.abv)}%\u00a0ABV` : null].filter(Boolean);
 
   return (
     // Title: the short name; the type badge always sits on its own line under it, so the title keeps the full width.

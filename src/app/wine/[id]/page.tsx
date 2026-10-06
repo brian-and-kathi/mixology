@@ -11,6 +11,7 @@ import { cap } from "@/lib/format";
 import { loadLocked, loadWine, wineGlass } from "@/lib/menu";
 import { LockedPage } from "@/components/LockedPage";
 import { loadRating } from "@/lib/ratings";
+import { spelledOrigin } from "@/lib/us-states";
 import { wineTemp } from "@/lib/wine-facts";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +39,8 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
   const grape = wine.grape?.trim() || null;
   const details = [
     wine.brand && !lower.includes(wine.brand.toLowerCase()) ? wine.brand : null,
-    wine.origin,
+    // Stored "City, ST"; shown "City, State" like the board and the TV card (display only, Vincent 2026-10-06).
+    spelledOrigin(wine.origin) || null,
     !grape && wine.type && !lower.includes(wine.type.toLowerCase()) ? cap(wine.type) : null,
     wine.abv && Number(wine.abv) > 0 ? `${Number(wine.abv)}%\u00a0ABV` : null,
   ].filter(Boolean);

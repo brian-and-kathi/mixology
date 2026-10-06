@@ -2,7 +2,7 @@ import { isUuid, query } from "@/lib/db";
 import { spiritFamily } from "@/lib/spirit-family";
 import { badgeFor, specLabel } from "@/lib/spec-label";
 import { CELLAR_COLORS, cellarColor } from "@/lib/moods";
-import { shortRegion } from "@/lib/us-states";
+import { spelledOrigin } from "@/lib/us-states";
 
 // Section order is fixed everywhere (TV and phone): Pours, Cocktails, Cellar.
 export const SECTIONS = [
@@ -229,13 +229,13 @@ export function ingredientLine(names: string[]) {
 /**
  * Pours. Phone: "Lake City, Michigan · 45% ABV" (one if the other is missing; neither, the type), with
  * no-break spaces inside "Lake City" and "45% ABV" so neither splits across lines.
- * TV: the region only, shortened to its state or country ("Michigan", also from "Lake City, MI"). The ABV is a superscript on the name.
+ * TV: the whole place, "City, State" (Vincent, 2026-10-06; was the state alone). The ABV is a superscript on the name.
+ * Origins are stored "City, ST" (admin saves normalize them); a US code is spelled out here, at display time only
+ * (spelledOrigin: "Lake City, MI" -> "Lake City, Michigan"), the same on the TV, the phone and the cast card.
  */
 export function pourLine(p: { origin: string | null; abv: string | null; type: string | null }): Partial<Sub> {
   const abv = p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% ABV` : "";
-  const region = clean(p.origin);
-  // Last segment, a US code spelled out ("Lake City, MI" -> "Michigan"); other places as stored.
-  const short = shortRegion(region);
+  const region = spelledOrigin(p.origin);
   if (!region && !abv) {
     const type = clean(p.type);
     return type ? { detail: first(type), fit: [first(type)] } : {};
@@ -243,18 +243,19 @@ export function pourLine(p: { origin: string | null; abv: string | null; type: s
   const head = region ? keepPlace(region) : "";
   const detail = first([head, keepAbv(abv)].filter(Boolean).join(DOT));
   const origin = head ? detail.slice(0, first(head).length) : undefined;
-  const originTv = short ? first(short) : undefined;
-  if (!short) return { detail, origin, originTv };
+  const originTv = region ? first(region) : undefined;
+  if (!region) return { detail, origin, originTv };
   return { detail, origin, originTv, fit: [originTv!] };
 }
 
 /**
- * Cellar. Phone and TV: only the place ("California"). The style is the corner tab (phone) or inline
- * badge (TV), so the line never repeats it. No region: no line at all (no blank line or stray " · ").
- * Regions come only from the bottle's origin field; nothing is guessed.
+ * Cellar. Phone and TV: only the place ("California", "Paso Robles, California"). The style is the corner tab (phone)
+ * or inline badge (TV), so the line never repeats it. No region: no line at all (no blank line or stray " · ").
+ * Regions come only from the bottle's origin field; nothing is guessed. A US code is spelled out at display time
+ * (spelledOrigin, Vincent 2026-10-06); a long place wraps after its comma on the TV (tvWrapText), never inside a name.
  */
 export function wineLine(w: { origin: string | null }): Partial<Sub> {
-  const region = clean(w.origin);
+  const region = spelledOrigin(w.origin);
   if (!region) return {};
   // Phone keeps each place name whole ("New\u00a0York"); the TV line is unchanged (plain spaces).
   const detail = first(keepPlace(region));

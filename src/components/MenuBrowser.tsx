@@ -270,7 +270,7 @@ export function MenuBrowser({ sections, initialTab }: { sections: BrowseSection[
           const chips = searching ? [] : sectionChips(s, fx);
           const cur = picks[s.id] ?? NO_PICK;
           return (
-            <section key={s.id} className="sec" aria-label={s.label}>
+            <section key={s.id} className="sec" data-section={s.id} aria-label={s.label}>
               <div ref={headRef} className="sec-head"><h2>{s.label}</h2><span className="n">{items.length}</span></div>
               {chips.length > 1 || (s.id === "cellar" && chips.length) ? (
                 <div className="chips" role="group" aria-label={`${s.label} filters`}>

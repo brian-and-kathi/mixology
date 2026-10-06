@@ -516,3 +516,7 @@ body:has(.shop) { background: #f6f1e8; }
 @media (prefers-reduced-motion: reduce) {
   .door-slots.shake { animation: none; }
 }
+
+/* Font option B (2026-10-06) moved the guest pages to Nunito Sans; the cover keeps Geist (layout.tsx --font-geist).
+   --font-display is still Cormorant Garamond there. Set on body so everything on a cover page picks it up. */
+body:has(.cover), body:has(.shop) { --font-sans: var(--font-geist); }

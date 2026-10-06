@@ -44,22 +44,24 @@ h1, h2, p { margin: 0; }
 /* Header inset (mirrors the phone's title and menu button): the title's left edge, the QR block's right
    edge and the top of the QR block all sit --tv-in inside the frame line (frame: 12px + 1px border). The
    Pours and Cellar column contents share the same left/right edges. */
-.tv { --tv-in: 3vw; --tv-edge: calc(13px + var(--tv-in)); --qr: 12vh; position: fixed; inset: 0; display: flex; flex-direction: column; padding: var(--tv-edge) var(--tv-edge) 3vh; user-select: none; }
+.tv { --tv-nm: 2.85vh; --tv-in: 3vw; --tv-edge: calc(13px + var(--tv-in)); --qr: 12vh; position: fixed; inset: 0; display: flex; flex-direction: column; padding: var(--tv-edge) var(--tv-edge) 3vh; user-select: none; }
 /* Build hash: centered over the QR (the negative margin cancels the trailing letter-spacing, so the ink is centered). */
-.tv-hash { display: block; font: var(--qr-hash)/1 ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; color: rgba(255, 255, 255, 0.5); text-transform: lowercase; }
+.tv-hash { display: block; font: var(--qr-hash)/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; color: rgba(255, 255, 255, 0.5); text-transform: lowercase; }
 /* Title centered vertically on the whole QR block (hash, code, caption). */
 .tv-header { display: flex; align-items: center; justify-content: space-between; gap: 2vw; flex-shrink: 0; }
 .tv-wordmark { font-size: 7vh; }
 /* QR block. The code fills its box (--qr, set on .tv) and the black page is its quiet zone: nothing comes within
    4 modules (--qz; --qr-n = modules across, set on .tv by MenuQr) of it. The hash's box ends 4 modules above the
-   code. Its ink stops at the baseline, about 0.22em higher (hex has no descenders), while the caption's capitals start about
-   0.05em below its box top; the caption's margin makes up the difference so the visible gaps match. */
-.tv-qr { --qr-hash: 1.5vh; --qr-cap: 1.15vh; --qz: calc(var(--qr) * 4 / var(--qr-n, 33)); --qr-even: calc(var(--qr-hash) * 0.22 - var(--qr-cap) * 0.05);
+   code. Both are Geist Mono (ascent 1.005, descent 0.295, cap 0.71 of the em), so with line-height 1 each box is
+   0.15em shorter than the font's ascent + descent: the hash's ink stops at its baseline, 0.295 - 0.15 = 0.145em above
+   its box bottom (hex has no descenders), and the caption's capitals start 1.005 - 0.15 - 0.71 = 0.145em below its
+   box top; the caption's margin makes up the difference so the visible gaps match. */
+.tv-qr { --qr-hash: 1.5vh; --qr-cap: 1.15vh; --qz: calc(var(--qr) * 4 / var(--qr-n, 33)); --qr-even: calc(var(--qr-hash) * 0.145 - var(--qr-cap) * 0.145);
   display: flex; flex-direction: column; align-items: center; }
 .tv-qr .tv-hash { margin-bottom: var(--qz); }
 .tv-qr-code { width: var(--qr); height: var(--qr); background: #000; }
 .tv-qr-code svg { width: 100%; height: 100%; display: block; }
-.tv-qr p { font: var(--qr-cap)/1 ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); margin-top: calc(var(--qz) + var(--qr-even)); }
+.tv-qr p { font: var(--qr-cap)/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.25em; margin-right: -0.25em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); margin-top: calc(var(--qz) + var(--qr-even)); }
 .tv-empty { margin: auto; font-size: 4vh; color: var(--quiet); }
 .tv-columns { flex: 1; min-height: 0; display: flex; margin-top: 1.5vh; }
 /* Outer columns have no outside padding (the page inset lines them up with the header). Inner padding
@@ -68,9 +70,9 @@ h1, h2, p { margin: 0; }
 .tv-col:first-child { padding-left: 0; }
 .tv-col:last-child { padding-right: 0; }
 .tv-col + .tv-col { border-left: 1px solid var(--gold-line); }
-.tv-heading { font-family: var(--font-display), Palatino, serif; font-style: italic; font-weight: 500; font-size: 5.2vh; text-align: center; color: rgba(255, 255, 255, 0.92); line-height: 1.1; }
+.tv-heading { font-family: var(--font-title), Georgia, serif; font-style: italic; font-weight: 400; font-size: 5.2vh; text-align: center; color: rgba(255, 255, 255, 0.92); line-height: 1.1; }
 /* Same row height as before (1.76vh), so the board fit is unchanged; only on a column that has a second page. */
-.tv-pageno { text-align: center; font: 1.12vh/1.1 ui-monospace, monospace; letter-spacing: 0.2em; margin-right: -0.2em; color: var(--gold); }
+.tv-pageno { text-align: center; font: 1.12vh/1.1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.2em; margin-right: -0.2em; color: var(--gold); }
 .tv-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; margin-top: 1vh; }
 .tv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; min-width: 0; }
 .tv-subcols { display: flex; gap: 1vw; height: 100%; transition: opacity 400ms ease; }
@@ -86,36 +88,42 @@ h1, h2, p { margin: 0; }
 .tv-subcols .tv-list > .tv-row.fam-start:first-child { margin-top: 0; }
 /* While a cast hides the subtext to fit the shrunk board, the family gaps go too, so cast layouts page exactly as before. */
 .tv-no-detail .tv-list > .tv-row.fam-start { margin-top: 0; }
-.tv-row { display: flex; align-items: center; gap: 0.7vw; padding: 1.05vh 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 2.75vh; line-height: 1.25; }
+/* Row font size = the name size (--tv-nm on .tv: 2.85vh, font option B; 2.75vh with Geist). The row's own font stays
+   Nunito Sans (rating, ABV, tags); only .tv-name is DM Serif Text. */
+.tv-row { display: flex; align-items: center; gap: 0.7vw; padding: 1.05vh 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: var(--tv-nm); line-height: 1.25; }
 .tv-row .glass { width: 3.6vh; height: 3.6vh; color: rgba(255, 255, 255, 0.85); }
 /* Subtext under every name (ingredients, region · ABV, region · style): one muted line that wraps onto more
    lines when it is too long, like names (FitLine; never clipped or shortened).
    The glass stays on the name row. Hidden on all columns together when a cast would force paging. */
 .tv-row { align-items: flex-start; }
-.tv-row .glass { margin-top: calc((2.75vh * 1.25 - 3.6vh) / 2); }
+.tv-row .glass { margin-top: calc((var(--tv-nm) * 1.25 - 3.6vh) / 2); }
 .tv-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.tv-name { overflow-wrap: anywhere; }
+.tv-name { overflow-wrap: anywhere; font-family: var(--font-serif), Georgia, serif; font-weight: 400; }
 /* Pours ABV, superscript on the title. Gold even when the highlighted row turns the name cream. */
-.tv-abv { font-size: 0.41em; font-weight: 600; line-height: 0; margin-left: 0.15em; color: var(--gold); vertical-align: super; white-space: nowrap; }
+/* 0.46em of the 2.85vh name = 1.31vh (~14px at 1080p; was 0.41em of 2.75vh, ~12px), raised with the sublines (1.375 -> 1.6vh). */
+.tv-abv { font-family: var(--font-sans), sans-serif; font-variant-numeric: tabular-nums; font-size: 0.46em; font-weight: 600; line-height: 0; margin-left: 0.15em; color: var(--gold); vertical-align: super; white-space: nowrap; }
 /* Spec badge after a Pours name on the TV ("Bowright Recurve [Rye]"), and the base for the phone corner badge and the
    pour page title badge: gold text at
    72% of the name size, weight 500, 1px gold-line border, 4px radius, 1px 6px padding. It rides in one
    no-wrap run with the name's last word (.badged), so it never wraps on its own.
-   Vertically centered on the name's cap height (Geist: cap 0.71, ascent 1.005, descent 0.295 of the em):
-   with line-height 1 the badge's box center sits (1.005 - 0.295) / 2 = 0.355 badge ems above its baseline,
-   and the capitals' center is 0.71 / 2 name ems = 0.493 badge ems above the name's, so the badge is raised
-   0.493 - 0.355 = 0.14 badge ems. The box stays inside the name's line box (top 0.71 name em + 2px above the
-   baseline, bottom ~2px below), so name line heights, card heights and TV row heights don't change. */
+   Vertically centered on the name's cap height. Font option B: the badge is Nunito Sans (ascent 1.011, descent 0.353
+   of the em), the name DM Serif Text or Display (cap 0.661). With line-height 1 the badge's box center sits
+   (1.011 - 0.353) / 2 = 0.329 badge ems above its baseline, and the capitals' center is 0.661 / 2 = 0.3305 name ems
+   = 0.3305 / 0.72 = 0.459 badge ems above the name's, so the badge is raised 0.459 - 0.329 = 0.13 badge ems (0.14
+   with Geist). The box stays inside the name's line box (top ~0.66 name em + 2px above the baseline, bottom ~2px
+   below), so name line heights, card heights and TV row heights don't change. Always set in the sans, upright, even
+   inside a serif or italic name. */
 .badged { white-space: nowrap; }
-.spec-badge { display: inline-block; margin-left: 0.45em; padding: 1px 6px; border: 1px solid var(--gold-line); border-radius: 4px; font-size: 0.72em; font-weight: 500; line-height: 1; letter-spacing: 0.01em; color: var(--gold); vertical-align: 0.14em; white-space: nowrap; }
+.spec-badge { display: inline-block; margin-left: 0.45em; padding: 1px 6px; border: 1px solid var(--gold-line); border-radius: 4px; font-family: var(--font-sans), sans-serif; font-style: normal; font-size: 0.72em; font-weight: 500; line-height: 1; letter-spacing: 0.01em; color: var(--gold); vertical-align: 0.13em; white-space: nowrap; }
 .spec-badge.is-off { display: none; }
 /* TV fallback: the badge at the start of the subtext line (it didn't fit after the name; see useBadgePlace).
    Same font size as the name-line badge (half the pour title). Negative vertical margins take its padding
    and border out of the line box, so the row is exactly as tall as before. */
 .tv-detail > .spec-badge { vertical-align: 0; margin: -2px 0.45em -2px 0; }
 /* Spec tags on the TV and the guest Pours list: gold fill, black type.
-   Every TV badge is half the pour title (the row's 2.75vh, or 2.18vh while casting), whether it sits
-   on the name or on the line below. At half the title, cap-centering is a 0.36em raise. */
+   Every TV badge is 1.375vh, whether it sits on the name or on the line below: 0.482 of the 2.85vh name (it was half
+   of 2.75vh). Cap-centering on the name: 0.3305 / 0.482 = 0.685 badge ems for the capitals' center, less the badge's
+   own 0.329 (Nunito Sans, above) = a 0.356em raise, so 0.36em still (Geist gave 0.71 - 0.355 = 0.355). */
 .tv-row .spec-badge, .corner-badge { background: var(--gold); color: #000; border-color: var(--gold); }
 .tv-row .spec-badge { font-size: 1.375vh; }
 .tv-name .spec-badge { vertical-align: 0.36em; }
@@ -127,21 +135,26 @@ h1, h2, p { margin: 0; }
 .spec-badge.title-badge { margin-left: 0; font-size: calc(1.6rem * 0.72); vertical-align: baseline; }
 /* Gold subtext, about 30% smaller than the previous max(1.7vh, 0.72em). */
 /* Long lines wrap like names (Vincent, 2026-10-04); place names and ingredients stay whole (TvBoard tvWrapText), chips never break. */
-.tv-detail { font-size: max(1.19vh, 0.5em); line-height: 1.2; margin-top: 0.05vh; color: var(--gold); font-weight: 400; white-space: normal; overflow-wrap: anywhere; }
+/* Font option B: 0.56em of the 2.85vh name = 1.6vh (was 0.5em of 2.75vh = 1.375vh), for legibility across the room. */
+.tv-detail { font-size: max(1.39vh, 0.56em); line-height: 1.2; margin-top: 0.05vh; color: var(--gold); font-weight: 400; white-space: normal; overflow-wrap: anywhere; }
 /* Place names match the bottle icon (white on the TV, the name color on the phone). The rest of the line stays gold. */
 .tv-origin { color: rgba(255, 255, 255, 0.85); }
+/* Cocktail ingredients: gold italic DM Serif Text (font option B). Pours and Cellar keep the sans (badge, place). */
+.tv-col[data-section="cocktails"] .tv-detail { font-family: var(--font-serif), Georgia, serif; font-style: italic; }
 .tv-no-detail .tv-detail { display: none; }
-/* Two-line rows get tighter padding so the idle board (15 pours in 8/7) still fits on one screen. */
-.tv-columns:not(.tv-no-detail) .tv-row:has(.tv-detail) { padding: 0.62vh 0; }
+/* Two-line rows get tighter padding so the idle board (15 pours in 8/7) still fits on one screen. 0.55vh (was 0.62vh)
+   since font option B's larger name (2.85vh) and subline (1.6vh): it keeps every column's page count as before at
+   1920x1080, 1280x720 and 1024x576, idle and casting (0.62vh tipped Pours from 3 to 4 pages at 1024x576 during a cast). */
+.tv-columns:not(.tv-no-detail) .tv-row:has(.tv-detail) { padding: 0.55vh 0; }
 
 /* Guest rating under each glass ("4.2 ★", phone format and proportions). The box has the subtext's own
-   size and line height and sits on the subtext line (the name line is 1.25 x 2.75vh, then the subtext's
+   size and line height and sits on the subtext line (the name line is 1.25 x --tv-nm, then the subtext's
    0.05vh margin), so its baseline is the subtext's; the number inside is 90% of the subtext size.
    Out of flow, so the cell is only as tall as the glass and row heights never change. The cell is
    widened just enough for "5.0★" (2.23 subtext ems with tabular digits), the same in every column; during a
    cast the rating hides and the cell is the glass again. */
 .tv-lead { position: relative; flex: none; display: flex; justify-content: center; width: max(3.6vh, calc(2.25 * max(1.7vh, 0.72em))); }
-.tv-rating { position: absolute; left: 50%; top: calc(1.25 * 2.75vh + 0.05vh); transform: translateX(-50%); font-size: max(1.19vh, 0.5em); line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tv-rating { position: absolute; left: 50%; top: calc(1.25 * var(--tv-nm) + 0.05vh); transform: translateX(-50%); font-size: max(1.39vh, 0.56em); line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tv-rating-num { font-size: 0.9em; font-weight: 500; color: rgba(255, 255, 255, 0.7); }
 .tv-rating-star { font-size: calc(0.9em * 0.92); margin-left: calc(0.9em * 0.22 / 0.828); color: var(--gold); }
 .tv-no-detail .tv-rating { display: none; }
@@ -169,7 +182,7 @@ h1, h2, p { margin: 0; }
 .tv-band-col:last-child { padding-right: 0; }
 .tv-band-col + .tv-band-col { border-left: 1px solid rgba(255, 255, 255, 0.1); }
 .tv-band-glass { width: calc(11.1vh * var(--s)); height: calc(11.1vh * var(--s)); color: var(--cream); margin: -0.9vh 0 0.55vh -0.6vw; }
-.tv-band-name { font-family: var(--font-display), Palatino, serif; font-weight: 600; font-size: calc(5.37vh * var(--s)); line-height: 1.02; color: var(--cream); margin: 0 0 1.67vh; letter-spacing: -0.005em; }
+.tv-band-name { font-family: var(--font-title), Georgia, serif; font-weight: 400; font-size: calc(5.37vh * var(--s)); line-height: 1.02; color: var(--cream); margin: 0 0 1.67vh; letter-spacing: -0.005em; }
 .tv-band-serve { font-size: calc(2.6vh * var(--s)); line-height: 1.3; color: #fff; }
 .tv-band-note { font-size: calc(2.13vh * var(--s)); line-height: 1.35; color: var(--quiet); margin-top: 0.55vh; }
 .tv-band-label { font: 500 1.57vh/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin: 0.55vh 0 2vh; }
@@ -179,7 +192,7 @@ h1, h2, p { margin: 0; }
 .tv-band-line .what { font-size: calc(3.15vh * var(--s)); line-height: 1.3; color: #fff; padding: 0.65vh 0; }
 .tv-band-line .what.out { color: rgba(255, 255, 255, 0.7); }
 .tv-band-line .what small { display: block; font-size: calc(2.04vh * var(--s)); line-height: 1.3; color: var(--quiet); margin-top: 0.2vh; }
-.tv-band-line .what .tv-band-bottles { color: var(--gold); }
+.tv-band-line .what .tv-band-bottles { color: var(--gold); font-family: var(--font-serif), Georgia, serif; font-style: italic; }
 .tv-tag { display: inline-block; vertical-align: 0.2vh; margin-right: 1.1vh; padding: 0.37vh 1vh 0.46vh; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 999px; font: 500 calc(1.39vh * var(--s))/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
 .tv-band-text { font-size: calc(2.96vh * var(--s)); line-height: 1.45; color: rgba(255, 255, 255, 0.92); text-wrap: balance; }
 .tv-band-text + .tv-band-text { margin-top: 1.3vh; }
@@ -256,7 +269,8 @@ h1, h2, p { margin: 0; }
 /* Sized to stay on one line beside the menu button (the script face is ~11 font-sizes wide). */
 .phone-wordmark { font-size: min(1.9rem, calc((100vw - 2 * (12px + 1.1rem) - 64px) / 11.2)); white-space: nowrap; }
 .phone-title { display: flex; align-items: center; gap: 1rem; }
-.phone-title h1 { font-size: 1.6rem; font-weight: 500; letter-spacing: -0.01em; line-height: 1.2; }
+/* Font option B: DM Serif Display, its only weight (400; no faux bold). */
+.phone-title h1 { font-family: var(--font-title), Georgia, serif; font-size: 2rem; font-weight: 400; letter-spacing: 0; line-height: 1.08; }
 .back { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 1rem; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; font-size: 1rem; }
 .back span { font-size: 1.5rem; line-height: 1; }
 .phone-body { display: flex; flex-direction: column; gap: 1.4rem; }
@@ -272,10 +286,13 @@ a.card:active { background: #202020; }
 /* Two-line rows: name, then a muted detail line (0.85 of the name size, ~60% opacity, max 2 lines).
    The glass stays centred on the name row; single-line rows stay centred as before. */
 .item-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.item-name { line-height: 1.3; }
-.item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: var(--gold); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+/* Drink names: DM Serif Text at 1.1rem (font option B). The card's own size (1.05rem) still sets the subtext and rating. */
+.item-name { font-family: var(--font-serif), Georgia, serif; font-size: 1.1rem; font-weight: 400; line-height: 1.3; }
+.item-detail { margin-top: 0.15rem; font-size: 0.85em; line-height: 1.3; color: var(--gold); font-variant-numeric: tabular-nums; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .item-detail .nobr { white-space: nowrap; }
 .item-detail .origin { color: var(--text); }
+/* Cocktail ingredients: gold italic DM Serif Text (font option B), like the recipe page's bottle lines. */
+.sec[data-section="cocktails"] .item-detail { font-family: var(--font-serif), Georgia, serif; font-style: italic; font-size: 0.9rem; }
 .card.two-line { align-items: flex-start; }
 /* Phone Pours: the type badge as a flush tab in the card's top-right corner, out of flow. Same text as the TV
    badge (72% of the name size, gold, weight 500). Its top and right edges sit on the card's edge; its top-right
@@ -290,20 +307,22 @@ a.card:active { background: #202020; }
 .corner-badge, .badge-reserve { padding-inline: 8px 10px; border-width: 0 0 1px 1px; border-radius: 0 var(--radius) 0 6px; }
 .corner-badge { position: absolute; top: 0; right: 0; margin: 0; padding-block: 4px; }
 .badge-reserve { float: right; visibility: hidden; height: 1px; overflow: hidden; padding-block: 0; border-block-width: 0; margin: 0 -1.1rem 0 8px; vertical-align: top; }
+/* The reserve sits in the 1.1rem name; size it like the corner tab (72% of the 1.05rem card), so the room matches. */
+.item-name .badge-reserve { font-size: calc(1.05rem * 0.72); }
 /* Pours are grouped by spirit family (lib/spirit-family.ts): 0.5em extra space above each family's first card. */
 .cards > li.fam-start { margin-top: 0.5em; }
-.two-line > .card-lead { margin-top: calc((1.05rem * 1.3 - 2.5rem) / 2); }
+.two-line > .card-lead { margin-top: calc((1.1rem * 1.3 - 2.5rem) / 2); }
 /* Guest rating under the glass ("4.2 ★", TV board styling): 70% white, weight 500, 90% of the subtext size,
    gold star at 0.92 of the number, centered under the glass. With a subtext line the box has the subtext's
    size and line height and sits on its first line (name line + 0.15rem, measured from the glass's top, which
-   hangs (2.5rem - 1.3 x 1.05rem) / 2 above the text), so the baselines match; that is just under the glass
+   hangs (2.5rem - 1.3 x 1.1rem) / 2 above the text, 1.1rem being the name size), so the baselines match; that is just under the glass
    foot (the icons' ink ends ~5px above their box; glasses that reach lower, like the highball, set
    --card-rating-drop so the rating clears them too). Without one it sits under the glass box, inside the
    card's bottom padding. Out of flow: card heights and the 2.5rem glass column never change; unrated cards
    show nothing. */
 .card-lead { position: relative; flex: none; display: flex; justify-content: center; width: 2.5rem; }
 .card-rating { position: absolute; left: 50%; top: calc(100% - 0.2rem); transform: translateX(-50%); font-size: 0.85em; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; pointer-events: none; }
-.two-line .card-rating { top: calc(1.05rem * 1.3 + 0.15rem + (2.5rem - 1.05rem * 1.3) / 2 + var(--card-rating-drop, 0rem)); line-height: 1.3; }
+.two-line .card-rating { top: calc(1.1rem * 1.3 + 0.15rem + (2.5rem - 1.1rem * 1.3) / 2 + var(--card-rating-drop, 0rem)); line-height: 1.3; }
 .card-rating-num { font-size: 0.9em; font-weight: 500; color: rgba(255, 255, 255, 0.7); }
 .card-rating-star { font-size: calc(0.9em * 0.92); margin-left: calc(0.9em * 0.22 / 0.828); color: var(--gold); }
 .serve p { font-size: 1.15rem; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
@@ -319,7 +338,7 @@ a.card:active { background: #202020; }
 .measure { font-variant-numeric: tabular-nums; color: var(--quiet); }
 .ingredient .note { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
 /* In-stock bottles behind the ingredient (loadRecipe / spec_supply), under the name column. */
-.ingredient .bottles { display: block; font-size: 0.9rem; margin-top: 0.15rem; color: var(--gold); }
+.ingredient .bottles { display: block; font-size: 0.92rem; margin-top: 0.15rem; color: var(--gold); font-family: var(--font-serif), Georgia, serif; font-style: italic; }
 .out { color: var(--quiet); }
 .tag-out { margin-left: 0.4rem; font-size: 0.75rem; letter-spacing: 0.04em; color: var(--quiet); }
 .method { font-size: 1.05rem; line-height: 1.55; }
@@ -351,7 +370,7 @@ a.card:active { background: #202020; }
 /* The small glass + name: in the first cell, invisible (and untouchable) until pinned. */
 .r-pin-id { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 0.55rem; min-width: 0; opacity: 0; visibility: hidden; transition: opacity 160ms ease, visibility 0s linear 160ms; }
 .r-pin-glass { flex-shrink: 0; width: 1.9rem; height: 1.9rem; color: var(--text); }
-.r-pin-title { min-width: 0; font-size: 1.02rem; font-weight: 500; line-height: 1.2; color: var(--text); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.r-pin-title { min-width: 0; font-family: var(--font-title), Georgia, serif; font-size: 1.02rem; font-weight: 400; line-height: 1.2; color: var(--text); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 /* Pinned: the name shows, the button narrows to the right (still 40px+ tall, inside the same 48px row),
    and a hairline marks the edge. The status line keeps its row, so a cast's countdown stays visible. */
 .r-pin.pinned { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 14px -6px rgba(0, 0, 0, 0.9); }
@@ -399,7 +418,7 @@ a.card:active { background: #202020; }
   display: flex; align-items: center; gap: 0.18em;
   transform: rotate(-29.36deg); /* atan(1080 / 1920): corner to corner on a 16:9 screen */
   color: #a8d4ff; opacity: 0.28;
-  font-family: var(--font-display), Georgia, serif; font-weight: 600; font-size: 30vh; line-height: 1; letter-spacing: 0.01em; white-space: nowrap;
+  font-family: var(--font-title), Georgia, serif; font-weight: 400; font-size: 30vh; line-height: 1; letter-spacing: 0.01em; white-space: nowrap;
 }
 .tv-closed-band span { transform: translateY(-0.04em); }
 .tv-closed-face { width: 0.66em; height: 0.66em; flex-shrink: 0; }
@@ -415,7 +434,7 @@ a.card:active { background: #202020; }
 .closed-rule { display: flex; align-items: center; gap: 0.6rem; width: 11rem; }
 .closed-rule::before, .closed-rule::after { content: ""; flex: 1; border-top: 1px solid var(--gold-line); }
 .closed-rule i { width: 7px; height: 7px; border: 1px solid var(--gold-line); transform: rotate(45deg); }
-.closed-text { font-family: var(--font-display), Georgia, serif; font-style: italic; font-weight: 500; font-size: 2rem; line-height: 1.2; color: var(--gold); }
+.closed-text { font-family: var(--font-title), Georgia, serif; font-style: italic; font-weight: 400; font-size: 2rem; line-height: 1.2; color: var(--gold); }
 
 /* "Closed · admin view": a signed-in admin on a guest page while Closed. A pill centered on the frame's top line,
    fixed (stays put while scrolling), above the frame and fades. Admin palette, never gold. */
@@ -431,7 +450,7 @@ a.card:active { background: #202020; }
 /* ---------- Featured (migration 030; DESIGN §5.5) ----------
    A small copper pill reading "Featured", on guest pages and the TV. Phone cards also get a copper hairline;
    TV rows a copper name. The tag always comes with the color. */
-.feat-tag { display: inline-block; margin-left: 0.45em; padding: 2px 7px 3px; border: 1px solid var(--featured); border-radius: 999px; font-size: 0.68em; font-weight: 600; line-height: 1; letter-spacing: 0.03em; color: var(--featured); white-space: nowrap; vertical-align: 0.14em; }
+.feat-tag { display: inline-block; font-family: var(--font-sans), sans-serif; font-style: normal; margin-left: 0.45em; padding: 2px 7px 3px; border: 1px solid var(--featured); border-radius: 999px; font-size: 0.68em; font-weight: 600; line-height: 1; letter-spacing: 0.03em; color: var(--featured); white-space: nowrap; vertical-align: 0.14em; }
 .card.is-featured { box-shadow: inset 0 0 0 1px var(--featured-line); }
 .phone-title-text .feat-tag { margin-left: 0; font-size: calc(1.6rem * 0.52); vertical-align: baseline; }
 .title-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.5rem; }
@@ -467,7 +486,7 @@ a.card:active { background: #202020; }
    5.5:1 on the #151515 card (AA for text). Never color alone: the key and the words always come with it. */
 :root { --reserved: #a08a5c; --reserved-line: rgba(160, 138, 92, 0.75); }
 .res-icon { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.2em; flex: none; }
-.res-tag { display: inline-flex; align-items: center; gap: 0.3em; margin-left: 0.45em; padding: 2px 7px 3px 6px; border: 1px solid var(--reserved-line); border-radius: 999px; font-size: 0.68em; font-weight: 600; line-height: 1; letter-spacing: 0.03em; color: var(--reserved); white-space: nowrap; vertical-align: 0.14em; }
+.res-tag { display: inline-flex; align-items: center; gap: 0.3em; font-family: var(--font-sans), sans-serif; font-style: normal; margin-left: 0.45em; padding: 2px 7px 3px 6px; border: 1px solid var(--reserved-line); border-radius: 999px; font-size: 0.68em; font-weight: 600; line-height: 1; letter-spacing: 0.03em; color: var(--reserved); white-space: nowrap; vertical-align: 0.14em; }
 .res-tag .res-icon { width: 1.25em; height: 1.25em; vertical-align: 0; }
 .res-dim { opacity: 0.62; }
 .card.is-reserved .card-lead, .card.is-reserved .item-detail, .card.is-reserved .corner-badge, .card.is-reserved .card-rating { opacity: 0.55; }
@@ -476,7 +495,7 @@ a.card:active { background: #202020; }
 .locked-lead { color: var(--reserved); }
 .locked-key { width: 3.4rem; height: 3.4rem; }
 .locked { margin-top: 0.5rem; }
-.locked-note { font-family: var(--font-display), Georgia, serif; font-style: italic; font-size: 1.35rem; line-height: 1.3; color: var(--cream); margin: 0 0 0.6rem; }
+.locked-note { font-family: var(--font-title), Georgia, serif; font-style: italic; font-size: 1.35rem; line-height: 1.3; color: var(--cream); margin: 0 0 0.6rem; }
 .locked-ask { color: var(--reserved); font-weight: 600; letter-spacing: 0.03em; margin: 0; }
 /* TV board: the icon before the name, a dimmed row, and the tag ending the line under the name, the same height and
    size as the gold type badge, outlined in brass (no fill, so it reads quieter than Featured). */
@@ -555,7 +574,7 @@ a.card:active { background: #202020; }
 .sec-empty:first-child { margin-top: 0.6rem; }
 .sec:not(.sec-empty) > .sec-head[data-pinned] { box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 14px -6px rgba(0, 0, 0, 0.9); }
 .browse:has(.sec:not(.sec-empty) > .sec-head[data-pinned]) .s-sticky.stuck { box-shadow: none; }
-.phone-body .sec-head h2 { margin: 0; font-family: var(--font-display), Palatino, serif; font-style: italic; font-weight: 500; font-size: 1.75rem; line-height: 1.1; letter-spacing: 0; text-transform: none; color: rgba(255, 255, 255, 0.92); }
+.phone-body .sec-head h2 { margin: 0; font-family: var(--font-title), Georgia, serif; font-style: italic; font-weight: 400; font-size: 1.85rem; line-height: 1.1; letter-spacing: 0; text-transform: none; color: rgba(255, 255, 255, 0.92); }
 .sec-head .n { font-size: 0.85rem; color: var(--quiet); font-variant-numeric: tabular-nums; }
 .sec .chips { margin-bottom: 0.75rem; }
 /* Cellar: grapes start their own row (the divider becomes a row break, a little extra gap), so the color chips stay together. */

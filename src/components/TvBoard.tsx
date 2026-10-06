@@ -115,7 +115,9 @@ function neededWidth(section: HTMLElement, ruler: HTMLUListElement, n: number): 
   const ctx = canvas.getContext("2d");
   if (!ctx) return 0;
   const rs = getComputedStyle(row);
-  ctx.font = `${rs.fontWeight} ${rs.fontSize} ${rs.fontFamily}`;
+  // Measure in the name's own font (DM Serif Text since font option B; the row itself is the sans).
+  const ns = getComputedStyle(span);
+  ctx.font = `${ns.fontStyle} ${ns.fontWeight} ${ns.fontSize} ${ns.fontFamily}`;
   // Only names set the width; the detail line under a name wraps instead (FitLine).
   // Pours rows are sized by the bottle's full name (data-measure), not the short name and badge, so every
   // column keeps the width it had before badges; the badge fits in that room or moves to the subtext line.

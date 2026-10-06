@@ -561,7 +561,9 @@ a.card:active { background: #202020; }
 .chip-sep { flex: none; width: 1px; align-self: stretch; margin: 6px 0.1rem; background: rgba(255, 255, 255, 0.18); }
 /* Mood chips (no Top rated chip since 2026-10-04: the moods start the row). */
 .mood { margin-top: 0.2rem; }
-.chips.mood { gap: 6px; }
+/* 6px more air under the bar's divider line (Vincent, 2026-10-06): only the mood row moves; with no moods (none with
+   2+ items) the row isn't rendered and nothing below shifts. */
+.chips.mood { gap: 6px; margin-top: calc(0.2rem + 6px); }
 /* Option A, slate outlines (Brian via Vincent, 2026-10-06): moods are slate pills, unlike the gold section chips
    (which square off, below). Selected = solid slate. 28px tall; the ::after stretches the tap target to 34px.
    (0,3,0)/(0,4,0) selectors beat .chip / .chip.on / .chip.sm (0,1,0)-(0,2,0). Copper stays Featured-only. */

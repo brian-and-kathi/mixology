@@ -4,7 +4,7 @@ import { badgeFor, specLabel } from "@/lib/spec-label";
 import { CELLAR_COLORS, cellarColor } from "@/lib/moods";
 import { spelledOrigin } from "@/lib/us-states";
 import { cap, lineText } from "@/lib/format";
-import { orText } from "@/lib/alternates";
+import { orText, swapMethodText } from "@/lib/alternates";
 
 // Section order is fixed everywhere (TV and phone): Pours, Cocktails, Cellar.
 export const SECTIONS = [
@@ -447,7 +447,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   // 021), the same function available_spec_ids() and so menu_mixed are built on: hops 0 is the shelf.
   // Bottles listed: the ingredient's own when it is in; else the named stand-in's; else the nearest
   // stand-in chain that makes the recipe buildable.
-  const rows = await query<Omit<RecipeLine, "bottles" | "featured"> & BottleFacts>(
+  const rows = await query<Omit<RecipeLine, "bottles" | "featured"> & BottleFacts & { own_name: string; alt_leads: boolean; alt_names: string[] }>(
     // Reserved bottles (migration 032) are left out of the supply: never listed, never counted as on the shelf
     // (an always-available ingredient stays on the shelf without its reserved bottle).
     `WITH supply AS MATERIALIZED (
@@ -480,7 +480,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
               (CASE WHEN l.alt_id IS NULL OR (l.alt_amount IS NULL AND l.alt_unit IS NULL) THEN l.amount ELSE l.alt_amount END)::text AS amount,
               CASE WHEN l.alt_id IS NULL OR (l.alt_amount IS NULL AND l.alt_unit IS NULL) THEN l.unit ELSE l.alt_unit END AS unit,
               CASE WHEN l.alt_id IS NULL THEN l.note ELSE l.alt_note END AS note,
-              l.amount AS line_amount, l.unit AS line_unit,
+              l.amount AS line_amount, l.unit AS line_unit, l.own_name, (l.alt_id IS NOT NULL) AS alt_leads,
               sub.id AS use_instead_id, sub.canonical_name AS use_instead
          FROM line l
          LEFT JOIN LATERAL (
@@ -501,7 +501,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
                           ORDER BY x.hops, xs.canonical_name LIMIT 1)
               END AS from_spec
          FROM base b)
-     SELECT s.position, s.name, s.required, s.available, s.amount, s.unit, s.note, s.use_instead,
+     SELECT s.position, s.name, s.required, s.available, s.amount, s.unit, s.note, s.use_instead, s.own_name, s.alt_leads,
             (s.from_spec = s.spec_id) AS own,
             COALESCE((SELECT f.kind FROM spec_families sf JOIN families f ON f.id = sf.family_id
                        WHERE sf.spec_id = COALESCE(s.from_spec, s.spec_id)
@@ -520,12 +520,16 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
                                                         'note', a.note) ORDER BY a.position)
                         FROM recipe_line_alternates a JOIN specs sp ON sp.id = a.spec_id
                        WHERE a.recipe_line_id = s.line_id AND a.spec_id <> s.spec_id
-                         AND a.spec_id IN (SELECT id FROM shelf)), '[]'::json) AS alternates
+                         AND a.spec_id IN (SELECT id FROM shelf)), '[]'::json) AS alternates,
+            -- For the method swap (swapMethodText): every alternate on the line, in stock or not.
+            COALESCE((SELECT json_agg(sp.canonical_name ORDER BY a.position)
+                        FROM recipe_line_alternates a JOIN specs sp ON sp.id = a.spec_id
+                       WHERE a.recipe_line_id = s.line_id), '[]'::json) AS alt_names
        FROM src s
       ORDER BY s.position`,
     [id],
   );
-  const lines: RecipeLine[] = rows.map(({ own, kind, has_bottles, stock, ...line }) => {
+  const lines: RecipeLine[] = rows.map(({ own, kind, has_bottles, stock, own_name: _o, alt_leads: _l, alt_names: _n, ...line }) => {
     // The name the guest reads next to the bottles: the ingredient, or the stand-in it says to use.
     const names = bottleNames(!line.available && line.use_instead ? line.use_instead : line.name, { own, kind, has_bottles, stock });
     const { bottles, preferred } = preferFirst(names, line.note);
@@ -535,7 +539,10 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     const featured = line.required ? shownNames(stock.filter((b) => b.featured).map((b) => b.name.trim()), stock)!.filter((n) => shown?.includes(n)) : [];
     return { ...line, bottles: featuredBottlesFirst(shown, featured, preferred), preferred, featured };
   });
-  return { ...recipe, lines };
+  // An alternate leading tonight takes the own ingredient's place in the method too (recipe page and TV card),
+  // unless that would be fragile (see swapMethod).
+  const description = swapMethodText(recipe.description, rows.map((r) => ({ own: r.own_name ?? "", lead: r.alt_leads ? r.name : null, alternates: r.alt_names ?? [] })));
+  return { ...recipe, description, lines };
 }
 
 /** Glass a Cellar wine is shown with: a sake cup for sake, a flute for sparkling, otherwise a wine glass. */

@@ -1,5 +1,5 @@
 -- The 16 per-recipe alternates from Trinity's scan (mixology-review/alternates-scan/alternates.md), approved by Brian via
--- Rachel 2026-10-06, plus the recipe text they replace. Run with the alternates UI ship, not before: the guest UI
+-- Rachel 2026-10-06, plus the recipe text they replace and Rachel's method wording. Run with the alternates UI ship, not before: the guest UI
 -- must show alternates before descriptions stop mentioning them, and newly makeable drinks (Pimm's Cup, Spanish
 -- Coffee, Pimm's Sundowner) must show the in-stock alternate rather than the out-of-stock main ingredient.
 -- The Tequila Sunrise cherry is poured as "1 each" (the line's "1 twist" is the orange rind's), Pimm's Spritz's rich syrup as
@@ -61,6 +61,34 @@ UPDATE recipe_lines SET note = NULL
 UPDATE recipe_lines SET note = '1 tbsp per batch'
  WHERE recipe_id = '97f9bba0-dc8e-42ab-8a28-5b0b6701ec65' AND position = 6
    AND spec_id = '9888db80-0ac4-4f7e-a52b-8b2163c4f982' AND note = '1 tbsp per batch, or 2 cinnamon sticks + 4 whole cloves';
+
+-- Rachel 2026-10-06: method text reads naturally for either bottle (the shared word: rum, whiskey, whisky; Hot Toddy
+-- names both). Runs after the edits above (New York Sour, Hot Toddy and Godfather match their text as edited there).
+-- Spanish Coffee
+UPDATE recipes SET description = 'Warm the Grand Marnier and rum in the glass (flame them only if you''re experienced, then put out the flame with the coffee), add the hot coffee and Kahlúa, and top with whipped cream. Serves 1. A showpiece hot drink; skip the flame and just warm the spirits gently if you prefer.'
+ WHERE id = 'fb6bd7dc-6151-4727-9e06-b2efb9d962ff' AND description = 'Warm the Grand Marnier and dark rum in the glass (flame them only if you''re experienced, then put out the flame with the coffee), add the hot coffee and Kahlúa, and top with whipped cream. Serves 1. A showpiece hot drink; skip the flame and just warm the spirits gently if you prefer.';
+-- Old Fashioned
+UPDATE recipes SET description = 'Stir the sweetener and bitters together, add the whiskey, then stir with ice for 20 seconds and strain. Serves 1.'
+ WHERE id = 'a2382991-0f84-4482-9781-57efac8b4062' AND description = 'Stir the sweetener and bitters together, add the bourbon, then stir with ice for 20 seconds and strain. Serves 1.';
+-- Whiskey Sour
+UPDATE recipes SET description = 'Shake the whiskey, lemon juice, and syrup hard with ice, then strain over fresh ice (or serve up). Serves 1. Bowright bourbon, bright and balanced; add an egg white for a silky foam if you''re feeling fancy.'
+ WHERE id = 'cad9e768-d410-450d-9f3d-57e34ca00a15' AND description = 'Shake the bourbon, lemon juice, and syrup hard with ice, then strain over fresh ice (or serve up). Serves 1. Bowright bourbon, bright and balanced; add an egg white for a silky foam if you''re feeling fancy.';
+-- Hazelnut Old Fashioned
+UPDATE recipes SET description = 'Stir with ice for 20 seconds, then strain over a large cube. Serves 1. Frangelico softens the whiskey into a nutty nightcap.'
+ WHERE id = 'a78d9f2f-d66e-42f4-8f17-4b052565d2b9' AND description = 'Stir with ice for 20 seconds, then strain over a large cube. Serves 1. Frangelico softens the bourbon into a nutty nightcap.';
+-- New York Sour
+UPDATE recipes SET description = 'Shake the whiskey, lemon juice, and syrup hard with ice (dry-shake first if you add egg white), strain over fresh ice, then slowly pour the red wine over the back of a spoon so it floats. Serves 1. Bowright or Willett rye with a Harvester Cabernet float.'
+ WHERE id = '8e606640-0444-4521-90aa-db1496f3108c' AND description = 'Shake the rye, lemon juice, and syrup hard with ice (dry-shake first if you add egg white), strain over fresh ice, then slowly pour the red wine over the back of a spoon so it floats. Serves 1. Bowright or Willett rye with a Harvester Cabernet float.';
+-- Hot Toddy
+UPDATE recipes SET description = 'Stir the honey into the hot water until it dissolves, then add the bourbon or cognac and lemon. Serves 1.'
+ WHERE id = 'd3201f94-b26b-40a0-a511-677a4d6cc267' AND description = 'Stir the honey into the hot water until it dissolves, then add the bourbon and lemon. Serves 1.';
+-- Godfather
+UPDATE recipes SET description = 'Build over ice and stir, then add two lime wedges. Serves 1. Equal parts whisky and Knight Gabriello amaretto. Scotch is the classic.'
+ WHERE id = '6bb2ba12-e7e6-4762-b2ed-93706d2bde2a' AND description = 'Build over ice and stir, then add two lime wedges. Serves 1. Equal parts Bowright bourbon and Knight Gabriello amaretto. Scotch is the classic.';
+-- Pimm's Spritz line 3: the line note repeats the rich-syrup alternate's own note ("as in the original recipe").
+UPDATE recipe_lines SET note = NULL
+ WHERE recipe_id = '8039df96-7c5d-406a-b1f4-36e22476d001' AND position = 3
+   AND spec_id = 'fae67163-1508-4181-8800-07c3ae0840d5' AND note = 'the original uses ½ oz rich (2:1) syrup';
 
 DO $$
 DECLARE n int;

@@ -242,11 +242,15 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
                               <button type="button" className="a-link a-small" onClick={() => setAlt(l.key, a.key, { own: false, amount: "", unit: "" })}>same amount</button>
                             </span>
                           ) : (
-                            <button type="button" className="a-link a-small" onClick={() => setAlt(l.key, a.key, { own: true, unit: a.unit || l.unit })}>
-                              {l.amount || NO_AMOUNT_UNITS.includes(l.unit) ? `Same amount (${lineText(l.amount || null, l.unit || null, "").amount || l.unit}) · different amount` : "Different amount"}
-                            </button>
+                            // "1½ oz · change": the line's amount, on one line under the "or"; "change" opens the override.
+                            <span className="a-alt-same">
+                              <span>{lineText(l.amount || null, l.unit || null, "").amount || l.unit || "no amount"}</span>
+                              <span aria-hidden="true">{"\u00a0·\u00a0"}</span>
+                              <button type="button" className="a-link a-small" onClick={() => setAlt(l.key, a.key, { own: true, unit: a.unit || l.unit })}
+                                aria-label={`Change the amount for ${sp?.name ?? "this alternate"}`}>change</button>
+                            </span>
                           )}
-                          <input className="a-alt-note" value={a.note} onChange={(e) => setAlt(l.key, a.key, { note: e.target.value })} placeholder="Note for this one (optional)" aria-label={`Note for ${sp?.name ?? "alternate"}`} maxLength={200} />
+                          <input className="a-alt-note" value={a.note} onChange={(e) => setAlt(l.key, a.key, { note: e.target.value })} placeholder="Note (optional)" aria-label={`Note for ${sp?.name ?? "alternate"}`} maxLength={200} />
                         </div>
                       </li>
                     );

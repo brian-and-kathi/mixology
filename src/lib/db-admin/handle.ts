@@ -411,6 +411,7 @@ function recipeLines(lines: Bag[]) {
     <td><select name="lines[${index}][unit]">${unitOptions.map((o) => `<option value="${esc(o.value)}"${String(line.unit ?? "") === o.value ? " selected" : ""}>${esc(o.label)}</option>`).join("")}</select></td>
     <td><select name="lines[${index}][role]">${ROLES.map(([value, label]) => `<option value="${esc(value)}"${line.role === value ? " selected" : ""}>${esc(label)}</option>`).join("")}</select></td>
     <td><input name="lines[${index}][note]" value="${esc(line.note ?? "")}"></td>
+    <td class="quiet" data-alts>${line.alts ? esc(`or ${line.alts}`) : ""}</td>
     <td><button class="quiet" type="button" data-remove-line>Remove</button></td>
   </tr>`).join("");
 }
@@ -445,7 +446,7 @@ function recipeForm(recipe: Bag | null, lines: Bag[], specs: { id: string; canon
         </div>
         <h2>Lines</h2>
         <div class="lines"><table>
-          <thead><tr><th>Order</th><th>Spec</th><th></th><th>Amount</th><th>Unit</th><th>Role</th><th>Note</th><th></th></tr></thead>
+          <thead><tr><th>Order</th><th>Spec</th><th></th><th>Amount</th><th>Unit</th><th>Role</th><th>Note</th><th title="Alternates (migration 034): edit them in /admin. Saving here keeps them.">Or</th><th></th></tr></thead>
           <tbody data-lines>${recipeLines(rendered)}</tbody>
         </table></div>
         <div class="form-actions">
@@ -940,7 +941,12 @@ async function recipeEdit(id: string) {
   requireUuid(id);
   const [recipe] = await q<Bag>("SELECT * FROM recipes WHERE id = $1", [id]);
   if (!recipe) return notFound(`${DB}/recipes`, "Recipe not found.");
-  const lines = await q<Bag>("SELECT spec_id, position, required, amount, unit, role, note FROM recipe_lines WHERE recipe_id = $1 ORDER BY position", [id]);
+  // Alternates (migration 034) are shown read-only; they're edited in /admin, and a save here carries them over.
+  const lines = await q<Bag>(
+    `SELECT l.spec_id, l.position, l.required, l.amount, l.unit, l.role, l.note,
+            (SELECT string_agg(s.canonical_name, ', ' ORDER BY a.position) FROM recipe_line_alternates a JOIN specs s ON s.id = a.spec_id
+              WHERE a.recipe_line_id = l.id) AS alts
+       FROM recipe_lines l WHERE l.recipe_id = $1 ORDER BY l.position`, [id]);
   return html(200, recipeForm(recipe, lines, await specChoices(), await glasses(), null));
 }
 

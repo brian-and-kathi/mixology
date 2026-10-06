@@ -10,8 +10,11 @@ import { api } from "./api";
 import { BackLink, SaveBar, useUnsavedGuard } from "./SaveBar";
 import { SpecPicker } from "./SpecPicker";
 import { MoodPicker } from "./MoodPicker";
+import { MAX_ALTERNATES, orText } from "@/lib/alternates";
 
-type Line = { key: number; spec_id: string | null; amount: string; unit: string; required: boolean; role: string; note: string };
+/** An alternate (migration 034): blank amount = the line's; `own` = "different amount" opened. */
+type Alt = { key: number; spec_id: string; amount: string; unit: string; note: string; own: boolean };
+type Line = { key: number; spec_id: string | null; amount: string; unit: string; required: boolean; role: string; note: string; alts: Alt[]; adding?: boolean };
 type Form = { name: string; description: string; method_style: string; glass_id: string; service_style: string; alt_glass_id: string; alt_service_style: string; glass_note: string; moods: string[]; lines: Line[] };
 
 const SERVICES: [string, string][] = [["", "—"], ["up", "Up (chilled, no ice)"], ["on the rocks", "Rocks (over ice)"], ["neat", "Neat (no ice)"], ["hot", "Hot"]];
@@ -27,10 +30,14 @@ function initial(r: RecipeRow | null): Form {
     lines: (r?.lines ?? []).map((l) => ({
       key: ++seq, spec_id: l.spec_id, amount: l.amount ? String(Number(l.amount)) : "", unit: l.unit ?? "",
       required: l.required, role: l.role ?? "", note: l.note ?? "",
+      alts: (l.alternates ?? []).map((a) => ({
+        key: ++seq, spec_id: a.spec_id, amount: a.amount ? String(Number(a.amount)) : "", unit: a.unit ?? "", note: a.note ?? "",
+        own: a.amount !== null || a.unit !== null,
+      })),
     })),
   };
 }
-const snapshot = (f: Form) => JSON.stringify({ ...f, lines: f.lines.map(({ key: _k, ...l }) => l) });
+const snapshot = (f: Form) => JSON.stringify({ ...f, lines: f.lines.map(({ key: _k, adding: _a, alts, ...l }) => ({ ...l, alts: alts.map(({ key: _ak, own, ...a }) => ({ ...a, amount: own ? a.amount : "", unit: own ? a.unit : "" })) })) });
 
 /** Recipe editor: live "On the menu / Missing" banner, lines with up/down, and a guest preview. */
 export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, units }: { recipe: RecipeRow | null; specs: SpecOption[]; families: Family[]; glassware: Glass[]; units: string[] }) {
@@ -54,11 +61,36 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
     [lines[i], lines[j]] = [lines[j], lines[i]];
     return { ...o, lines };
   });
+  // Alternates (migration 034): sub-rows of a line, position = guest priority.
+  const setAlts = (key: number, fn: (alts: Alt[], l: Line) => Alt[]) => setF((o) => ({ ...o, lines: o.lines.map((l) => (l.key === key ? { ...l, alts: fn(l.alts, l) } : l)) }));
+  const setAlt = (key: number, akey: number, patch: Partial<Alt>) => setAlts(key, (alts) => alts.map((a) => (a.key === akey ? { ...a, ...patch } : a)));
+  const moveAlt = (key: number, j: number, d: number) => setAlts(key, (alts) => {
+    const k = j + d;
+    if (k < 0 || k >= alts.length) return alts;
+    const out = [...alts];
+    [out[j], out[k]] = [out[k], out[j]];
+    return out;
+  });
+  const addAlt = (key: number, spec_id: string) => setF((o) => ({ ...o, lines: o.lines.map((l) => {
+    if (l.key !== key) return l;
+    if (spec_id === l.spec_id || l.alts.some((a) => a.spec_id === spec_id) || l.alts.length >= MAX_ALTERNATES) return { ...l, adding: false };
+    return { ...l, adding: false, alts: [...l.alts, { key: ++seq, spec_id, amount: "", unit: "", note: "", own: false }] };
+  }) }));
+  // "Make main": the alternate and the line's ingredient trade places, each keeping its own amount and note.
+  const makeMain = (key: number, akey: number) => setF((o) => ({ ...o, lines: o.lines.map((l) => {
+    if (l.key !== key || !l.spec_id) return l;
+    const a = l.alts.find((x) => x.key === akey);
+    if (!a) return l;
+    const back: Alt = { key: a.key, spec_id: l.spec_id, note: l.note, own: a.own, amount: a.own ? l.amount : "", unit: a.own ? l.unit : "" };
+    return { ...l, spec_id: a.spec_id, note: a.note, amount: a.own ? a.amount : l.amount, unit: a.own ? a.unit : l.unit, alts: l.alts.map((x) => (x.key === akey ? back : x)) };
+  }) }));
   const byId = new Map(specs.map((s) => [s.id, s]));
   const glassName = (id: string) => glassware.find((g) => String(g.id) === id)?.name ?? null;
 
   const chosen = f.lines.filter((l) => l.spec_id);
-  const missing = chosen.filter((l) => l.required && !byId.get(l.spec_id!)?.available).map((l) => byId.get(l.spec_id!)!);
+  // A line is covered when its ingredient or any alternate is available (same rule as menu_mixed).
+  const covered = (l: Line) => !!byId.get(l.spec_id!)?.available || l.alts.some((a) => byId.get(a.spec_id)?.available);
+  const missing = chosen.filter((l) => l.required && !covered(l)).map((l) => byId.get(l.spec_id!)!);
   const onMenu = chosen.length > 0 && missing.length === 0;
 
   async function submit(e: React.FormEvent) {
@@ -70,9 +102,17 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
         ...f,
         glass_id: f.glass_id || null, alt_glass_id: f.alt_glass_id || null,
         service_style: f.service_style || null, alt_service_style: f.alt_service_style || null, method_style: f.method_style || null,
-        lines: f.lines.filter((l) => l.spec_id).map(({ key: _k, ...l }) => {
+        lines: f.lines.filter((l) => l.spec_id).map(({ key: _k, adding: _a, alts, ...l }) => {
           const noAmount = NO_AMOUNT_UNITS.includes(l.unit);
-          return { ...l, amount: noAmount ? null : l.amount || null, unit: noAmount ? l.unit : l.amount ? l.unit || null : null, role: l.role || null };
+          return {
+            ...l, amount: noAmount ? null : l.amount || null, unit: noAmount ? l.unit : l.amount ? l.unit || null : null, role: l.role || null,
+            // Blank amount = the line's (stored as NULL); "top"/"rinse" take no amount.
+            alternates: alts.map((a) => {
+              const own = a.own && (a.amount !== "" || NO_AMOUNT_UNITS.includes(a.unit));
+              const none = NO_AMOUNT_UNITS.includes(a.unit);
+              return { spec_id: a.spec_id, note: a.note.trim() || null, amount: own && !none ? a.amount : null, unit: own ? a.unit || null : null };
+            }),
+          };
         }),
       };
       const r = recipe
@@ -158,7 +198,7 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
           {f.lines.map((l, i) => (
             <li key={l.key} className="a-line">
               {/* Name on its own full-width row, then amount + unit, then role + optional, then actions. */}
-              <SpecPicker compact specs={specs} families={families} value={l.spec_id} onChange={(id) => setLine(l.key, { spec_id: id })} onCreate={(s) => setSpecs((x) => [...x, s].sort((a, b) => a.name.localeCompare(b.name)))} />
+              <SpecPicker compact specs={specs} families={families} value={l.spec_id} onChange={(id) => setLine(l.key, { spec_id: id, alts: l.alts.filter((a) => a.spec_id !== id) })} onCreate={(s) => setSpecs((x) => [...x, s].sort((a, b) => a.name.localeCompare(b.name)))} />
               <div className="a-line-row">
                 <input value={NO_AMOUNT_UNITS.includes(l.unit) ? "" : l.amount} onChange={(e) => setLine(l.key, { amount: e.target.value })} inputMode="decimal"
                   placeholder={NO_AMOUNT_UNITS.includes(l.unit) ? "No amount" : "Amount"} aria-label="Amount" disabled={NO_AMOUNT_UNITS.includes(l.unit)} />
@@ -172,6 +212,56 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
                 <label className="a-check a-line-opt"><input type="checkbox" checked={!l.required} onChange={(e) => setLine(l.key, { required: !e.target.checked })} /><span>Optional</span></label>
               </div>
               <input className="a-line-note" value={l.note} onChange={(e) => setLine(l.key, { note: e.target.value })} placeholder="Note (optional)" aria-label="Note" maxLength={200} />
+              {/* Alternates (migration 034): indented "or" rows; ↑↓ = guest priority. */}
+              {l.alts.length ? (
+                <ol className="a-alts" aria-label="Alternates">
+                  {l.alts.map((a, j) => {
+                    const sp = byId.get(a.spec_id);
+                    return (
+                      <li key={a.key} className="a-alt">
+                        <div className="a-alt-row">
+                          <span className="a-alt-move">
+                            <button type="button" className="a-icon a-icon-sm" onClick={() => moveAlt(l.key, j, -1)} disabled={j === 0} aria-label={`Move ${sp?.name ?? "alternate"} up`}>↑</button>
+                            <button type="button" className="a-icon a-icon-sm" onClick={() => moveAlt(l.key, j, 1)} disabled={j === l.alts.length - 1} aria-label={`Move ${sp?.name ?? "alternate"} down`}>↓</button>
+                          </span>
+                          <span className="a-alt-or">or</span>
+                          <span className="a-alt-name">{cap(sp?.name ?? "?")}</span>
+                          <span className={sp?.in_stock ? "a-dot on" : "a-dot"} role="img" aria-label={sp?.in_stock ? "in stock" : sp?.available ? "via stand-in" : "out"} title={sp?.in_stock ? "In stock" : sp?.available ? "Via stand-in" : "Out"} />
+                          <button type="button" className="a-link a-alt-main" onClick={() => makeMain(l.key, a.key)}>Make main</button>
+                          <button type="button" className="a-icon a-icon-sm a-alt-x" onClick={() => setAlts(l.key, (alts) => alts.filter((x) => x.key !== a.key))} aria-label={`Remove ${sp?.name ?? "alternate"}`}>×</button>
+                        </div>
+                        <div className="a-alt-more">
+                          {a.own ? (
+                            <span className="a-alt-amount">
+                              <input value={NO_AMOUNT_UNITS.includes(a.unit) ? "" : a.amount} onChange={(e) => setAlt(l.key, a.key, { amount: e.target.value })} inputMode="decimal"
+                                placeholder={NO_AMOUNT_UNITS.includes(a.unit) ? "No amount" : "Amount"} aria-label={`Amount of ${sp?.name ?? "alternate"}`} disabled={NO_AMOUNT_UNITS.includes(a.unit)} />
+                              <select value={a.unit || l.unit} onChange={(e) => setAlt(l.key, a.key, { unit: e.target.value })} aria-label={`Unit of ${sp?.name ?? "alternate"}`}>
+                                <option value="">unit</option>
+                                {units.map((u) => <option key={u} value={u}>{u}</option>)}
+                              </select>
+                              <button type="button" className="a-link a-small" onClick={() => setAlt(l.key, a.key, { own: false, amount: "", unit: "" })}>same amount</button>
+                            </span>
+                          ) : (
+                            <button type="button" className="a-link a-small" onClick={() => setAlt(l.key, a.key, { own: true, unit: a.unit || l.unit })}>
+                              {l.amount || NO_AMOUNT_UNITS.includes(l.unit) ? `Same amount (${lineText(l.amount || null, l.unit || null, "").amount || l.unit}) · different amount` : "Different amount"}
+                            </button>
+                          )}
+                          <input className="a-alt-note" value={a.note} onChange={(e) => setAlt(l.key, a.key, { note: e.target.value })} placeholder="Note for this one (optional)" aria-label={`Note for ${sp?.name ?? "alternate"}`} maxLength={200} />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : null}
+              {l.adding ? (
+                <div className="a-alt-add">
+                  <SpecPicker compact defaultOpen specs={specs} families={families} value={null} exclude={[l.spec_id ?? "", ...l.alts.map((a) => a.spec_id)]}
+                    onChange={(id) => addAlt(l.key, id)} onDismiss={() => setLine(l.key, { adding: false })}
+                    onCreate={(s) => setSpecs((x) => [...x, s].sort((a, b) => a.name.localeCompare(b.name)))} />
+                </div>
+              ) : l.spec_id && l.alts.length < MAX_ALTERNATES ? (
+                <button type="button" className="a-link a-alt-plus" onClick={() => setLine(l.key, { adding: true })}>+ or…</button>
+              ) : null}
               <div className="a-line-actions">
                 <button type="button" className="a-icon" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
                 <button type="button" className="a-icon" onClick={() => move(i, 1)} disabled={i === f.lines.length - 1} aria-label="Move down">↓</button>
@@ -180,7 +270,7 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
             </li>
           ))}
         </ol>
-        <button type="button" className="a-btn" onClick={() => setF((o) => ({ ...o, lines: [...o.lines, { key: ++seq, spec_id: null, amount: "", unit: "oz", required: true, role: "", note: "" }] }))}>+ Add ingredient</button>
+        <button type="button" className="a-btn" onClick={() => setF((o) => ({ ...o, lines: [...o.lines, { key: ++seq, spec_id: null, amount: "", unit: "oz", required: true, role: "", note: "", alts: [] }] }))}>+ Add ingredient</button>
       </fieldset>
 
       <label className="a-field"><span className="a-label">Style</span>
@@ -203,13 +293,19 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
           {glass ? <p>{glassLine(glass, f.service_style || null, f.glass_note || null)}</p> : null}
           {alt ? <p className="a-quiet">{altGlassLine(alt, f.alt_service_style || null, f.service_style || null)}</p> : null}
           <ul className="a-preview-lines">
-            {chosen.filter((l) => l.required || byId.get(l.spec_id!)?.available).map((l) => {
-              const s = byId.get(l.spec_id!)!;
-              const t = lineText(NO_AMOUNT_UNITS.includes(l.unit) ? null : l.amount || null, NO_AMOUNT_UNITS.includes(l.unit) || l.amount ? l.unit || null : null, s.name);
+            {chosen.filter((l) => l.required || covered(l)).map((l) => {
+              // Like the guest page: in-stock choices only; an alternate leads when the line's ingredient is out.
+              const own = byId.get(l.spec_id!)!;
+              const inAlts = l.alts.filter((a) => byId.get(a.spec_id)?.in_stock);
+              const lead = own.in_stock ? null : inAlts[0] ?? null;
+              const s = lead ? byId.get(lead.spec_id)! : own;
+              const amount = lead?.own ? lead.amount : l.amount, unit = lead?.own ? lead.unit || l.unit : l.unit;
+              const t = lineText(NO_AMOUNT_UNITS.includes(unit) ? null : amount || null, NO_AMOUNT_UNITS.includes(unit) || amount ? unit || null : null, s.name);
+              const or = orText(inAlts.filter((a) => a !== lead).map((a) => cap(byId.get(a.spec_id)!.name)));
               return (
                 <li key={l.key}>
                   <span className="a-quiet">{t.amount}</span>
-                  <span>{t.name}{!s.in_stock ? <span className="tag-out">out tonight</span> : null}{!l.required ? <span className="a-quiet"> (optional)</span> : null}</span>
+                  <span>{t.name}{or.text ? <span className="alt-or"> {or.text}{or.more.length ? ` +${or.more.length}` : ""}</span> : null}{!s.in_stock ? <span className="tag-out">out tonight</span> : null}{!l.required ? <span className="a-quiet"> (optional)</span> : null}</span>
                 </li>
               );
             })}

@@ -9,7 +9,8 @@ import { RecipePin } from "@/components/RecipePin";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
 import { altGlassLine, cap, glassLine, lineText, methodParts } from "@/lib/format";
-import { bottleParts, loadLocked, loadRecipe, PHONE_DOT } from "@/lib/menu";
+import { altWords, bottleParts, loadLocked, loadRecipe, PHONE_DOT } from "@/lib/menu";
+import { AltOr } from "@/components/AltOr";
 import { LockedPage } from "@/components/LockedPage";
 import { MoodLine } from "@/components/MoodLine";
 import { cleanMoods } from "@/lib/moods";
@@ -67,26 +68,33 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         <h2>Ingredients</h2>
         <ul className="ingredients">
           {/* An optional ingredient that is out tonight (with no stand-in) is simply left off. */}
-          {recipe.lines.filter((line) => line.required || line.available || line.use_instead).map((line) => (
+          {recipe.lines.filter((line) => line.required || line.available || line.use_instead).map((line) => {
+            // Alternates (migration 034): the in-stock ones after the leading ingredient, muted, same line.
+            const or = altWords(line);
+            return (
             <li key={line.position}>
               <span className="measure">{lineText(line.amount, line.unit, line.name).amount}</span>
               <span className="ingredient">
                 <span className={line.available ? "" : "out"}>{lineText(line.amount, line.unit, line.name).name}</span>
+                {or.text ? <AltOr text={or.text} more={or.more} /> : null}
                 {!line.available ? <span className="tag-out">out tonight</span> : null}
                 {line.use_instead ? <strong> (use {cap(line.use_instead)})</strong> : null}
                 {!line.required ? <span className="quiet"> (optional)</span> : null}
                 {line.bottles ? (
                   <span className="quiet bottles">
                     {/* A featured bottle (migration 030) is copper with the tag, and listed first. */}
-                    {bottleParts(line.bottles, PHONE_DOT, line.preferred, 3, line.featured).map((part, i) =>
+                    {/* With alternates the leading ingredient's bottles stop at 2 + "+N more", so the line stays short. */}
+                    {bottleParts(line.bottles, PHONE_DOT, line.preferred, or.text ? 2 : 3, line.featured).map((part, i) =>
                       part.featured ? <span key={i}><span className="feat-name">{part.text}</span><FeaturedTag /></span> : part.text)}
                   </span>
                 ) : null}
                 {/* A "Grand Marnier preferred" note is already in the bottle line as "Grand Marnier (preferred)". */}
                 {line.note && !line.preferred ? <span className="quiet note">{line.note}</span> : null}
+                {or.notes.map((n, i) => <span key={i} className="quiet note">{n}</span>)}
               </span>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </section>
 

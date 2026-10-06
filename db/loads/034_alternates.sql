@@ -2,6 +2,8 @@
 -- Rachel 2026-10-06, plus the recipe text they replace. Run with the alternates UI ship, not before: the guest UI
 -- must show alternates before descriptions stop mentioning them, and newly makeable drinks (Pimm's Cup, Spanish
 -- Coffee, Pimm's Sundowner) must show the in-stock alternate rather than the out-of-stock main ingredient.
+-- The Tequila Sunrise cherry is poured as "1 each" (the line's "1 twist" is the orange rind's), Pimm's Spritz's rich syrup as
+-- ½ oz; every other alternate takes its line's amount.
 -- Lines are found by recipe + position + current spec, never by line id. Rows that already exist are left alone
 -- (db/loads/034_hot_toddy_cognac.sql shipped the first one). Each text edit applies only while the text is still
 -- exactly the original, so re-running never overwrites a later edit. Run `npm run notify` afterwards.
@@ -13,7 +15,7 @@ INSERT INTO alt_load VALUES
   ('Hot Toddy', 'd3201f94-b26b-40a0-a511-677a4d6cc267'::uuid, 1, '320559c2-1a56-4579-9cc2-84dc8347a15f'::uuid, '3c7442f0-a45b-460b-99e3-ce22a8be2032'::uuid, 1, NULL::numeric, NULL, NULL),  -- bourbon -> cognac
   ('New York Sour', '8e606640-0444-4521-90aa-db1496f3108c'::uuid, 1, '131f1703-31d3-42f8-944a-2a02833b5a5e'::uuid, '320559c2-1a56-4579-9cc2-84dc8347a15f'::uuid, 1, NULL::numeric, NULL, NULL),  -- rye -> bourbon
   ('Pimm''s Cup', 'cd11aa75-ddfd-456b-8db1-08a18c433953'::uuid, 3, '31ad8303-0d0c-4c41-90ed-8a28fceaafce'::uuid, '7cdf8e8c-179d-4c9e-b64e-0bf45bcf4852'::uuid, 1, NULL::numeric, NULL, NULL),  -- ginger ale -> lemon lime soda
-  ('Tequila Sunrise', '81f3ee02-f4d7-4c13-acec-213ef2ffba97'::uuid, 4, 'a6afe900-afab-407c-b216-7909e43f150f'::uuid, '2edf7ba9-bff5-42e9-a711-a4ea0b6dc948'::uuid, 1, NULL::numeric, NULL, NULL),  -- orange rind -> maraschino cherry
+  ('Tequila Sunrise', '81f3ee02-f4d7-4c13-acec-213ef2ffba97'::uuid, 4, 'a6afe900-afab-407c-b216-7909e43f150f'::uuid, '2edf7ba9-bff5-42e9-a711-a4ea0b6dc948'::uuid, 1, 1::numeric, 'each', NULL),  -- orange rind -> maraschino cherry
   ('Cranberry Mulled Wine', '97f9bba0-dc8e-42ab-8a28-5b0b6701ec65'::uuid, 6, '9888db80-0ac4-4f7e-a52b-8b2163c4f982'::uuid, '58bb41e5-a6fe-41a0-bfde-26468d08fea8'::uuid, 1, NULL::numeric, NULL, '2 sticks + 4 whole cloves per batch'),  -- mulling spices -> cinnamon stick
   ('Pimm''s Spritz', '8039df96-7c5d-406a-b1f4-36e22476d001'::uuid, 3, 'fae67163-1508-4181-8800-07c3ae0840d5'::uuid, 'b8954f51-9e4f-4fd4-8029-b304fad6c1d3'::uuid, 1, 0.5::numeric, 'oz', 'as in the original recipe'),  -- simple syrup (1:1) -> rich syrup (2:1)
   ('Old Fashioned', 'a2382991-0f84-4482-9781-57efac8b4062'::uuid, 1, '320559c2-1a56-4579-9cc2-84dc8347a15f'::uuid, '131f1703-31d3-42f8-944a-2a02833b5a5e'::uuid, 1, NULL::numeric, NULL, NULL),  -- bourbon -> rye

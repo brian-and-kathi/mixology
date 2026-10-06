@@ -3,6 +3,8 @@ import { spiritFamily } from "@/lib/spirit-family";
 import { badgeFor, specLabel } from "@/lib/spec-label";
 import { CELLAR_COLORS, cellarColor } from "@/lib/moods";
 import { spelledOrigin } from "@/lib/us-states";
+import { cap, lineText } from "@/lib/format";
+import { orText } from "@/lib/alternates";
 
 // Section order is fixed everywhere (TV and phone): Pours, Cocktails, Cellar.
 export const SECTIONS = [
@@ -287,6 +289,24 @@ export type RecipeLine = {
   alternates: { name: string; amount: string | null; unit: string | null; note: string | null }[];
 };
 
+/**
+ * The muted "or …" after a line's leading ingredient (migration 034; Vincent's spec, 2026-10-06): "or Cognac",
+ * "or Cognac, Brandy", three or more "or Cognac +2" (`more` opens on tap on the phone). An alternate poured in a
+ * different amount names it ("or ½ oz Rich syrup (2:1)"). `notes`: each alternate's own note, "Rich syrup (2:1): …".
+ */
+export function altWords(line: Pick<RecipeLine, "amount" | "unit" | "alternates">): { text: string; more: string[]; notes: string[] } {
+  const alts = line.alternates ?? [];
+  const num = (v: string | null) => (v === null || v === "" ? null : Number(v));
+  const label = (a: RecipeLine["alternates"][number]) => {
+    const same = num(a.amount) === num(line.amount) && (a.unit ?? null) === (line.unit ?? null);
+    if (same) return line.unit === "top" ? a.name.toLowerCase() : cap(a.name);
+    const t = lineText(a.amount, a.unit, a.name);
+    return t.amount ? `${t.amount}\u00a0${t.name}` : t.name;
+  };
+  const { text, more } = orText(alts.map(label));
+  return { text, more, notes: alts.filter((a) => a.note).map((a) => `${cap(a.name)}: ${a.note}`) };
+}
+
 export type Recipe = {
   id: string;
   name: string;
@@ -459,6 +479,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
               (CASE WHEN l.alt_id IS NULL OR (l.alt_amount IS NULL AND l.alt_unit IS NULL) THEN l.amount ELSE l.alt_amount END)::text AS amount,
               CASE WHEN l.alt_id IS NULL OR (l.alt_amount IS NULL AND l.alt_unit IS NULL) THEN l.unit ELSE l.alt_unit END AS unit,
               CASE WHEN l.alt_id IS NULL THEN l.note ELSE l.alt_note END AS note,
+              l.amount AS line_amount, l.unit AS line_unit,
               sub.id AS use_instead_id, sub.canonical_name AS use_instead
          FROM line l
          LEFT JOIN LATERAL (
@@ -491,7 +512,11 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
                         FROM supply x JOIN products p ON p.id = x.product_id
                        WHERE x.spec_id = s.from_spec AND x.hops = 0), '[]'::json) AS stock,
             -- The other alternates a guest may use tonight: on the shelf (in stock, not reserved), not the leader.
-            COALESCE((SELECT json_agg(json_build_object('name', sp.canonical_name, 'amount', a.amount::text, 'unit', a.unit, 'note', a.note) ORDER BY a.position)
+            -- Amount and unit are what the guest pours: the alternate's own, else the line's.
+            COALESCE((SELECT json_agg(json_build_object('name', sp.canonical_name,
+                                                        'amount', (CASE WHEN a.amount IS NULL AND a.unit IS NULL THEN s.line_amount ELSE a.amount END)::text,
+                                                        'unit', CASE WHEN a.amount IS NULL AND a.unit IS NULL THEN s.line_unit ELSE a.unit END,
+                                                        'note', a.note) ORDER BY a.position)
                         FROM recipe_line_alternates a JOIN specs sp ON sp.id = a.spec_id
                        WHERE a.recipe_line_id = s.line_id AND a.spec_id <> s.spec_id
                          AND a.spec_id IN (SELECT id FROM shelf)), '[]'::json) AS alternates

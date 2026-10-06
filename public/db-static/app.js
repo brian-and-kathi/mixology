@@ -152,6 +152,7 @@ if (lineTable && addLine) {
       else if (el.name.endsWith("[position]")) el.value = String(next + 1);
       else el.value = "";
     });
+    copy.querySelectorAll("[data-alts]").forEach((el) => { el.textContent = ""; });
     lineTable.appendChild(copy);
   });
 

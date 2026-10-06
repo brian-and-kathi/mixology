@@ -12,7 +12,7 @@ const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\
  * new ingredient inline (name + family). onCreate lets the parent add it to its option list.
  */
 export function SpecPicker({
-  specs, families, value, onChange, onCreate, label = "Ingredient", allowCreate = true, compact = false,
+  specs, families, value, onChange, onCreate, label = "Ingredient", allowCreate = true, compact = false, defaultOpen = false, exclude = [], onDismiss,
 }: {
   specs: SpecOption[];
   families: Family[];
@@ -22,10 +22,16 @@ export function SpecPicker({
   label?: string;
   allowCreate?: boolean;
   compact?: boolean;
+  /** Open with the search focused (the recipe editor's "+ or…"). */
+  defaultOpen?: boolean;
+  /** Ingredients not to offer (a line's own ingredient and its other alternates). */
+  exclude?: string[];
+  /** Closed without a choice (only with defaultOpen). */
+  onDismiss?: () => void;
 }) {
   const id = useId();
   const current = specs.find((s) => s.id === value) ?? null;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
   const [family, setFamily] = useState("");
@@ -34,9 +40,10 @@ export function SpecPicker({
 
   const needle = fold(q.trim());
   const matches = useMemo(() => {
-    if (!needle) return specs.slice(0, 40);
-    return specs.filter((s) => fold(s.name).includes(needle) || s.aliases.some((a) => fold(a).includes(needle))).slice(0, 40);
-  }, [specs, needle]);
+    const pool = exclude.length ? specs.filter((s) => !exclude.includes(s.id)) : specs;
+    if (!needle) return pool.slice(0, 40);
+    return pool.filter((s) => fold(s.name).includes(needle) || s.aliases.some((a) => fold(a).includes(needle))).slice(0, 40);
+  }, [specs, needle, exclude]);
   const exact = specs.some((s) => fold(s.name) === needle);
 
   async function create() {
@@ -62,7 +69,7 @@ export function SpecPicker({
   return (
     <div className={compact ? "a-picker compact" : "a-picker"}>
       {!compact ? <label className="a-label" htmlFor={id}>{label}</label> : null}
-      <button type="button" id={id} className="a-picker-current" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      <button type="button" id={id} className="a-picker-current" onClick={() => { if (open && !current) onDismiss?.(); setOpen((o) => !o); }} aria-expanded={open}>
         {current ? (
           <>
             <span className={current.available ? "a-dot on" : "a-dot"} aria-hidden />
@@ -73,7 +80,8 @@ export function SpecPicker({
       </button>
       {open ? (
         <div className="a-picker-pop">
-          <input type="search" value={q} onChange={(e) => { setQ(e.target.value); setCreating(false); }} placeholder="Search ingredients" aria-label="Search ingredients" />
+          <input type="search" value={q} onChange={(e) => { setQ(e.target.value); setCreating(false); }} placeholder="Search ingredients" aria-label="Search ingredients" autoFocus={defaultOpen}
+            onKeyDown={(e) => { if (e.key === "Escape" && onDismiss) { e.preventDefault(); setOpen(false); onDismiss(); } }} />
           <ul className="a-picker-list" role="listbox">
             {matches.map((s) => (
               <li key={s.id}>

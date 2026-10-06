@@ -6,10 +6,11 @@
 
 /**
  * Serving temperature. The bottle's own "Usually served" flags win (the Cellar reuses the serve columns:
- * serves_chilled = Chilled, serves_neat = Room temp, serves_rocks = Over ice; lib/format wineServeLine).
+ * serves_chilled = Chilled, serves_neat = Room temp, serves_rocks = Over ice).
  * With neither temperature flag set, it follows the wine's color group (wine_style_group(), migration 011):
  * white, rosé and sparkling are Chilled, red is Room temperature (the same default the admin bottle form
  * picks for a new wine). Anything else (sake, fruit wines, no color on record) has no temperature: null.
+ * The one serve line for Cellar wines: the phone wine page and the TV card both show this text, so they always agree.
  */
 export function wineTemp(w: { chilled: boolean; neat: boolean; rocks?: boolean; styleGroup: string | null | undefined }): string | null {
   let temp: string | null;
@@ -51,6 +52,16 @@ export function wineVintage(names: (string | null | undefined)[], now = new Date
     }
   }
   return null;
+}
+
+/**
+ * The vintage for the card's color · vintage · ABV line: wineVintage(), left out when the displayed name already
+ * shows that year (Vincent, 2026-10-06: "… Merlot 2020" doesn't repeat "2020").
+ */
+export function shownVintage(name: string, packagedName: string | null | undefined, now = new Date()): string | null {
+  const year = wineVintage([name, packagedName], now);
+  if (!year) return null;
+  return new RegExp(`(?<![\\d.])${year}(?![\\d.%])`).test(name) ? null : year;
 }
 
 /**

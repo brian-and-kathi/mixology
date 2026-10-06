@@ -42,6 +42,14 @@ test("wineVintage: a year in the name, never guessed", () => {
   assert.equal(m.wineVintage(["Bin 20.19"], now), null);
 });
 
+test("shownVintage: hidden when the name already shows the year", () => {
+  const now = new Date("2026-10-06T12:00:00Z");
+  assert.equal(m.shownVintage("Chateau Grand Traverse Merlot 2020", null, now), null);
+  assert.equal(m.shownVintage("Harvester Cabernet", "Harvester Cabernet Sauvignon Paso Robles 2021", now), "2021");
+  assert.equal(m.shownVintage("Harvester Cabernet", "Harvester Cabernet Sauvignon Paso Robles", now), null);
+  assert.equal(m.shownVintage("Reserve 2019", "Reserve 2019 Pinot Noir", now), null);
+});
+
 test("wineGrapes", () => {
   assert.deepEqual(m.wineGrapes("Merlot"), ["Merlot"]);
   assert.deepEqual(m.wineGrapes("Red blend"), ["Red blend"]);

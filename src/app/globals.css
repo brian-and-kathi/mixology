@@ -477,6 +477,13 @@ a.card:active { background: #202020; }
 .tv-band-moods .mood-badge { padding: 0.12em 0.6em; border-width: max(1px, 0.1vh); }
 /* Cellar wine cast card (2026-10-06): grape badges in the gold type/grape tag style (squared, outlined, like the phone
    title badge), sized and placed like the cocktail card's mood badges so the hero column keeps the same rhythm. */
+/* Wine card score under the glass: phone .score / board .tv-rating proportions (number 500 weight, gold star at 0.92em). */
+.tv-band-lead-score { width: fit-content; flex-direction: column; align-items: center; gap: 0; margin-left: -0.6vw; }
+.tv-band-lead-score .tv-band-glass { margin-left: 0; }
+.tv-band-score { display: flex; align-items: baseline; justify-content: center; gap: 0.22em; margin: calc(-1.75vh * var(--s)) 0 calc(0.6vh * var(--s)); font-size: calc(2.64vh * var(--s)); line-height: 1.25; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tv-band-score-num { font-weight: 500; color: var(--text); }
+.tv-band-score-star { color: var(--gold); font-size: 0.92em; }
+.tv-band-whole { display: inline-block; }
 .tv-band-grapes { display: flex; flex-wrap: wrap; align-items: center; list-style: none; padding: 0; margin: -0.7vh 0 1.5vh; gap: 0.7vh; font-size: calc(2.05vh * var(--s)); }
 .tv-band-grape { display: inline-flex; align-items: center; padding: 0.12em 0.5em; border: max(1px, 0.1vh) solid var(--gold-line); border-radius: 0.3em; color: var(--gold); font-weight: 500; line-height: 1.1; letter-spacing: 0.01em; white-space: nowrap; }
 .tv-band-feat .feat-tag { margin-left: 0; font-size: calc(1.85vh * var(--s)); padding: 0.35vh 1vh 0.45vh; }

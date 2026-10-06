@@ -46,3 +46,14 @@ test("originSearchExtra (/menu search)", () => {
   assert.equal(m.originSearchExtra("Islay, Scotland"), null);
   assert.equal(m.originSearchExtra(null), null);
 });
+
+test("spelledOrigin (wine TV card place)", () => {
+  const cases = [
+    ["Paso Robles, CA", "Paso Robles, California"], ["Paso Robles, California", "Paso Robles, California"],
+    ["Washingtonville, NY", "Washingtonville, New York"], ["Washingtonville, New York", "Washingtonville, New York"],
+    ["Traverse City, MI", "Traverse City, Michigan"], ["  Fennville ,  MI ", "Fennville, Michigan"],
+    ["Bardstown, Nelson County, KY", "Bardstown, Nelson County, Kentucky"], ["MI", "Michigan"], ["California", "California"],
+    ["Japan", "Japan"], ["Jalisco, Mexico", "Jalisco, Mexico"], ["Sonoma, ca", "Sonoma, ca"], ["", ""], [null, ""], [undefined, ""],
+  ];
+  for (const [input, want] of cases) assert.equal(m.spelledOrigin(input), want, JSON.stringify(input));
+});

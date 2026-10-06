@@ -178,6 +178,21 @@ function BandStars({ avg }: { avg: number | null }) {
   );
 }
 
+/**
+ * Wine card score (Vincent, 2026-10-06): the compact "4.3 ★" under the glass, the phone page's .score and the board's
+ * rating look (number, gold star; one decimal). No votes: no line at all, so an unrated wine's card keeps its full size.
+ * It tucks into the space under the glass's foot (the icon's ink ends at 54 of 64), so a rated card costs only ~1 line.
+ */
+function BandScore({ avg }: { avg: number | null }) {
+  if (avg == null) return null;
+  return (
+    <p className="tv-band-score" role="img" aria-label={`Rated ${avg.toFixed(1)} of 5`}>
+      <span className="tv-band-score-num">{avg.toFixed(1)}</span>
+      <span className="tv-band-score-star" aria-hidden>★</span>
+    </p>
+  );
+}
+
 /** The band's columns (30/35/35). Empty columns are left out; long content is scaled down to fit. */
 function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -251,16 +266,17 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
       ),
     });
   } else if (payload.type === "wine") {
-    // Cellar wine (Brian via Rachel, 2026-10-06): the pour card's three columns. Hero: glass and stars, name, grape
+    // Cellar wine (Brian via Rachel, 2026-10-06): the pour card's three columns. Hero: glass with "4.3 ★" under it, name, grape
     // badge(s), Featured, then "Producer · City, ST" and "Color · vintage · ABV". Missing facts are simply left out.
-    const place = [payload.producer, payload.origin].filter(Boolean).join(" \u00b7 ");
+    // Producer and place each stay whole when they fit ("Hope Family Wines ·" / "Paso Robles, California"), not "Paso Robles," / "California".
+    const placeParts = [payload.producer, payload.origin].filter(Boolean) as string[];
     const facts = [payload.color, payload.vintage, payload.abv].filter(Boolean).join(" \u00b7 ");
     cols.push({
       key: "hero", weight: 30, body: (
         <>
-          <div className="tv-band-lead">
+          <div className="tv-band-lead tv-band-lead-score">
             <GlassIcon glass={payload.glass} className="tv-band-glass" />
-            <BandStars avg={avg} />
+            <BandScore avg={avg} />
           </div>
           <h3 className="tv-band-name">{payload.name}</h3>
           {payload.grapes.length ? (
@@ -269,7 +285,11 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
             </ul>
           ) : null}
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
-          {place ? <p className="tv-band-serve">{place}</p> : null}
+          {placeParts.length ? (
+            <p className="tv-band-serve">
+              {placeParts.map((part, i) => <span key={i}>{i ? "\u00a0\u00b7 " : null}<span className="tv-band-whole">{part}</span></span>)}
+            </p>
+          ) : null}
           {facts ? <p className="tv-band-note">{facts}</p> : null}
         </>
       ),

@@ -7,10 +7,11 @@ import { FeaturedTag } from "@/components/FeaturedTag";
 import { PhoneShell } from "@/components/PhoneShell";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
-import { cap, wineServeLine } from "@/lib/format";
+import { cap } from "@/lib/format";
 import { loadLocked, loadWine, wineGlass } from "@/lib/menu";
 import { LockedPage } from "@/components/LockedPage";
 import { loadRating } from "@/lib/ratings";
+import { wineTemp } from "@/lib/wine-facts";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,9 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
     !grape && wine.type && !lower.includes(wine.type.toLowerCase()) ? cap(wine.type) : null,
     wine.abv && Number(wine.abv) > 0 ? `${Number(wine.abv)}%\u00a0ABV` : null,
   ].filter(Boolean);
-  const serve = wineServeLine(wine.serves_chilled, wine.serves_neat, wine.serves_rocks);
+  // The same serve line as the TV card (wineTemp): the bottle's own Chilled / Room temp / Over ice win; with neither
+  // temperature set, it follows the color (white, rosé, sparkling: Chilled; red: Room temperature; else none).
+  const serve = wineTemp({ chilled: wine.serves_chilled, neat: wine.serves_neat, rocks: wine.serves_rocks, styleGroup: wine.style_group });
 
   return (
     <PhoneShell bar={bar} title={wine.name} titleBadge={grape || wine.featured ? <span className="title-badges">{grape ? <span className="spec-badge title-badge">{grape}</span> : null}{wine.featured ? <FeaturedTag /> : null}</span> : undefined} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}

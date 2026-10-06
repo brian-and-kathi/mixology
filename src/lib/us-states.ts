@@ -39,6 +39,18 @@ export function shortRegion(origin: string | null | undefined): string {
   return stateName(last) ?? last;
 }
 
+/**
+ * The wine TV card's place (Vincent, 2026-10-06): the whole origin, with its last segment spelled out by
+ * shortRegion() (the board's Pours helper), so "Paso Robles, CA" -> "Paso Robles, California" and "Lake City, MI"
+ * -> "Lake City, Michigan". Spelled-out, non-US and unknown values stay as stored ("Jalisco, Mexico", "Japan").
+ * Blank: "".
+ */
+export function spelledOrigin(origin: string | null | undefined): string {
+  const parts = (origin ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  if (!parts.length) return "";
+  return [...parts.slice(0, -1), shortRegion(origin)].join(", ");
+}
+
 /** Extra search text for an origin ending in a US code ("Lake City, MI" -> "Michigan"), so "michigan" finds it. Else null. */
 export function originSearchExtra(origin: string | null | undefined): string | null {
   const last = lastSegment(origin);

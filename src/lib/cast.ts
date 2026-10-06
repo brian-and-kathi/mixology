@@ -3,8 +3,8 @@ import { barVersions } from "@/lib/bar-versions";
 import { altGlassLine, cap, lineText, methodParts, serveParts, tvGlassLine } from "@/lib/format";
 import { bottleLine, bottleParts, loadPour, loadRecipe, loadWine, wineGlass } from "@/lib/menu";
 import { cleanMoods } from "@/lib/moods";
-import { normalizeOrigin } from "@/lib/us-states";
-import { wineColorLabel, wineGrapes, wineTemp, wineVintage } from "@/lib/wine-facts";
+import { spelledOrigin } from "@/lib/us-states";
+import { shownVintage, wineColorLabel, wineGrapes, wineTemp } from "@/lib/wine-facts";
 
 // "Show on TV": one cast record (tv_cast, migration 015). A cast lasts 5 minutes, a new cast
 // replaces the old one, and anyone on that item's phone page can take it off.
@@ -27,9 +27,12 @@ export type WinePayload = {
   grapes: string[];
   /** products.brand, left out when the name already says it (as on the pour card). */
   producer: string | null;
-  /** products.origin through normalizeOrigin(): "Traverse City, MI", a state alone spelled out, other places as stored. */
+  /** products.origin through spelledOrigin(): the last segment spelled out like the board's Pours line ("Paso Robles, California"). */
   origin: string | null;
-  color: string | null; vintage: string | null; abv: string | null;
+  color: string | null;
+  /** A year from the name or label name, null when the displayed name already shows it (shownVintage). */
+  vintage: string | null;
+  abv: string | null;
   /** Serving temperature (lib/wine-facts wineTemp: the serve flags, else the color group). */
   temp: string | null;
   serve_note: string | null;
@@ -80,14 +83,14 @@ async function winePayload(id: string): Promise<WinePayload | null> {
   const w = await loadWine(id);
   if (!w) return null;
   const brand = w.brand?.trim() || null;
-  const origin = normalizeOrigin(w.origin?.trim() || null) || null;
+  const origin = spelledOrigin(w.origin) || null;
   return {
     type: "wine", id: w.id, name: w.name, glass: wineGlass(w.sparkling, w.type), featured: w.featured,
     grapes: wineGrapes(w.grape),
     producer: brand && !w.name.toLowerCase().includes(brand.toLowerCase()) ? brand : null,
     origin,
     color: wineColorLabel(w.wine_color, w.wine_effervescence, w.fortified),
-    vintage: wineVintage([w.name, w.packaged_name]),
+    vintage: shownVintage(w.name, w.packaged_name),
     abv: w.abv && Number(w.abv) > 0 ? `${Number(w.abv)}% ABV` : null,
     temp: wineTemp({ chilled: w.serves_chilled, neat: w.serves_neat, rocks: w.serves_rocks, styleGroup: w.style_group }),
     serve_note: w.serve_note?.trim() || null,

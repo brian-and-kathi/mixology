@@ -156,8 +156,15 @@ body:has(.admin-root) { background: #07101c; }
 .a-glance-head > .a-disc-label { display: flex; flex-direction: column; }
 .a-glance-title { font-weight: 600; line-height: 1.5; }
 .a-glance-sum { font-size: 0.88rem; color: var(--quiet); }
-.a-glance-body { padding: 0 1rem 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
-.a-glance-sec > .a-disc-head { min-height: 44px; font-weight: 500; border-top: 1px solid var(--a-line); }
+.a-glance-body { padding: 0 1rem 1rem; display: flex; flex-direction: column; }
+.a-glance-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 0.75rem; border-bottom: 1px solid var(--a-line); }
+.a-glance-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem;
+  min-width: 0; min-height: 48px; padding: 0.4rem 0.15rem 0.45rem; border: 0; border-bottom: 2px solid transparent;
+  background: none; color: var(--quiet); font: inherit; font-size: 0.72rem; line-height: 1.15; text-align: center;
+  white-space: normal; overflow-wrap: break-word; cursor: pointer;
+}
+.a-glance-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--a-accent); font-weight: 600; }
 .a-count { font-size: 0.8rem; color: var(--quiet); background: var(--a-raised-2); border-radius: 999px; padding: 0.05rem 0.55rem; }
 
 /* Stock rows */

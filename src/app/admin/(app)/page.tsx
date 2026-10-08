@@ -19,7 +19,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
       {savedBottle ? <p className="a-ok" role="status">Saved {savedBottle}.</p> : null}
       {/* Soft warning (migration 030): more than 3 bottles Featured and in stock. Non-blocking. */}
       {featuredN > 3 ? <p className="a-warn" role="status">{featuredN} in-stock bottles are Featured. Guests will see them all; three or fewer usually works best.</p> : null}
-      {/* At a glance: collapsed at the top, above search (it scrolls away; the search bar and family headers stick). */}
+      {/* At a glance: collapsed at the top, above search. Open, its title stays pinned while its list scrolls. */}
       <Glance data={glance} />
       <ClearTv />
       <StockBoard items={items} recent={recent} initialQuery={q !== undefined ? cleanSearch(q) : saved} />

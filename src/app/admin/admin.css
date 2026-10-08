@@ -150,6 +150,12 @@ body:has(.admin-root) { background: #07101c; }
 
 /* Glance */
 .a-glance { background: var(--card); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--a-line); }
+/* Open: the title and tabs pin under the admin header (and the laptop tab bar) until this card ends. */
+.a-glance.is-open > .a-glance-stick {
+  position: sticky; top: var(--a-head-h); z-index: 18; background: var(--card);
+  border-radius: var(--radius) var(--radius) 0 0; box-shadow: 0 1px 0 var(--a-line);
+}
+@media (min-width: 720px) { .a-glance.is-open > .a-glance-stick { top: calc(var(--a-head-h) + 48px); } }
 .a-glance-head { min-height: 56px; padding: 0.7rem 1rem; align-items: flex-start; }
 /* Chevron centred on the title line; title and summary share the left edge just right of it. */
 .a-glance-head > .a-disc-chev { margin-top: calc((1.5em - 16px) / 2); }
@@ -157,7 +163,8 @@ body:has(.admin-root) { background: #07101c; }
 .a-glance-title { font-weight: 600; line-height: 1.5; }
 .a-glance-sum { font-size: 0.88rem; color: var(--quiet); }
 .a-glance-body { padding: 0 1rem 1rem; display: flex; flex-direction: column; }
-.a-glance-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 0.75rem; border-bottom: 1px solid var(--a-line); }
+.a-glance-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 1rem 0.75rem; border-bottom: 1px solid var(--a-line); }
+.a-glance-tabs[hidden] { display: none !important; }
 .a-glance-tab {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem;
   min-width: 0; min-height: 48px; padding: 0.4rem 0.15rem 0.45rem; border: 0; border-bottom: 2px solid transparent;

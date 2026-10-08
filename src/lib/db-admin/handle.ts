@@ -909,7 +909,8 @@ async function recipesPage() {
     SELECT r.id, r.name, r.section, r.rating, count(l.spec_id) AS lines,
            coalesce(bool_and(l.available) FILTER (WHERE l.required), true) AS buildable,
            coalesce(json_agg(json_build_object('name', l.spec_name, 'required', l.required, 'status', l.status) ORDER BY l.position)
-                    FILTER (WHERE NOT l.available), '[]') AS missing
+                    FILTER (WHERE NOT l.available), '[]') AS missing,
+           coalesce(string_agg(l.spec_name, ' ' ORDER BY l.position), '') AS ingredients
       FROM recipes r
       LEFT JOIN recipe_line_status l ON l.recipe_id = r.id
      GROUP BY r.id
@@ -919,7 +920,12 @@ async function recipesPage() {
     const missing = (recipe.missing as { name: string; required: boolean; status: string }[]) ?? [];
     const needed = missing.filter((line) => line.required).map((line) => `${esc(line.name)} <span class="hint">(${why[line.status] ?? esc(line.status)})</span>`).join(", ");
     const optional = missing.filter((line) => !line.required).map((line) => `${esc(line.name)} (${why[line.status] ?? esc(line.status)})`).join(", ");
-    return `<tr>
+    const search = [
+      recipe.name, recipe.section, recipe.rating, recipe.ingredients,
+      recipe.buildable ? "Buildable" : "Not buildable",
+      ...missing.flatMap((line) => [line.name, why[line.status] ?? line.status]),
+    ].filter((part) => part != null && part !== "").join(" ");
+    return `<tr data-search="${esc(search)}">
       <td>${recipe.buildable ? `<span class="pill ok">Buildable</span>` : `<span class="pill off">Not buildable</span>`}</td>
       <td><a href="${DB}/recipes/${recipe.id}">${esc(recipe.name)}</a></td>
       <td>${esc(recipe.section)}</td>
@@ -932,6 +938,7 @@ async function recipesPage() {
     title: "Recipes",
     active: `${DB}/recipes`,
     body: `${heading("Recipes", "Every recipe is listed. The mixed menu shows a recipe only when every required spec is available.", `<a class="button" href="${DB}/recipes/new">New recipe</a>`)}
+      ${searchForm("Find a recipe by name, ingredient, section, or whether it is buildable.", "recipes")}
       <table><thead><tr><th>Status</th><th>Name</th><th>Section</th><th>Rating</th><th>Lines</th><th>Missing</th></tr></thead>
       <tbody>${body || `<tr><td colspan="6" class="empty">No recipes yet.</td></tr>`}</tbody></table>`,
   }));

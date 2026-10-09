@@ -204,7 +204,6 @@ function BandBody({ payload }: { payload: CastPayload }) {
             </div>
           ) : null}
           <h3 className="tv-band-name">{payload.name}</h3>
-          {payload.servings > 1 ? <p className="tv-band-serve">Serves {payload.servings}</p> : null}
           {/* Moods (Brian via Vincent, 2026-10-04): the /menu chip labels on one quiet line under the name; none, no line. */}
           <MoodLine moods={payload.moods} className="tv-band-moods" />
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
@@ -216,7 +215,10 @@ function BandBody({ payload }: { payload: CastPayload }) {
     if (payload.lines.length) cols.push({
       key: "ing", weight: 35, body: (
         <>
-          <p className="tv-band-label">Ingredients</p>
+          <p className="tv-band-label">
+            Ingredients
+            {payload.servings > 1 ? <span className="tv-band-serves">: Serves {payload.servings}</span> : null}
+          </p>
           <div className="tv-band-ing">
             {payload.lines.map((l, i) => (
               <div key={i} className="tv-band-line">

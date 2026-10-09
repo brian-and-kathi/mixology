@@ -12,8 +12,9 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status, 
 const ip = (req: NextRequest) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "local";
 
 /**
- * GET ?kind=product|recipe&id=: the guests' average (2 decimals) and vote count, read by the TV cast
- * band when a cast appears. Read-only, no cookie; the same numbers every guest page already shows.
+ * GET ?kind=product|recipe&id=: the guests' average (2 decimals) and vote count.
+ * Read-only, no cookie. The TV cast band does not use this: its stars travel in the cast payload,
+ * and a vote bumps cast_version so the band refetches.
  */
 export async function GET(req: NextRequest) {
   const kind = req.nextUrl.searchParams.get("kind");

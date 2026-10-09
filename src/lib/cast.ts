@@ -1,8 +1,9 @@
 import { query } from "@/lib/db";
 import { barVersions } from "@/lib/bar-versions";
-import { altGlassLine, cap, lineText, methodParts, serveParts, tvGlassLine } from "@/lib/format";
+import { altGlassLine, cap, clampServings, lineText, methodParts, scaleAmount, scaleMethod, scaleProse, serveParts, tvGlassLine } from "@/lib/format";
 import { altWords, bottleLine, bottleParts, loadPour, loadRecipe, loadWine, wineGlass } from "@/lib/menu";
 import { cleanMoods } from "@/lib/moods";
+import { loadAverage } from "@/lib/ratings";
 import { spelledOrigin } from "@/lib/us-states";
 import { shownVintage, wineColorLabel, wineGrapes, wineTemp } from "@/lib/wine-facts";
 
@@ -19,8 +20,8 @@ export type CastLine = { amount: string; name: string; out: boolean; use_instead
   /** Alternates (migration 034): the muted "or Cognac" / "or Cognac, Brandy" / "or Cognac" + or_more ("+2"), and their notes. */
   or?: string | null; or_more?: number; alt_notes?: string[] };
 export type CastPayload =
-  | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; featured: boolean; lines: CastLine[]; method_label: string; method: string[]; moods?: string[] }
-  | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean }
+  | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; featured: boolean; lines: CastLine[]; method_label: string; method: string[]; moods?: string[]; rating: number | null; servings: number }
+  | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean; rating: number | null }
   | WinePayload;
 /** A Cellar wine's card (Brian via Rachel, 2026-10-06). Every field but the name may be missing; the card leaves it out. */
 export type WinePayload = {
@@ -39,11 +40,24 @@ export type WinePayload = {
   temp: string | null;
   serve_note: string | null;
   note: string | null;
+  /** Guests' average, two decimals, or null when nobody has voted. A vote bumps cast_version, so the band refetches this. */
+  rating: number | null;
 };
 export type Cast = { type: CastType; id: string; started_at: string; expires_at: string; payload: CastPayload };
 
-/** Build what the TV band shows, using the same rules as the phone pages. Null if not on the menu. */
-export async function castPayload(type: CastType, id: string): Promise<CastPayload | null> {
+/** Guests' average for the band. Null when nobody has voted, or if ratings can't be read (the cast still shows). */
+async function castRating(kind: "recipe" | "product", id: string): Promise<number | null> {
+  try {
+    const r = await loadAverage(kind, id);
+    return r.votes > 0 ? r.avg : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Build what the TV band shows, using the same rules as the phone pages. Null if not on the menu. `servings` (1–4) scales a recipe's measured lines. */
+export async function castPayload(type: CastType, id: string, servings = 1): Promise<CastPayload | null> {
+  const scale = type === "recipe" ? clampServings(servings) : 1;
   if (type === "recipe") {
     const r = await loadRecipe(id);
     if (!r) return null;
@@ -56,21 +70,28 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
       // Mood tags (migration 033), the /menu chip labels in MOODS order; none means no line on the band.
       moods: cleanMoods(r.moods),
       lines: r.lines.filter((l) => l.required || l.available || l.use_instead).map((l) => {
-        const or = altWords(l);
+        const scaled = {
+          ...l,
+          amount: scaleAmount(l.amount, l.unit, scale),
+          alternates: l.alternates?.map((a) => ({ ...a, amount: scaleAmount(a.amount, a.unit, scale) })),
+        };
+        const or = altWords(scaled);
         return {
-        ...lineText(l.amount, l.unit, l.name), out: !l.available,
+        ...lineText(l.amount, l.unit, l.name, scale), out: !l.available,
         use_instead: l.use_instead ? cap(l.use_instead) : null, optional: !l.required,
         // A preferred bottle is already named in the bottle line, same as the phone.
-        note: l.note && !l.preferred ? l.note : null,
+        note: l.note && !l.preferred ? scaleProse(l.note, scale) : null,
         // With alternates, the leading ingredient's bottles stop at 2 + "+N more" (same as the phone).
         bottles: l.bottles ? bottleLine(l.bottles, " · ", l.preferred, or.text ? 2 : 3) : null,
         bottle_parts: l.bottles ? bottleParts(l.bottles, " · ", l.preferred, or.text ? 2 : 3, l.featured) : null,
         // The TV can't be tapped: three or more stay "or Cognac +2".
-        or: or.text || null, or_more: or.more.length, alt_notes: or.notes,
+        or: or.text || null, or_more: or.more.length, alt_notes: or.notes.map((n) => scaleProse(n, scale)),
         };
       }),
       method_label: methodParts(r.description, r.method_style).label,
-      method: methodParts(r.description, r.method_style).paragraphs,
+      method: scaleMethod(methodParts(r.description, r.method_style).paragraphs, scale),
+      rating: await castRating("recipe", r.id),
+      servings: scale,
     };
   }
   if (type === "wine") return winePayload(id);
@@ -83,6 +104,7 @@ export async function castPayload(type: CastType, id: string): Promise<CastPaylo
   return {
     type, id: p.id, name: p.full_name, glass: "rocks", detail: detail || null,
     serve: s.main, serve_quiet: [...(p.serve_note ? [p.serve_note] : []), ...s.quiet], note: p.description, featured: p.featured,
+    rating: await castRating("product", p.id),
   };
 }
 
@@ -103,15 +125,16 @@ async function winePayload(id: string): Promise<WinePayload | null> {
     temp: wineTemp({ chilled: w.serves_chilled, neat: w.serves_neat, rocks: w.serves_rocks, styleGroup: w.style_group }),
     serve_note: w.serve_note?.trim() || null,
     note: w.description?.trim() || null,
+    rating: await castRating("product", w.id),
   };
 }
 
-type Row = { item_type: CastType; item_id: string; started_at: string; expires_at: string };
+type Row = { item_type: CastType; item_id: string; started_at: string; expires_at: string; servings: number };
 
-const CAST_ROW_PLAIN = "SELECT item_type, item_id, started_at, expires_at FROM tv_cast WHERE id = 1 AND expires_at > now()";
+const CAST_ROW_PLAIN = "SELECT item_type, item_id, started_at, expires_at, servings FROM tv_cast WHERE id = 1 AND expires_at > now()";
 // Open/Closed (migration 029): a cast started before the bar closed is over (closing deletes it; at the
 // 2:00 AM self-close this hides it). Casts an admin starts while Closed still show.
-const CAST_ROW_GATED = `SELECT t.item_type, t.item_id, t.started_at, t.expires_at
+const CAST_ROW_GATED = `SELECT t.item_type, t.item_id, t.started_at, t.expires_at, t.servings
   FROM tv_cast t LEFT JOIN bar_state() b ON true
  WHERE t.id = 1 AND t.expires_at > now() AND (b.closed_since IS NULL OR t.started_at >= b.closed_since)`;
 
@@ -136,29 +159,49 @@ export async function castRevision(): Promise<string> {
   const started = new Date(row.started_at);
   const stamp = Number.isNaN(started.getTime()) ? String(row.started_at) : started.toISOString();
   const v = await barVersions().catch(() => null);
-  return `${row.item_type}:${row.item_id}:${stamp}${v ? `:${v.cast}` : ""}`;
+  // Servings is part of the token so moving the slider refetches the band without restarting the cast.
+  return `${row.item_type}:${row.item_id}:${stamp}:s${clampServings(row.servings)}${v ? `:${v.cast}` : ""}`;
 }
 
 /** The current cast, or null when nothing is showing (expired casts count as nothing). */
 export async function currentCast(): Promise<Cast | null> {
   const row = await castRow();
   if (!row) return null;
-  const payload = await castPayload(row.item_type, row.item_id);
+  const payload = await castPayload(row.item_type, row.item_id, row.servings);
   if (!payload) return null; // e.g. the cocktail went off the menu mid-cast
   return { type: row.item_type, id: row.item_id, started_at: row.started_at, expires_at: row.expires_at, payload };
 }
 
-export async function startCast(type: CastType, id: string): Promise<Cast | null> {
-  const payload = await castPayload(type, id);
+export async function startCast(type: CastType, id: string, servings = 1): Promise<Cast | null> {
+  const scale = type === "recipe" ? clampServings(servings) : 1;
+  const payload = await castPayload(type, id, scale);
   if (!payload) return null;
   const [row] = await query<Row>(
-    `INSERT INTO tv_cast (id, item_type, item_id, started_at, expires_at)
-     VALUES (1, $1, $2, now(), now() + make_interval(secs => $3))
+    `INSERT INTO tv_cast (id, item_type, item_id, started_at, expires_at, servings)
+     VALUES (1, $1, $2, now(), now() + make_interval(secs => $3), $4)
      ON CONFLICT (id) DO UPDATE SET item_type = EXCLUDED.item_type, item_id = EXCLUDED.item_id,
-       started_at = EXCLUDED.started_at, expires_at = EXCLUDED.expires_at
-     RETURNING item_type, item_id, started_at, expires_at`,
-    [type, id, CAST_SECONDS],
+       started_at = EXCLUDED.started_at, expires_at = EXCLUDED.expires_at, servings = EXCLUDED.servings
+     RETURNING item_type, item_id, started_at, expires_at, servings`,
+    [type, id, CAST_SECONDS, scale],
   );
+  return { type: row.item_type, id: row.item_id, started_at: row.started_at, expires_at: row.expires_at, payload };
+}
+
+/**
+ * Change how many servings the TV is building, without restarting the 5 minutes.
+ * No-op (null) unless this recipe is the cast on screen right now.
+ */
+export async function setCastServings(id: string, servings: number): Promise<Cast | null> {
+  const scale = clampServings(servings);
+  const [row] = await query<Row>(
+    `UPDATE tv_cast SET servings = $2
+      WHERE id = 1 AND item_type = 'recipe' AND item_id = $1 AND expires_at > now()
+      RETURNING item_type, item_id, started_at, expires_at, servings`,
+    [id, scale],
+  );
+  if (!row) return null;
+  const payload = await castPayload("recipe", id, scale);
+  if (!payload) return null;
   return { type: row.item_type, id: row.item_id, started_at: row.started_at, expires_at: row.expires_at, payload };
 }
 

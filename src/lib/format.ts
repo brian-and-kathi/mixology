@@ -1,5 +1,60 @@
 const FRACTIONS: Record<string, string> = { "0.25": "¼", "0.5": "½", "0.75": "¾" };
-const PLURALS: Record<string, string> = { dash: "dashes", part: "parts", rind: "rinds", tbsp: "tbsp", barspoon: "barspoons" };
+const PLURALS: Record<string, string> = {
+  dash: "dashes", part: "parts", rind: "rinds", tbsp: "tbsp", barspoon: "barspoons",
+  slice: "slices", wedge: "wedges", leaf: "leaves", sprig: "sprigs", twist: "twists", drop: "drops", pinch: "pinches", cup: "cups",
+};
+
+/** Guest recipe servings: 1, 2, 3, or 4. Anything else is one serving. */
+export function clampServings(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= 4 ? n : 1;
+}
+
+const FRAC_IN: Record<string, number> = { "¼": 0.25, "½": 0.5, "¾": 0.75 };
+const QTY = "\\d+[¼½¾]?|[¼½¾]";
+
+function parseQty(s: string): number | null {
+  const m = s.match(/^(\d+)?([¼½¾])?$/);
+  if (!m || (!m[1] && !m[2])) return null;
+  return (m[1] ? Number(m[1]) : 0) + (m[2] ? FRAC_IN[m[2]] : 0);
+}
+
+/**
+ * Wording that states a count: "Serves 1." becomes "Serves 4.", and an ounce amount or range
+ * ("4½–6 oz") is multiplied. Minutes and other prose stay as written. One serving returns the text unchanged.
+ */
+export function scaleProse(text: string, servings: number): string {
+  if (servings === 1 || !text) return text;
+  const scaled = text.replaceAll(/\bServes 1\b/g, `Serves ${servings}`);
+  return scaled.replace(new RegExp(`(${QTY})(?:[–-](${QTY}))?\\s*oz`, "g"), (full, a: string, b?: string) => {
+    const n1 = parseQty(a);
+    if (n1 == null) return full;
+    const left = measure(String(n1 * servings), "oz").replace(/ oz$/, "");
+    if (!b) return `${left} oz`;
+    const n2 = parseQty(b);
+    if (n2 == null) return full;
+    const right = measure(String(n2 * servings), "oz").replace(/ oz$/, "");
+    return `${left}–${right} oz`;
+  });
+}
+
+/** Most methods end "Serves 1." Show the slider's count there, and scale any ounce amounts in the wording. */
+export function scaleMethod(paragraphs: string[], servings: number): string[] {
+  if (servings === 1) return paragraphs;
+  return paragraphs.map((p) => scaleProse(p, servings));
+}
+
+/**
+ * Multiply a measured line by servings. One serving returns the stored amount unchanged.
+ * "Top" and "rinse" have no amount. Quarters stay exact (every stored amount is a multiple of ¼).
+ */
+export function scaleAmount(amount: string | null, unit: string | null, servings: number): string | null {
+  if (servings === 1 || amount == null || amount === "" || unit === "top" || unit === "rinse") return amount;
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return amount;
+  const scaled = n * servings;
+  return String(Number(scaled.toFixed(2)));
+}
 
 /** "2.500" + "oz" -> "2½ oz"; "3.000" + "dash" -> "3 dashes". */
 export function measure(amount: string | null, unit: string | null): string {
@@ -102,10 +157,11 @@ export function splitMethod(description: string | null): { style: string | null;
 export const NO_AMOUNT_UNITS = ["top", "rinse"];
 
 /** How one recipe line reads to a guest: the amount column and the ingredient words. */
-export function lineText(amount: string | null, unit: string | null, name: string): { amount: string; name: string } {
+export function lineText(amount: string | null, unit: string | null, name: string, servings = 1): { amount: string; name: string } {
+  const scaled = scaleAmount(amount, unit, servings);
   if (unit === "top") return { amount: "", name: `Top with ${name.toLowerCase()}` };
   if (unit === "rinse") return { amount: "", name: `${cap(name)} rinse` };
-  return { amount: measure(amount, unit), name: cap(name) };
+  return { amount: measure(scaled, unit), name: cap(name) };
 }
 
 export const METHOD_STYLES = ["stirred", "shaken", "built", "blended", "rolled", "thrown", "swizzled", "warm", "warm, in a mug", "warm, batch"];

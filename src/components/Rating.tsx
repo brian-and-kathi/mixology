@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useId, useRef, useState, useSyncExternalStore } from "react";
 
 type Kind = "product" | "recipe";
 type State = { avg: number | null; votes: number; mine: number | null };
@@ -31,6 +31,14 @@ function useRating(key: string, initial: State): State {
 }
 
 const STAR = "M12 2.6l2.82 6.06 6.63.72-4.95 4.47 1.38 6.53L12 17.1l-5.88 3.28 1.38-6.53-4.95-4.47 6.63-.72z";
+
+const TIPS = [
+  ["5", "I could drink this daily."],
+  ["4", "I recommend this."],
+  ["3", "It's novel, but not great."],
+  ["2", "No thanks."],
+  ["1", "Never again."],
+] as const;
 
 /** "4.2 ★" under the glass. With no votes yet the line is kept (blank) so the first vote doesn't move anything. */
 export function RatingScore({ kind, id, initial }: { kind: Kind; id: string; initial: State }) {
@@ -76,9 +84,30 @@ export function RateDrink({ kind, id, name, initial }: { kind: Kind; id: string;
   };
 
   const lit = hover ?? r.mine ?? 0;
+  const tips = useRef<HTMLDialogElement>(null);
+  const tipsTitle = useId();
   return (
     <section className="rate">
-      <h2>{r.mine ? "Your rating" : "Rate it"}</h2>
+      <div className="rate-head">
+        <h2>{r.mine ? "Your rating" : "Rate it"}</h2>
+        <button type="button" className="rate-help" aria-label="Rating tips" onClick={() => tips.current?.showModal()}>
+          <span aria-hidden>(?)</span>
+        </button>
+      </div>
+      <dialog
+        ref={tips}
+        className="rate-tips"
+        aria-labelledby={tipsTitle}
+        onClick={(e) => { if (e.target === e.currentTarget) e.currentTarget.close(); }}
+      >
+        <h2 id={tipsTitle}>Rating tips</h2>
+        <ol>
+          {TIPS.map(([n, line]) => (
+            <li key={n}><b>{n}</b><span>{line}</span></li>
+          ))}
+        </ol>
+        <button type="button" className="rate-tips-close" onClick={() => tips.current?.close()}>Close</button>
+      </dialog>
       <div className="rate-stars" role="radiogroup" aria-label={`Rate ${name}`} onMouseLeave={() => setHover(null)}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button

@@ -98,22 +98,6 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(t);
   }, [live]);
 
-  // Guests' rating for the cast item, fetched once when a cast appears (not refreshed during the cast).
-  const castKey = shown ? `${shown.type}:${shown.id}:${shown.started_at}` : null;
-  const castType = shown?.type, castId = shown?.id;
-  const [rating, setRating] = useState<{ key: string; avg: number | null } | null>(null);
-  useEffect(() => {
-    if (!castKey || !castType || !castId) return;
-    let stop = false;
-    const kind = castType === "recipe" ? "recipe" : "product";
-    fetch(`/api/rate?kind=${kind}&id=${castId}`, { cache: "no-store" })
-      .then((r) => (r.ok ? (r.json() as Promise<{ avg: number | null; votes: number }>) : null))
-      .then((d) => { if (!stop && d) setRating({ key: castKey, avg: d.votes > 0 ? d.avg : null }); })
-      .catch(() => {}); // no stars is fine
-    return () => { stop = true; };
-  }, [castKey, castType, castId]);
-  const avg = rating && rating.key === castKey ? rating.avg : null;
-
   const highlight = open && shown ? { type: shown.type, id: shown.id } : null;
   const remaining = shown ? Math.max(0, Date.parse(shown.expires_at) - serverNow) : 0;
 
@@ -128,7 +112,7 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
               <CastBar key={`${shown.type}:${shown.id}:${shown.started_at}`} startedAt={shown.started_at} expiresAt={shown.expires_at} serverOffset={offset.current} />
             </div>
             <span className="tv-band-clock">{mss(remaining)}</span>
-            <BandBody payload={shown.payload} avg={avg} />
+            <BandBody payload={shown.payload} />
           </section>
         ) : null}
       </div>
@@ -194,7 +178,7 @@ function BandScore({ avg }: { avg: number | null }) {
 }
 
 /** The band's columns (30/35/35). Empty columns are left out; long content is scaled down to fit. */
-function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }) {
+function BandBody({ payload }: { payload: CastPayload }) {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   useEffect(() => setScale(1), [payload]);
@@ -216,10 +200,11 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
           {payload.glass ? (
             <div className="tv-band-lead">
               <GlassIcon glass={payload.glass} className="tv-band-glass" />
-              <BandStars avg={avg} />
+              <BandStars avg={payload.rating} />
             </div>
           ) : null}
           <h3 className="tv-band-name">{payload.name}</h3>
+          {payload.servings > 1 ? <p className="tv-band-serve">Serves {payload.servings}</p> : null}
           {/* Moods (Brian via Vincent, 2026-10-04): the /menu chip labels on one quiet line under the name; none, no line. */}
           <MoodLine moods={payload.moods} className="tv-band-moods" />
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
@@ -278,7 +263,7 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
         <>
           <div className="tv-band-lead tv-band-lead-score">
             <GlassIcon glass={payload.glass} className="tv-band-glass" />
-            <BandScore avg={avg} />
+            <BandScore avg={payload.rating} />
           </div>
           <h3 className="tv-band-name">{payload.name}</h3>
           {payload.grapes.length ? (
@@ -319,7 +304,7 @@ function BandBody({ payload, avg }: { payload: CastPayload; avg: number | null }
         <>
           <div className="tv-band-lead">
             <GlassIcon glass={payload.glass} className="tv-band-glass" />
-            <BandStars avg={avg} />
+            <BandStars avg={payload.rating} />
           </div>
           <h3 className="tv-band-name">{payload.name}</h3>
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}

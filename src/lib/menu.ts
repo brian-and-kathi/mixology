@@ -3,8 +3,8 @@ import { spiritFamily } from "@/lib/spirit-family";
 import { badgeFor, specLabel } from "@/lib/spec-label";
 import { CELLAR_COLORS, cellarColor } from "@/lib/moods";
 import { spelledOrigin } from "@/lib/us-states";
-import { cap, lineText } from "@/lib/format";
-import { orText, swapMethodText } from "@/lib/alternates";
+import { swapMethodText } from "@/lib/alternates";
+export { altWords } from "@/lib/alt-words";
 
 // Section order is fixed everywhere (TV and phone): Pours, Cocktails, Cellar.
 export const SECTIONS = [
@@ -288,25 +288,6 @@ export type RecipeLine = {
    */
   alternates: { name: string; amount: string | null; unit: string | null; note: string | null }[];
 };
-
-/**
- * The muted "or …" after a line's leading ingredient (migration 034; Vincent's spec, 2026-10-06): "or Cognac",
- * "or Cognac, Brandy", three or more "or Cognac +2" (`more` opens on tap on the phone). An alternate poured in a
- * different amount names it ("or ½ oz Rich syrup (2:1)"). `notes`: each alternate's own note, "Rich syrup (2:1): …".
- */
-export function altWords(line: Pick<RecipeLine, "amount" | "unit" | "alternates">): { text: string; more: string[]; notes: string[] } {
-  const alts = line.alternates ?? [];
-  const num = (v: string | null) => (v === null || v === "" ? null : Number(v));
-  const label = (a: RecipeLine["alternates"][number]) => {
-    const same = num(a.amount) === num(line.amount) && (a.unit ?? null) === (line.unit ?? null);
-    if (same) return line.unit === "top" ? a.name.toLowerCase() : cap(a.name);
-    const t = lineText(a.amount, a.unit, a.name);
-    // "½ oz" never splits from itself or from the name.
-    return t.amount ? `${t.amount.replace(/ /g, "\u00a0")}\u00a0${t.name}` : t.name;
-  };
-  const { text, more } = orText(alts.map(label));
-  return { text, more, notes: alts.filter((a) => a.note).map((a) => `${cap(a.name)}: ${a.note}`) };
-}
 
 export type Recipe = {
   id: string;

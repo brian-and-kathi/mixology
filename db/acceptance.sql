@@ -1639,6 +1639,56 @@ BEGIN
   RAISE NOTICE 'check 32 passed';
 END $$;
 
+-- 33. Free-text shopping list (036): a trimmed line of at most 120 characters,
+-- ticked off in place, then removable.
+DO $$
+DECLARE
+  v_id uuid;
+BEGIN
+  INSERT INTO shopping_items (label) VALUES ('aluminum foil') RETURNING id INTO v_id;
+  IF NOT EXISTS (SELECT 1 FROM shopping_items WHERE id = v_id AND label = 'aluminum foil' AND NOT done) THEN
+    RAISE EXCEPTION 'check 33 failed: a new line was not stored unchecked';
+  END IF;
+  UPDATE shopping_items SET done = true WHERE id = v_id;
+  IF NOT EXISTS (SELECT 1 FROM shopping_items WHERE id = v_id AND done) THEN
+    RAISE EXCEPTION 'check 33 failed: checking a line did not stick';
+  END IF;
+  BEGIN INSERT INTO shopping_items (label) VALUES ('  foil'); RAISE EXCEPTION 'check 33 failed: an untrimmed line was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN INSERT INTO shopping_items (label) VALUES (''); RAISE EXCEPTION 'check 33 failed: a blank line was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN INSERT INTO shopping_items (label) VALUES (repeat('x', 121)); RAISE EXCEPTION 'check 33 failed: a line over 120 characters was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  DELETE FROM shopping_items WHERE id = v_id;
+  RAISE NOTICE 'check 33 passed';
+END $$;
+
+-- 34. Recipe cast servings (037): 1–4, default 1. Zero and five are rejected.
+-- The insert omits the column, the way casts from before this column did.
+DO $$
+DECLARE
+  v_id uuid := gen_random_uuid();
+BEGIN
+  DELETE FROM tv_cast;
+  INSERT INTO tv_cast (id, item_type, item_id, started_at, expires_at) VALUES (1, 'recipe', v_id, now(), now() + interval '5 minutes');
+  IF NOT EXISTS (SELECT 1 FROM tv_cast WHERE id = 1 AND item_id = v_id AND servings = 1) THEN
+    RAISE EXCEPTION 'check 34 failed: a new cast did not default to 1 serving';
+  END IF;
+  UPDATE tv_cast SET servings = 4 WHERE id = 1;
+  IF NOT EXISTS (SELECT 1 FROM tv_cast WHERE id = 1 AND servings = 4) THEN
+    RAISE EXCEPTION 'check 34 failed: 4 servings was not stored';
+  END IF;
+  BEGIN UPDATE tv_cast SET servings = 0 WHERE id = 1; RAISE EXCEPTION 'check 34 failed: 0 servings was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE tv_cast SET servings = 5 WHERE id = 1; RAISE EXCEPTION 'check 34 failed: 5 servings was accepted';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  IF NOT EXISTS (SELECT 1 FROM tv_cast WHERE id = 1 AND servings = 4) THEN
+    RAISE EXCEPTION 'check 34 failed: a rejected servings change stuck';
+  END IF;
+  DELETE FROM tv_cast WHERE id = 1;
+  RAISE NOTICE 'check 34 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

@@ -5,7 +5,9 @@ import { onBarStatus } from "@/lib/bar-events";
 import type { CastType } from "@/lib/cast";
 import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
 
-type CastState = { type: string; id: string; started_at: string; expires_at: string } | null;
+type CastState = { type: string; id: string; started_at: string; expires_at: string; servings: number } | null;
+/** GET /api/cast returns the row plus its built payload. Servings live on a recipe payload. */
+type CastWire = { type: string; id: string; started_at: string; expires_at: string; payload?: { type?: string; servings?: number } } | null;
 
 const POLL_MS = 10_000;
 const HIDE_MS = 5_000;
@@ -72,7 +74,7 @@ const mss = (ms: number) => {
  * "Show on TV" on every cocktail, pour and Cellar wine page (DESIGN §10). Casting replaces whatever is on
  * the TV with no confirmation; while this item is showing, anyone on this page can take it off.
  */
-export function CastButton({ type, id }: { type: CastType; id: string }) {
+export function CastButton({ type, id, servings, onServings }: { type: CastType; id: string; servings?: number; onServings?: (n: number) => void }) {
   const [cast, setCast] = useState<CastState>(null);
   const [offset, setOffset] = useState(0);
   const [now, setNow] = useState(() => Date.now());
@@ -82,12 +84,19 @@ export function CastButton({ type, id }: { type: CastType; id: string }) {
 
   const castRef = useRef(cast);
   castRef.current = cast;
+  const servingsRef = useRef(servings);
+  servingsRef.current = servings;
+  /** Servings last confirmed by the server for this cast, so a poll doesn't fight the slider. */
+  const remoteServings = useRef<number | null>(null);
+  const onServingsRef = useRef(onServings);
+  onServingsRef.current = onServings;
   /** Set while this tab's own "Take it off the TV" is in flight, so that removal shows no message. */
   const selfStop = useRef(false);
 
-  const apply = useCallback((data: { cast: CastState; now: string }) => {
+  const apply = useCallback((data: { cast: CastWire; now: string }) => {
     setOffset(Date.parse(data.now) - Date.now());
-    const next = data.cast ? { type: data.cast.type, id: data.cast.id, started_at: data.cast.started_at, expires_at: data.cast.expires_at } : null;
+    const fromPayload = data.cast?.payload?.type === "recipe" ? data.cast.payload.servings : undefined;
+    const next = data.cast ? { type: data.cast.type, id: data.cast.id, started_at: data.cast.started_at, expires_at: data.cast.expires_at, servings: fromPayload ?? 1 } : null;
     // This item was on the TV with time left and the server no longer shows it: say so, and why.
     const prev = castRef.current;
     const wasOurs = !!prev && prev.type === type && prev.id === id && Date.parse(prev.expires_at) - Date.parse(data.now) > EARLY_MS;
@@ -96,6 +105,10 @@ export function CastButton({ type, id }: { type: CastType; id: string }) {
     else if (wasOurs && !stillOurs && !selfStop.current) void endedReason().then(setEnded);
     castRef.current = next;
     setCast(next);
+    if (next && next.type === type && next.id === id) {
+      remoteServings.current = next.servings;
+      onServingsRef.current?.(next.servings);
+    }
     // Drop ownership once the server no longer has the cast this tab started.
     const saved = readOwn();
     if (saved && saved.type === type && saved.id === id && (!next || ownKey(next) !== ownKey(saved))) writeOwn(null);
@@ -182,13 +195,36 @@ export function CastButton({ type, id }: { type: CastType; id: string }) {
   const remaining = cast ? Date.parse(cast.expires_at) - (now + offset) : 0;
   const onTv = !!cast && cast.type === type && cast.id === id && remaining > 0;
 
+  // This recipe is already on the TV and the slider moved: tell the TV without restarting the 5 minutes.
+  useEffect(() => {
+    if (type !== "recipe" || servings == null || !onTv) return;
+    if (remoteServings.current == null || servings === remoteServings.current) return;
+    const n = servings;
+    const t = window.setTimeout(() => {
+      remoteServings.current = n;
+      void fetch("/api/cast", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type, id, servings: n, keep: true }),
+      }).then(async (res) => {
+        if (res.ok) apply(await res.json());
+      }).catch(() => {});
+    }, 150);
+    return () => window.clearTimeout(t);
+  }, [servings, onTv, type, id, apply]);
+
   async function send(method: "POST" | "DELETE") {
     setBusy(true);
     setError(null);
     setEnded(null);
     selfStop.current = method === "DELETE";
     try {
-      const res = await fetch("/api/cast", { method, headers: { "content-type": "application/json" }, body: JSON.stringify({ type, id }) });
+      const scale = servingsRef.current;
+      const res = await fetch("/api/cast", {
+        method,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type, id, ...(method === "POST" && type === "recipe" && scale != null ? { servings: scale } : {}) }),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error ?? "Couldn't reach the TV.");
       apply(data);

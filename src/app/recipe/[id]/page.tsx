@@ -1,16 +1,15 @@
 import { ClosedPage } from "@/components/ClosedPage";
 import { guestGate, publicStatus } from "@/lib/bar-status";
 import { notFound } from "next/navigation";
-import { CastButton } from "@/components/CastButton";
 import { DrinkLead } from "@/components/DrinkLead";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { PhoneShell } from "@/components/PhoneShell";
-import { RecipePin } from "@/components/RecipePin";
+import { RecipeScale, type ScaleLine } from "@/components/RecipeScale";
 import { RateDrink } from "@/components/Rating";
 import { isAdmin } from "@/lib/admin-guard";
-import { altGlassLine, cap, glassLine, lineText, methodParts } from "@/lib/format";
-import { altWords, bottleParts, loadLocked, loadRecipe, PHONE_DOT } from "@/lib/menu";
-import { AltOr } from "@/components/AltOr";
+import { altWords } from "@/lib/alt-words";
+import { altGlassLine, glassLine, methodParts } from "@/lib/format";
+import { bottleParts, loadLocked, loadRecipe, PHONE_DOT } from "@/lib/menu";
 import { LockedPage } from "@/components/LockedPage";
 import { MoodLine } from "@/components/MoodLine";
 import { cleanMoods } from "@/lib/moods";
@@ -38,6 +37,23 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const editHref = admin ? `/admin/recipes/${recipe.id}` : undefined;
 
   const { label: methodLabel, paragraphs: method } = methodParts(recipe.description, recipe.method_style);
+  // An optional ingredient that is out tonight (with no stand-in) is left off. Amounts stay as stored;
+  // the slider scales them. Bottle lines are capped at 2 when the line has an alternate, same as before.
+  const lines: ScaleLine[] = recipe.lines.filter((line) => line.required || line.available || line.use_instead).map((line) => {
+    const or = altWords(line);
+    return {
+      position: line.position,
+      amount: line.amount,
+      unit: line.unit,
+      name: line.name,
+      available: line.available,
+      required: line.required,
+      useInstead: line.use_instead,
+      note: line.note && !line.preferred ? line.note : null,
+      parts: line.bottles ? bottleParts(line.bottles, PHONE_DOT, line.preferred, or.text ? 2 : 3, line.featured) : null,
+      alternates: line.alternates,
+    };
+  });
 
   return (
     <PhoneShell bar={bar}
@@ -59,53 +75,8 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         </section>
       ) : null}
 
-      {/* Pinned while the recipe scrolls; once pinned it shows a small glass and the name beside the button. */}
-      <RecipePin glass={recipe.glass ?? ""} title={recipe.name}>
-        <CastButton type="recipe" id={recipe.id} />
-      </RecipePin>
-
-      <section>
-        <h2>Ingredients</h2>
-        <ul className="ingredients">
-          {/* An optional ingredient that is out tonight (with no stand-in) is simply left off. */}
-          {recipe.lines.filter((line) => line.required || line.available || line.use_instead).map((line) => {
-            // Alternates (migration 034): the in-stock ones after the leading ingredient, muted, same line.
-            const or = altWords(line);
-            return (
-            <li key={line.position}>
-              <span className="measure">{lineText(line.amount, line.unit, line.name).amount}</span>
-              <span className="ingredient">
-                <span className={line.available ? "" : "out"}>{lineText(line.amount, line.unit, line.name).name}</span>
-                {or.text ? <AltOr text={or.text} more={or.more} /> : null}
-                {!line.available ? <span className="tag-out">out tonight</span> : null}
-                {line.use_instead ? <strong> (use {cap(line.use_instead)})</strong> : null}
-                {!line.required ? <span className="quiet"> (optional)</span> : null}
-                {line.bottles ? (
-                  <span className="quiet bottles">
-                    {/* A featured bottle (migration 030) is copper with the tag, and listed first. */}
-                    {/* With alternates the leading ingredient's bottles stop at 2 + "+N more", so the line stays short. */}
-                    {bottleParts(line.bottles, PHONE_DOT, line.preferred, or.text ? 2 : 3, line.featured).map((part, i) =>
-                      part.featured ? <span key={i}><span className="feat-name">{part.text}</span><FeaturedTag /></span> : part.text)}
-                  </span>
-                ) : null}
-                {/* A "Grand Marnier preferred" note is already in the bottle line as "Grand Marnier (preferred)". */}
-                {line.note && !line.preferred ? <span className="quiet note">{line.note}</span> : null}
-                {or.notes.map((n, i) => <span key={i} className="quiet note">{n}</span>)}
-              </span>
-            </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      {method.length > 0 ? (
-        <section>
-          <h2>{methodLabel}</h2>
-          {method.map((p, i) => (
-            <p key={i} className="method">{p}</p>
-          ))}
-        </section>
-      ) : null}
+      {/* Pinned while the recipe scrolls. Servings scales the lines and, once cast, the TV. */}
+      <RecipeScale id={recipe.id} glass={recipe.glass ?? ""} title={recipe.name} lines={lines} methodLabel={methodLabel} method={method} />
 
       <RateDrink kind="recipe" id={recipe.id} name={recipe.name} initial={rating} />
     </PhoneShell>

@@ -335,6 +335,12 @@ a.card:active { background: #202020; }
   .ingredients li { grid-column: 1 / -1; grid-template-columns: subgrid; }
 }
 .measure { white-space: nowrap; }
+/* Recipe servings: 1 is the card as written; 2–4 scale the measured lines. */
+.servings { margin: 0 0 0.85rem; }
+.servings-label { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.95rem; color: var(--quiet); }
+.servings-label b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.servings input[type="range"] { display: block; width: 100%; margin: 0.2rem 0 0; accent-color: var(--gold); height: 36px; }
+.servings-ticks { display: flex; justify-content: space-between; padding: 0 0.2rem; font-size: 0.78rem; color: var(--quiet); font-variant-numeric: tabular-nums; }
 .measure { font-variant-numeric: tabular-nums; color: var(--quiet); }
 .ingredient .note { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
 /* In-stock bottles behind the ingredient (loadRecipe / spec_supply), under the name column. */
@@ -417,6 +423,40 @@ a.card:active { background: #202020; }
 .rate-meta { font-size: 0.9rem; min-height: 2.75rem; display: flex; align-items: center; flex-wrap: wrap; white-space: pre; }
 .rate-clear { border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 3px; padding: 0.75rem 0.1rem; cursor: pointer; }
 .rate-error { color: #e8a0a0; white-space: normal; }
+/* (?) beside the heading opens the five-point guide. The circle is small; the button is a full tap target. */
+.rate-head { display: flex; align-items: center; gap: 0.1rem; margin-bottom: 0.15rem; }
+.rate-head h2 { margin-bottom: 0; }
+.rate-help {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin: -6px 0; padding: 0;
+  border: 0; background: none; color: var(--quiet); cursor: pointer; font: inherit;
+}
+.rate-help span {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.35rem; height: 1.15rem; padding: 0 0.2rem; border-radius: 999px;
+  border: 1px solid currentColor; font-size: 0.68rem; letter-spacing: 0; line-height: 1;
+}
+.rate-help:focus-visible { outline: 2px solid var(--cream); outline-offset: -6px; border-radius: 8px; }
+.rate-tips {
+  margin: auto; width: min(22rem, calc(100vw - 2rem)); padding: 1.15rem 1.2rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 14px;
+  background: #10140f; color: var(--text); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+}
+.rate-tips::backdrop { background: rgba(0, 0, 0, 0.62); }
+.phone-body .rate-tips h2 {
+  margin: 0; font-family: var(--font-title), Georgia, serif; font-weight: 400;
+  font-size: 1.35rem; letter-spacing: 0; text-transform: none; color: var(--text);
+}
+.rate-tips ol { list-style: none; margin: 0.9rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.65rem; }
+.rate-tips li { display: flex; gap: 0.7rem; align-items: baseline; line-height: 1.35; }
+.rate-tips b { flex: 0 0 0.7em; color: var(--gold); font-weight: 600; font-variant-numeric: tabular-nums; }
+.rate-tips-close {
+  display: flex; align-items: center; justify-content: center; width: 100%;
+  min-height: 48px; margin-top: 1rem; border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22); background: transparent; color: var(--text);
+  font: inherit; cursor: pointer;
+}
+.rate-tips-close:focus-visible { outline: 2px solid var(--cream); outline-offset: 2px; }
 
 /* ---- Bar Open/Closed (DESIGN §3.1) ---- */
 /* TV while Closed: the board stays underneath a big diagonal "Closed" (light blue, 28%), a sad face on each side.

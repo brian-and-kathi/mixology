@@ -11,7 +11,7 @@ const ICON = (
   </svg>
 );
 
-/** Header menu on every signed-in admin screen. The bar's Open/Closed switch (shared with the Bar tab), guest menu, database, Clear TV, and sign out live here. */
+/** Header menu on every signed-in admin screen. The bar's Open/Closed switch (shared with the Bar tab), shopping list, guest menu, database, Clear TV, and sign out live here. */
 export function AdminMenu() {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -68,6 +68,7 @@ export function AdminMenu() {
           {/* One tap flips the bar (DESIGN §3.1). Closing also takes down whatever is on the TV. */}
           <BarSwitchRow bar={bar} sub={bar.open ? "Closes itself at 2:00 AM" : "Only admins can get in"} />
           <hr />
+          <Link href="/admin/shop" onClick={() => setOpen(false)}>Shopping list</Link>
           <Link href="/menu" onClick={() => setOpen(false)}>Guest menu</Link>
           <Link href="/db/products" onClick={() => setOpen(false)}>Database</Link>
           <hr />

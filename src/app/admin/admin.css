@@ -173,6 +173,11 @@ body:has(.admin-root) { background: #07101c; }
 }
 .a-glance-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--a-accent); font-weight: 600; }
 .a-count { font-size: 0.8rem; color: var(--quiet); background: var(--a-raised-2); border-radius: 999px; padding: 0.05rem 0.55rem; }
+/* To Buy: the ingredient stays readable; Add / Remove sits on the right and talks to the shopping list. */
+.a-glance-rows li { display: flex; align-items: center; gap: 0.65rem; }
+.a-glance-copy { flex: 1; min-width: 0; }
+.a-glance-add { flex-shrink: 0; min-width: 6.25rem; padding: 0 0.7rem; }
+.a-glance-add.is-on { background: var(--a-raised-2); border-color: color-mix(in srgb, var(--a-accent) 50%, transparent); }
 
 /* Stock rows */
 .a-recent { border: 1px dashed rgba(255,255,255,0.18); border-radius: 12px; padding: 0.5rem 0.9rem; }

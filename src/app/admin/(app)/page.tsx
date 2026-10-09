@@ -4,13 +4,14 @@ import { Glance } from "@/components/admin/Glance";
 import { StockBoard } from "@/components/admin/StockBoard";
 import { loadGlance, loadRecentChanges, loadStock } from "@/lib/admin-data";
 import { SEARCH, cleanSearch } from "@/lib/search-cookie";
+import { loadShopping } from "@/lib/shopping";
 
 export const metadata = { title: "Stock" };
 
 export default async function StockPage({ searchParams }: { searchParams: Promise<{ q?: string; saved?: string }> }) {
   const { q, saved: savedBottle } = await searchParams;
   const saved = cleanSearch((await cookies()).get(SEARCH.stock)?.value);
-  const [items, recent, glance] = await Promise.all([loadStock(), loadRecentChanges(), loadGlance()]);
+  const [items, recent, glance, shop] = await Promise.all([loadStock(), loadRecentChanges(), loadGlance(), loadShopping()]);
   // Soft warning counts what guests see: Featured AND in stock (an out bottle features nothing).
   const featuredN = items.filter((i) => i.featured && i.in_stock).length;
   return (
@@ -20,7 +21,7 @@ export default async function StockPage({ searchParams }: { searchParams: Promis
       {/* Soft warning (migration 030): more than 3 bottles Featured and in stock. Non-blocking. */}
       {featuredN > 3 ? <p className="a-warn" role="status">{featuredN} in-stock bottles are Featured. Guests will see them all; three or fewer usually works best.</p> : null}
       {/* At a glance: collapsed at the top, above search. Open, its title stays pinned while its list scrolls. */}
-      <Glance data={glance} />
+      <Glance data={glance} shop={shop} />
       <ClearTv />
       <StockBoard items={items} recent={recent} initialQuery={q !== undefined ? cleanSearch(q) : saved} />
     </>

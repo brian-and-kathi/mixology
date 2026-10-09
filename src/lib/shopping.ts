@@ -1,5 +1,6 @@
 import { UserError } from "@/lib/admin-guard";
 import { isUuid, query } from "@/lib/db";
+import { shopKey } from "@/lib/shop-label";
 
 /** One line on the admin shopping list. Order is oldest first, the way a paper list grows. */
 export type ShopItem = { id: string; label: string; done: boolean };
@@ -36,6 +37,14 @@ export async function setShoppingDone(id: string, done: boolean): Promise<void> 
 export async function removeShopping(id: string): Promise<void> {
   if (!isUuid(id)) throw new UserError("That item isn't on the list.");
   await query(`DELETE FROM shopping_items WHERE id = $1::uuid`, [id]);
+}
+
+/** Drop every line that reads as the same item, including a different capital letter. Missing is fine. */
+export async function removeShoppingByLabel(raw: unknown): Promise<void> {
+  const key = shopKey(cleanLabel(raw));
+  const ids = (await loadShopping()).filter((item) => shopKey(item.label) === key).map((item) => item.id);
+  if (!ids.length) return;
+  await query(`DELETE FROM shopping_items WHERE id = ANY($1::uuid[])`, [ids]);
 }
 
 export async function clearDoneShopping(): Promise<void> {

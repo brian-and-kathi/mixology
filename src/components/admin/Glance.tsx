@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { api } from "@/components/admin/api";
 import type { Glance as GlanceData } from "@/lib/admin-data";
 import { cap } from "@/lib/format";
+import { shopKey } from "@/lib/shop-label";
+import type { ShopItem } from "@/lib/shopping";
 import { Chevron } from "./Disclosure";
 
 type Tab = "buy" | "away" | "out";
@@ -15,13 +18,53 @@ function tabName(label: string) {
   return <>{label.slice(0, slash + 1)}<wbr />{label.slice(slash + 1)}</>;
 }
 
+/** The words written onto the shopping list: the ingredient line, without the "(with …)" note. */
+function buyName(b: GlanceData["buy"][number]) {
+  return cap(b.specs.join(" + "));
+}
+
 /** "At a glance": what to buy, what is one away, and what is out and unused. Collapsed at the top of Stock. */
-export function Glance({ data }: { data: GlanceData }) {
+export function Glance({ data, shop }: { data: GlanceData; shop: ShopItem[] }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<Tab>("buy");
+  const [shopItems, setShopItems] = useState(shop);
+  const [shopError, setShopError] = useState<string | null>(null);
+  const shopRef = useRef(shop);
+  const seq = useRef(0);
+  const tail = useRef(Promise.resolve());
   const label = (b: GlanceData["buy"][number]) =>
-    `${cap(b.specs.join(" + "))}${b.with.length ? ` (with ${b.with.join(", ")})` : b.specs.length > 1 ? " (together)" : ""}`;
+    `${buyName(b)}${b.with.length ? ` (with ${b.with.join(", ")})` : b.specs.length > 1 ? " (together)" : ""}`;
+  const onList = (name: string) => shopItems.some((item) => shopKey(item.label) === shopKey(name));
+
+  function showShop(next: ShopItem[]) {
+    shopRef.current = next;
+    setShopItems(next);
+  }
+
+  /** One save at a time, so a second tap cannot be overwritten by the first reply. */
+  function toggleShop(name: string) {
+    const key = shopKey(name);
+    const n = ++seq.current;
+    const before = shopRef.current;
+    const already = before.some((item) => shopKey(item.label) === key);
+    setShopError(null);
+    showShop(already
+      ? before.filter((item) => shopKey(item.label) !== key)
+      : [...before, { id: `pending-${n}`, label: name, done: false }]);
+    const work = async () => {
+      try {
+        const saved = await api<{ items: ShopItem[] }>("/api/admin/shopping", "POST", already ? { label: name, remove: true } : { label: name });
+        if (n === seq.current) showShop(saved.items);
+      } catch (e) {
+        if (n !== seq.current) return;
+        showShop(before);
+        setShopError(e instanceof Error ? e.message : "Couldn't save. Try again.");
+      }
+    };
+    const run = tail.current.then(work, work);
+    tail.current = run.then(() => {}, () => {});
+  }
   const list = data.buy.map((b) => `- ${label(b)}: unlocks ${b.recipes.join(", ")}`).join("\n");
   const shareText = `Bar shopping list\n${list}`;
   async function share() {
@@ -83,15 +126,31 @@ export function Glance({ data }: { data: GlanceData }) {
         {tab === "buy" ? (
           data.buy.length === 0 ? <p className="a-quiet">Nothing to buy. Every recipe can be made.</p> : (
             <>
-              <ul className="a-plain">
-                {data.buy.map((b) => (
-                  <li key={b.specs.join("|")}>
-                    <strong>{cap(b.specs.join(" + "))}</strong>
-                    {b.with.length ? <span className="a-quiet"> (with {b.with.join(", ")})</span> : b.specs.length > 1 ? <span className="a-quiet"> (together)</span> : null}
-                    <span className="a-quiet"> unlocks {b.recipes.length === 1 ? b.recipes[0] : `${b.recipes.length}: ${b.recipes.join(", ")}`}</span>
-                  </li>
-                ))}
+              <ul className="a-plain a-glance-rows">
+                {data.buy.map((b) => {
+                  const name = buyName(b);
+                  const listed = onList(name);
+                  return (
+                    <li key={b.specs.join("|")}>
+                      <span className="a-glance-copy">
+                        <strong>{name}</strong>
+                        {b.with.length ? <span className="a-quiet"> (with {b.with.join(", ")})</span> : b.specs.length > 1 ? <span className="a-quiet"> (together)</span> : null}
+                        <span className="a-quiet"> unlocks {b.recipes.length === 1 ? b.recipes[0] : `${b.recipes.length}: ${b.recipes.join(", ")}`}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className={listed ? "a-btn a-glance-add is-on" : "a-btn a-glance-add"}
+                        aria-pressed={listed}
+                        aria-label={listed ? `Remove ${name} from the shopping list` : `Add ${name} to the shopping list`}
+                        onClick={() => toggleShop(name)}
+                      >
+                        {listed ? "Remove" : "Add"}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
+              {shopError ? <p className="a-error" role="alert">{shopError}</p> : null}
               <button type="button" className="a-btn" onClick={share}>{copied ? "Copied" : "Copy / share list"}</button>
             </>
           )

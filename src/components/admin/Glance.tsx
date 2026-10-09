@@ -33,6 +33,20 @@ function onShop(items: { label: string }[], name: string) {
   return items.some((item) => shopKey(item.label) === key);
 }
 
+function ShopButton({ phrase, listed, onClick }: { phrase: string; listed: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={listed ? "a-btn a-glance-add is-on" : "a-btn a-glance-add"}
+      aria-pressed={listed}
+      aria-label={listed ? `Remove ${phrase} from the shopping list` : `Add ${phrase} to the shopping list`}
+      onClick={onClick}
+    >
+      {listed ? "Remove" : "Add"}
+    </button>
+  );
+}
+
 /** "At a glance": what to buy, what is one away, and what is out and unused. Collapsed at the top of Stock. */
 export function Glance({ data, shop }: { data: GlanceData; shop: ShopItem[] }) {
   const [open, setOpen] = useState(false);
@@ -167,15 +181,7 @@ export function Glance({ data, shop }: { data: GlanceData; shop: ShopItem[] }) {
                         {b.with.length ? <span className="a-quiet"> (with {b.with.join(", ")})</span> : b.specs.length > 1 ? <span className="a-quiet"> (together)</span> : null}
                         <span className="a-quiet"> unlocks {b.recipes.length === 1 ? b.recipes[0] : `${b.recipes.length}: ${b.recipes.join(", ")}`}</span>
                       </span>
-                      <button
-                        type="button"
-                        className={listed ? "a-btn a-glance-add is-on" : "a-btn a-glance-add"}
-                        aria-pressed={listed}
-                        aria-label={listed ? `Remove ${phrase} from the shopping list` : `Add ${phrase} to the shopping list`}
-                        onClick={() => toggleShop(names, names.length > 1 ? name : undefined)}
-                      >
-                        {listed ? "Remove" : "Add"}
-                      </button>
+                      <ShopButton phrase={phrase} listed={listed} onClick={() => toggleShop(names, names.length > 1 ? name : undefined)} />
                     </li>
                   );
                 })}
@@ -187,11 +193,24 @@ export function Glance({ data, shop }: { data: GlanceData; shop: ShopItem[] }) {
         ) : null}
         {tab === "away" ? (
           data.oneAway.length === 0 ? <p className="a-quiet">No recipe is one ingredient away.</p> : (
-            <ul className="a-plain">
-              {data.oneAway.map((r) => (
-                <li key={r.id}><Link href={`/admin/recipes/${r.id}`}>{r.name}</Link> <span className="a-quiet">needs {r.missing[0]}</span></li>
-              ))}
-            </ul>
+            <>
+              <ul className="a-plain a-glance-rows">
+                {data.oneAway.map((r) => {
+                  const name = cap(r.missing[0]);
+                  const listed = onList(name);
+                  return (
+                    <li key={r.id}>
+                      <span className="a-glance-copy">
+                        <Link href={`/admin/recipes/${r.id}`}>{r.name}</Link>
+                        <span className="a-quiet"> needs {name}</span>
+                      </span>
+                      <ShopButton phrase={name} listed={listed} onClick={() => toggleShop([name])} />
+                    </li>
+                  );
+                })}
+              </ul>
+              {shopError ? <p className="a-error" role="alert">{shopError}</p> : null}
+            </>
           )
         ) : null}
         {tab === "out" ? (

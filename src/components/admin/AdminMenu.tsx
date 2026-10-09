@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { useTvCast } from "@/components/admin/ClearTv";
 import { BarSwitchRow, useBar } from "@/components/admin/BarSwitch";
+import { SiteLinks } from "@/components/SiteLinks";
 
 const ICON = (
   <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -11,7 +12,7 @@ const ICON = (
   </svg>
 );
 
-/** Header menu on every signed-in admin screen. The bar's Open/Closed switch (shared with the Bar tab), shopping list, guest menu, TV, database, Clear TV, and sign out live here. */
+/** Header menu on every signed-in admin screen. TV, Guest, Admin, and Database sit on top, then the bar switch, shopping list, Clear TV, and sign out. */
 export function AdminMenu() {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -65,13 +66,12 @@ export function AdminMenu() {
       </button>
       <div ref={panel} id={id} className="a-menu-panel" hidden={!open}>
         <nav aria-label="Admin">
+          <SiteLinks onNavigate={() => setOpen(false)} />
+          <hr />
           {/* One tap flips the bar (DESIGN §3.1). Closing also takes down whatever is on the TV. */}
           <BarSwitchRow bar={bar} sub={bar.open ? "Closes itself at 2:00 AM" : "Only admins can get in"} />
           <hr />
           <Link href="/admin/shop" onClick={() => setOpen(false)}>Shopping list</Link>
-          <Link href="/menu" onClick={() => setOpen(false)}>Guest menu</Link>
-          <Link href="/tv" onClick={() => setOpen(false)}>TV</Link>
-          <Link href="/db/products" onClick={() => setOpen(false)}>Database</Link>
           <hr />
           <p className="a-menu-status">{tv.live ? `On the TV: ${tv.name}` : "TV is showing the menu"}</p>
           <button type="button" onClick={() => void tv.clear()} disabled={tv.busy || !tv.live}>

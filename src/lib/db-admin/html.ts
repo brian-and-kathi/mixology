@@ -1,5 +1,6 @@
 // @ts-nocheck
 // Adding, editing and deleting records. Stock in/out and running the bar live in /admin.
+import { SITE_LINKS } from "@/lib/site-links";
 const NAV = [
   ["/db/families", "Families"],
   ["/db/specs", "Specs"],
@@ -29,8 +30,7 @@ export function page({ title, active, body, error = null, notice = null }: { tit
       </button>
       <div id="db-menu-panel" class="db-menu-panel" data-db-menu-panel hidden>
         <nav aria-label="Site">
-          <a href="/menu">Guest menu</a>
-          <a href="/admin">Bar admin</a>
+          ${SITE_LINKS.map((link) => `<a href="${link.href}">${esc(link.label)}</a>`).join("")}
           <hr>
           <form method="post" action="/api/admin/logout"><button type="submit">Sign out</button></form>
         </nav>

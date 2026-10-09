@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { BarWatch, type BarView } from "@/components/BarWatch";
+import { SiteLinks } from "@/components/SiteLinks";
 
 /**
  * Guest phone chrome (DESIGN §5.2): an always-visible frame drawn as fixed overlays over the page's
@@ -58,7 +59,7 @@ export function GuestChrome({ editHref, admin = false, bar }: { editHref?: strin
           <span className="frame-corner br" />
         </div>
       </div>
-      <GuestMenu editHref={editHref} admin={admin || !!editHref} />
+      <GuestMenu editHref={editHref} />
       {bar ? <BarWatch {...bar} /> : null}
       {bar && !bar.open && (admin || editHref) ? <p className="admin-view-pill" role="status">Closed · admin view</p> : null}
     </>
@@ -66,7 +67,7 @@ export function GuestChrome({ editHref, admin = false, bar }: { editHref?: strin
 }
 
 /** 48px outline hamburger with a small dark dropdown. Disclosure pattern: Escape, outside tap and tabbing away close it. */
-function GuestMenu({ editHref, admin }: { editHref?: string; admin: boolean }) {
+function GuestMenu({ editHref }: { editHref?: string }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -117,9 +118,7 @@ function GuestMenu({ editHref, admin }: { editHref?: string; admin: boolean }) {
       </button>
       <div ref={panel} id={id} className="g-menu-panel" hidden={!open}>
         <nav aria-label="Site">
-          <Link href="/menu" onClick={() => setOpen(false)}>Menu</Link>
-          <Link href="/admin" onClick={() => setOpen(false)}>Bar admin</Link>
-          {admin ? <Link href="/db/products" onClick={() => setOpen(false)}>Database</Link> : null}
+          <SiteLinks onNavigate={() => setOpen(false)} />
           {editHref ? (
             <>
               <hr />

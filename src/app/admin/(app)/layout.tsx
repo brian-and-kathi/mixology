@@ -10,7 +10,7 @@ import "../admin.css";
 export const dynamic = "force-dynamic";
 export const metadata = { title: { default: "Admin", template: "%s · Admin" } };
 
-/** Admin chrome: header with the menu, and tabs. Sign out, Clear TV, TV, and Guest menu live in the menu. */
+/** Admin chrome: header with the menu, and tabs. TV, Guest, Admin, and Database lead the menu; Clear TV and sign out follow. */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   if (!(await isAdmin())) redirect("/admin/login");
   const { open, openUntil, openedAt, closedSince } = adminStatus(await barStatus());

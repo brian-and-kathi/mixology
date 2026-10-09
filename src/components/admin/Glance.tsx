@@ -18,9 +18,19 @@ function tabName(label: string) {
   return <>{label.slice(0, slash + 1)}<wbr />{label.slice(slash + 1)}</>;
 }
 
-/** The words written onto the shopping list: the ingredient line, without the "(with …)" note. */
+/** How a To Buy row is read aloud and copied. A combined row stays one sentence here. */
 function buyName(b: GlanceData["buy"][number]) {
   return cap(b.specs.join(" + "));
+}
+
+/** One shopping-list line per ingredient. "Apricot brandy + scotch" is two lines, not one. */
+function shopLabels(specs: string[]) {
+  return specs.map((spec) => cap(spec));
+}
+
+function onShop(items: { label: string }[], name: string) {
+  const key = shopKey(name);
+  return items.some((item) => shopKey(item.label) === key);
 }
 
 /** "At a glance": what to buy, what is one away, and what is out and unused. Collapsed at the top of Stock. */
@@ -35,7 +45,7 @@ export function Glance({ data, shop }: { data: GlanceData; shop: ShopItem[] }) {
   const tail = useRef(Promise.resolve());
   const label = (b: GlanceData["buy"][number]) =>
     `${buyName(b)}${b.with.length ? ` (with ${b.with.join(", ")})` : b.specs.length > 1 ? " (together)" : ""}`;
-  const onList = (name: string) => shopItems.some((item) => shopKey(item.label) === shopKey(name));
+  const onList = (name: string) => onShop(shopItems, name);
 
   function showShop(next: ShopItem[]) {
     shopRef.current = next;
@@ -43,22 +53,39 @@ export function Glance({ data, shop }: { data: GlanceData; shop: ShopItem[] }) {
   }
 
   /** One save at a time, so a second tap cannot be overwritten by the first reply. */
-  function toggleShop(name: string) {
-    const key = shopKey(name);
+  function toggleShop(names: string[], legacy?: string) {
     const n = ++seq.current;
     const before = shopRef.current;
-    const already = before.some((item) => shopKey(item.label) === key);
+    const missing = names.filter((name) => !onShop(before, name));
+    const dropLegacy = Boolean(legacy && onShop(before, legacy));
+    const allOn = missing.length === 0;
     setShopError(null);
-    showShop(already
-      ? before.filter((item) => shopKey(item.label) !== key)
-      : [...before, { id: `pending-${n}`, label: name, done: false }]);
+    if (allOn) {
+      const drop = new Set(names.map((name) => shopKey(name)));
+      if (dropLegacy && legacy) drop.add(shopKey(legacy));
+      showShop(before.filter((item) => !drop.has(shopKey(item.label))));
+    } else {
+      const kept = dropLegacy && legacy ? before.filter((item) => shopKey(item.label) !== shopKey(legacy)) : before;
+      showShop([...kept, ...missing.map((label, i) => ({ id: `pending-${n}-${i}`, label, done: false }))]);
+    }
     const work = async () => {
       try {
-        const saved = await api<{ items: ShopItem[] }>("/api/admin/shopping", "POST", already ? { label: name, remove: true } : { label: name });
-        if (n === seq.current) showShop(saved.items);
+        let saved: { items: ShopItem[] } | null = null;
+        if (dropLegacy && legacy) saved = await api<{ items: ShopItem[] }>("/api/admin/shopping", "POST", { label: legacy, remove: true });
+        if (allOn) {
+          for (const name of names) saved = await api<{ items: ShopItem[] }>("/api/admin/shopping", "POST", { label: name, remove: true });
+        } else {
+          for (const name of missing) saved = await api<{ items: ShopItem[] }>("/api/admin/shopping", "POST", { label: name });
+        }
+        if (n === seq.current && saved) showShop(saved.items);
       } catch (e) {
         if (n !== seq.current) return;
-        showShop(before);
+        try {
+          const fresh = await api<{ items: ShopItem[] }>("/api/admin/shopping", "GET");
+          showShop(fresh.items);
+        } catch {
+          showShop(before);
+        }
         setShopError(e instanceof Error ? e.message : "Couldn't save. Try again.");
       }
     };
@@ -129,7 +156,10 @@ export function Glance({ data, shop }: { data: GlanceData; shop: ShopItem[] }) {
               <ul className="a-plain a-glance-rows">
                 {data.buy.map((b) => {
                   const name = buyName(b);
-                  const listed = onList(name);
+                  const names = shopLabels(b.specs);
+                  const listed = names.every((part) => onList(part));
+                  const acting = listed ? names : names.filter((part) => !onList(part));
+                  const phrase = acting.join(" and ");
                   return (
                     <li key={b.specs.join("|")}>
                       <span className="a-glance-copy">
@@ -141,8 +171,8 @@ export function Glance({ data, shop }: { data: GlanceData; shop: ShopItem[] }) {
                         type="button"
                         className={listed ? "a-btn a-glance-add is-on" : "a-btn a-glance-add"}
                         aria-pressed={listed}
-                        aria-label={listed ? `Remove ${name} from the shopping list` : `Add ${name} to the shopping list`}
-                        onClick={() => toggleShop(name)}
+                        aria-label={listed ? `Remove ${phrase} from the shopping list` : `Add ${phrase} to the shopping list`}
+                        onClick={() => toggleShop(names, names.length > 1 ? name : undefined)}
                       >
                         {listed ? "Remove" : "Add"}
                       </button>

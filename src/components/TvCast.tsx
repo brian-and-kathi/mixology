@@ -227,6 +227,9 @@ function BandBody({ payload }: { payload: CastPayload }) {
                   {l.name}
                   {/* Alternates (migration 034): muted, same line, never a badge. */}
                   {l.or ? <>{" "}<span className={l.or_more ? "alt-or alt-or-keep" : "alt-or"}>{l.or}{l.or_more ? <span className="alt-more-tv">+{l.or_more}</span> : null}</span></> : null}
+                  {l.decanters?.length ? (
+                    <small className="tv-band-decanter">{l.decanters.map((badge) => `${badge} decanter`).join(" · ")}</small>
+                  ) : null}
                   {l.out || l.use_instead || l.optional || l.note || l.alt_notes?.length ? (
                     <small>
                       {l.out ? <span className="tv-tag">out tonight</span> : null}

@@ -10,21 +10,24 @@ import type { ReactNode } from "react";
  * outlined and muted. It sits beside the row's link, never inside it, so a tap flips stock in place
  * and never opens the bottle.
  */
-export function StockToggle({ name, inStock, onToggle }: { name: string; inStock: boolean; onToggle: (to: boolean) => void }) {
+export function StockToggle({ name, inStock, onToggle, onText = "In", offText = "Out", ariaLabel, wide = false }: {
+  name: string; inStock: boolean; onToggle: (to: boolean) => void;
+  onText?: string; offText?: string; ariaLabel?: string; wide?: boolean;
+}) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={inStock}
-      aria-label={`${name} in stock`}
-      className={inStock ? "a-stock-toggle is-in" : "a-stock-toggle"}
+      aria-label={ariaLabel ?? `${name} in stock`}
+      className={`${inStock ? "a-stock-toggle is-in" : "a-stock-toggle"}${wide ? " a-decant-toggle" : ""}`}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
         onToggle(!inStock);
       }}
     >
-      {inStock ? "In" : "Out"}
+      {inStock ? onText : offText}
     </button>
   );
 }

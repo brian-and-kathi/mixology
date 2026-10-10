@@ -207,6 +207,10 @@ body:has(.admin-root) { background: #07101c; }
 /* In is the usual state, so it stays calm: an 18% accent tint with accent text (6.3:1). Out is what the
    eye should find: the admin amber as outline and text (9.3:1 on the page). Both 68px wide, 44px tall. */
 .admin-root .a-stock-toggle { flex: none; width: 4.25rem; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 10px; border: 1.5px solid color-mix(in srgb, var(--a-amber) 62%, transparent); background: transparent; color: var(--a-amber); font: inherit; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.01em; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.admin-root .a-stock-toggle.a-decant-toggle { width: 5.6rem; font-size: 0.82rem; }
+/* Bottle is the usual state, so it stays quiet. Decant is the one the eye should find. */
+.admin-root .a-stock-toggle.a-decant-toggle:not(.is-in) { border-color: rgba(255,255,255,0.22); color: var(--quiet); font-weight: 500; }
+.a-decant-lead { margin: 0.45rem 0 0.9rem; }
 .admin-root .a-stock-toggle.is-in { background: rgba(126, 176, 255, 0.18); border-color: transparent; color: var(--a-accent); font-weight: 500; }
 .a-stock-toggle:active { transform: scale(0.96); }
 @media (prefers-reduced-motion: reduce) { .a-stock-toggle:active { transform: none; } }

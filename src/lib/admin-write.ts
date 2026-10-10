@@ -81,6 +81,30 @@ export async function setStock(id: string, inStock: boolean, undoOf?: number) {
   };
 }
 
+/** Put a bottle in a decanter, or back in its own bottle. The recipe card names the decanter by this bottle's badge. */
+export async function setDecanting(id: string, decanting: boolean) {
+  if (!isUuid(id)) throw new UserError("Unknown bottle.");
+  const results = await tx([
+    [
+      `WITH u AS (
+         UPDATE products SET decanting = $2 WHERE id = $1 AND decanting IS DISTINCT FROM $2
+         RETURNING id, display_name, decanting)
+       INSERT INTO change_log (entity, entity_id, action, summary, before, after)
+       SELECT 'product', u.id::text, 'update',
+              u.display_name || CASE WHEN u.decanting THEN ' put in a decanter' ELSE ' taken out of the decanter' END,
+              jsonb_build_object('decanting', NOT u.decanting), jsonb_build_object('decanting', u.decanting)
+         FROM u
+       RETURNING id`,
+      [id, decanting],
+    ],
+    ["SELECT display_name AS name, decanting FROM products WHERE id = $1", [id]],
+  ]);
+  const log = results[0] as { id: number }[];
+  const [product] = results[1] as { name: string; decanting: boolean }[];
+  if (!product) throw new UserError("That bottle no longer exists.");
+  return { name: product.name, decanting: product.decanting, log_id: log[0]?.id ?? null };
+}
+
 // ---------- Bottles ----------
 
 const WINE_COLORS = ["red", "white", "rose", "unknown", "not_applicable"];

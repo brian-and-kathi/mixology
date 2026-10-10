@@ -3,6 +3,7 @@ export const SEARCH = {
   stock: "mx_q_stock",
   recipes: "mx_q_recipes",
   ingredients: "mx_q_ingredients",
+  decanters: "mx_q_decanters",
 } as const;
 
 const MAX = 80;

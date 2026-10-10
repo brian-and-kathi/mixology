@@ -8,7 +8,7 @@ export type Family = { id: string; slug: string; name: string; kind: string; all
 /** `label`: the bottle's own badge label (migration 023), shown instead of the type when set. */
 /** `origin`: the bottle's Origin field, matched by the Stock search ("michigan", "traverse city"); not shown. */
 /** `reserved`, `reserved_note`: Reserved (migration 032); the Stock row shows the key and the note under the name. */
-export type StockItem = { id: string; name: string; in_stock: boolean; featured: boolean; reserved: boolean; reserved_note: string | null; family: string; family_order: number; spec: string | null; label: string | null; wine: boolean; origin: string | null };
+export type StockItem = { id: string; name: string; in_stock: boolean; decanting: boolean; featured: boolean; reserved: boolean; reserved_note: string | null; family: string; family_order: number; spec: string | null; label: string | null; wine: boolean; origin: string | null };
 export type Change = { id: number; at: string; summary: string; entity_id: string; action: string; before: { in_stock?: boolean } | null; after: { in_stock?: boolean } | null; undone: boolean };
 
 export async function loadFamilies(): Promise<Family[]> {
@@ -17,7 +17,7 @@ export async function loadFamilies(): Promise<Family[]> {
 
 export async function loadStock(): Promise<StockItem[]> {
   return query<StockItem>(
-    `SELECT p.id, p.display_name AS name, p.in_stock, p.featured, p.reserved, p.reserved_note,
+    `SELECT p.id, p.display_name AS name, p.in_stock, p.decanting, p.featured, p.reserved, p.reserved_note,
             COALESCE(pf.canonical_name, sf.canonical_name, 'other') AS family,
             COALESCE(pf.sort_order, sf.sort_order, 999) AS family_order,
             s.canonical_name AS spec, p.spec_label AS label,

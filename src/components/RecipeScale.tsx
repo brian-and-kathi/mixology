@@ -18,6 +18,8 @@ export type ScaleLine = {
   useInstead: string | null;
   note: string | null;
   parts: { text: string; featured?: boolean }[] | null;
+  /** Decanter badges for this ingredient, such as "Bourbon". Empty when it is poured from a labelled bottle. */
+  decanters: string[];
   alternates: { name: string; amount: string | null; unit: string | null; note: string | null }[];
 };
 
@@ -58,6 +60,9 @@ export function RecipeScale({ id, glass, title, lines, methodLabel, method }: {
                   {!line.available ? <span className="tag-out">out tonight</span> : null}
                   {line.useInstead ? <strong> (use {cap(line.useInstead)})</strong> : null}
                   {!line.required ? <span className="quiet"> (optional)</span> : null}
+                  {line.decanters.length ? (
+                    <span className="decanter">{line.decanters.map((badge) => `${badge} decanter`).join(" · ")}</span>
+                  ) : null}
                   {line.parts ? (
                     <span className="quiet bottles">
                       {line.parts.map((part, i) =>

@@ -281,6 +281,12 @@ export type RecipeLine = {
   /** Shown names in `bottles` that are featured (migration 030; in stock by definition). */
   featured: string[];
   /**
+   * Decanter badges for the in-stock bottles behind this line (products.decanting). Each is the
+   * bottle's badge — its own label, or its primary ingredient — so "Bourbon" means the decanter
+   * whose badge says Bourbon. Empty when none of those bottles is in a decanter.
+   */
+  decanters: string[];
+  /**
    * The line's other choices a guest may use tonight (migration 034): its alternates with a bottle on the shelf
    * (in stock, not reserved), in priority order, not counting the one that leads. When the line's own ingredient is
    * out, its first such alternate leads instead (name, amount, note and bottles above are the alternate's) and the
@@ -309,7 +315,26 @@ export type Recipe = {
 };
 
 /** `short`: the name shown for the bottle (short name, or the full name; Cellar wines always the full name). */
-type BottleFacts = { own: boolean | null; kind: string; has_bottles: boolean; stock: { name: string; brand: string | null; short?: string | null; featured?: boolean }[] };
+type BottleFacts = { own: boolean | null; kind: string; has_bottles: boolean; stock: { name: string; brand: string | null; short?: string | null; featured?: boolean; decanting?: boolean; spec?: string | null; label?: string | null }[] };
+
+/**
+ * Badges of the decanters a guest can pour this ingredient from. One badge per decanter, in stock
+ * order, skipping a repeat (two bottles in decanters both badged Bourbon name it once).
+ */
+export function decanterBadges(stock: BottleFacts["stock"]): string[] {
+  const seen = new Set<string>();
+  const badges: string[] = [];
+  for (const bottle of stock) {
+    if (!bottle.decanting) continue;
+    const badge = specLabel(bottle.spec, bottle.label);
+    if (!badge) continue;
+    const key = badge.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    badges.push(badge);
+  }
+  return badges;
+}
 
 /** Ingredient families that are bottles a guest would recognise; citrus, juice, syrups, garnishes, ice and water are not. */
 const BOTTLE_KINDS = new Set(["spirit", "modifier", "wine", "mixer"]);
@@ -428,7 +453,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   // 021), the same function available_spec_ids() and so menu_mixed are built on: hops 0 is the shelf.
   // Bottles listed: the ingredient's own when it is in; else the named stand-in's; else the nearest
   // stand-in chain that makes the recipe buildable.
-  const rows = await query<Omit<RecipeLine, "bottles" | "featured"> & BottleFacts & { own_name: string; alt_leads: boolean; alt_names: string[] }>(
+  const rows = await query<Omit<RecipeLine, "bottles" | "featured" | "decanters"> & BottleFacts & { own_name: string; alt_leads: boolean; alt_names: string[] }>(
     // Reserved bottles (migration 032) are left out of the supply: never listed, never counted as on the shelf
     // (an always-available ingredient stays on the shelf without its reserved bottle).
     `WITH supply AS MATERIALIZED (
@@ -490,7 +515,13 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
             EXISTS (SELECT 1 FROM product_specs ps WHERE ps.spec_id = s.spec_id) AS has_bottles,
             COALESCE((SELECT json_agg(json_build_object('name', p.display_name, 'brand', p.brand,
                                                         'short', CASE WHEN is_cellar_wine(p.id) THEN NULL ELSE p.short_name END,
-                                                        'featured', p.id IN (SELECT featured_product_ids())))
+                                                        'featured', p.id IN (SELECT featured_product_ids()),
+                                                        'decanting', p.decanting,
+                                                        'spec', (SELECT sp.canonical_name FROM product_specs ps
+                                                                   JOIN specs sp ON sp.id = ps.spec_id
+                                                                  WHERE ps.product_id = p.id
+                                                                  ORDER BY ps.is_primary DESC, sp.canonical_name LIMIT 1),
+                                                        'label', NULLIF(btrim(p.spec_label), '')) ORDER BY p.display_name)
                         FROM supply x JOIN products p ON p.id = x.product_id
                        WHERE x.spec_id = s.from_spec AND x.hops = 0), '[]'::json) AS stock,
             -- The other alternates a guest may use tonight: on the shelf (in stock, not reserved), not the leader.
@@ -518,7 +549,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     // Featured bottles (migration 030), by the name the guest reads. Required lines only: an optional line
     // never features the drink (featured_recipe_ids), so its bottle line stays plain too.
     const featured = line.required ? shownNames(stock.filter((b) => b.featured).map((b) => b.name.trim()), stock)!.filter((n) => shown?.includes(n)) : [];
-    return { ...line, bottles: featuredBottlesFirst(shown, featured, preferred), preferred, featured };
+    return { ...line, bottles: featuredBottlesFirst(shown, featured, preferred), preferred, featured, decanters: decanterBadges(stock) };
   });
   // An alternate leading tonight takes the own ingredient's place in the method too (recipe page and TV card),
   // unless that would be fragile (see swapMethod).

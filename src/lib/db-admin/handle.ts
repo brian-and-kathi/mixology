@@ -809,13 +809,17 @@ async function productsPage(saved: string | null) {
       GROUP BY p.id, f.canonical_name
       ORDER BY p.display_name`,
   );
-  const body = rows.map((product) => `<tr data-search="${esc([product.display_name, product.packaged_name, product.brand, product.origin, upcSearchText(product.upc as string | null), product.family_name, product.spec_names].filter(Boolean).join(" "))}">
+  const body = rows.map((product) => {
+    const flags = PRODUCT_FLAGS.flatMap(([key, , label]) => (product[key] ? [label] : []));
+    const search = [product.display_name, product.packaged_name, product.brand, product.origin, upcSearchText(product.upc as string | null), product.family_name, product.spec_names, ...flags].filter(Boolean).join(" ");
+    return `<tr data-search="${esc(search)}">
     <td><a href="${DB}/products/${product.id}">${esc(product.display_name)}</a><div class="hint">${esc(product.upc ? formatUpc(String(product.upc)) : "No UPC")}</div></td>
     ${PRODUCT_FLAGS.map(([key, letter, label]) => `<td class="flag"${product[key] ? ` data-tip="${esc(label)}"` : ""}>${product[key] ? letter : ""}</td>`).join("")}
     <td>${esc(product.family_name ?? "")}</td>
     <td>${esc(product.spec_names)}</td>
     <td class="row-actions">${deleteIcon(`${DB}/products/${product.id}/delete`, `Delete ${product.display_name}`, "Delete this product?")}</td>
-  </tr>`).join("");
+  </tr>`;
+  }).join("");
   const flagHeads = PRODUCT_FLAGS.map(([, letter, label]) => `<th class="flag" data-tip="${esc(label)}">${letter}</th>`).join("");
   return html(200, page({
     title: "Products",

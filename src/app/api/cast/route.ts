@@ -39,8 +39,8 @@ const ip = (req: NextRequest) => (req.headers.get("x-forwarded-for") ?? "").spli
 
 /**
  * POST {type, id, servings?}: show a cocktail, pour or Cellar wine on the TV (replaces whatever is showing).
- * A recipe may include servings 1–4; the TV scales its measured lines. `{keep: true}` changes servings
- * on the recipe already up, without restarting its 5 minutes. While the bar is Closed, admins only (403).
+ * A recipe may include servings 1–6; the TV scales its measured lines. `{keep: true}` changes servings
+ * on the recipe already up, without restarting its 10 minutes. While the bar is Closed, admins only (403).
  */
 export async function POST(req: NextRequest) {
   if (!(await guestGate()).allowed) return json({ error: "The bar is closed." }, 403);

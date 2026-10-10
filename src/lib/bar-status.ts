@@ -91,7 +91,7 @@ export const guestGate = cache(async (): Promise<Gate> => {
 /**
  * Admin switch. Opening sets open_until to the next 2:00 AM Eastern. Closing clears the TV cast in the same
  * transaction. Opening also deletes a cast from before the last close: the 2:00 AM self-close writes nothing,
- * so that cast is only hidden (castRow()), and reopening within its 5 minutes would bring it back. A cast an
+ * so that cast is only hidden (castRow()), and reopening within its 10 minutes would bring it back. A cast an
  * admin started while Closed stays. Logs to change_log only when the effective state changes. Returns the new
  * state and whether a cast was taken down.
  */

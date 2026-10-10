@@ -7,11 +7,11 @@ import { loadAverage } from "@/lib/ratings";
 import { spelledOrigin } from "@/lib/us-states";
 import { shownVintage, wineColorLabel, wineGrapes, wineTemp } from "@/lib/wine-facts";
 
-// "Show on TV": one cast record (tv_cast, migration 015). A cast lasts 5 minutes, a new cast
+// "Show on TV": one cast record (tv_cast, migration 015). A cast lasts 10 minutes, a new cast
 // replaces the old one, and anyone on that item's phone page can take it off.
 // Types (migration 035 added "wine"): the guest page a cast comes from, /recipe, /pour or /wine. Pours and Cellar
 // wines are both products, but each keeps its own type so its card can show what its page shows.
-export const CAST_SECONDS = 300;
+export const CAST_SECONDS = 600;
 export const CAST_TYPES = ["recipe", "pour", "wine"] as const;
 export type CastType = (typeof CAST_TYPES)[number];
 export const isCastType = (v: unknown): v is CastType => typeof v === "string" && (CAST_TYPES as readonly string[]).includes(v);
@@ -21,7 +21,7 @@ export type CastLine = { amount: string; name: string; out: boolean; use_instead
   or?: string | null; or_more?: number; alt_notes?: string[] };
 export type CastPayload =
   | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; featured: boolean; lines: CastLine[]; method_label: string; method: string[]; moods?: string[]; rating: number | null; servings: number }
-  | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean; rating: number | null }
+  | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean; decanting: boolean; rating: number | null }
   | WinePayload;
 /** A Cellar wine's card (Brian via Rachel, 2026-10-06). Every field but the name may be missing; the card leaves it out. */
 export type WinePayload = {
@@ -55,7 +55,7 @@ async function castRating(kind: "recipe" | "product", id: string): Promise<numbe
   }
 }
 
-/** Build what the TV band shows, using the same rules as the phone pages. Null if not on the menu. `servings` (1–4) scales a recipe's measured lines. */
+/** Build what the TV band shows, using the same rules as the phone pages. Null if not on the menu. `servings` (1–6) scales a recipe's measured lines. */
 export async function castPayload(type: CastType, id: string, servings = 1): Promise<CastPayload | null> {
   const scale = type === "recipe" ? clampServings(servings) : 1;
   if (type === "recipe") {
@@ -103,7 +103,7 @@ export async function castPayload(type: CastType, id: string, servings = 1): Pro
   const s = serveParts(p.serves_neat, p.serves_rocks, p.serves_chilled);
   return {
     type, id: p.id, name: p.full_name, glass: "rocks", detail: detail || null,
-    serve: s.main, serve_quiet: [...(p.serve_note ? [p.serve_note] : []), ...s.quiet], note: p.description, featured: p.featured,
+    serve: s.main, serve_quiet: [...(p.serve_note ? [p.serve_note] : []), ...s.quiet], note: p.description, featured: p.featured, decanting: p.decanting,
     rating: await castRating("product", p.id),
   };
 }
@@ -188,7 +188,7 @@ export async function startCast(type: CastType, id: string, servings = 1): Promi
 }
 
 /**
- * Change how many servings the TV is building, without restarting the 5 minutes.
+ * Change how many servings the TV is building, without restarting the 10 minutes.
  * No-op (null) unless this recipe is the cast on screen right now.
  */
 export async function setCastServings(id: string, servings: number): Promise<Cast | null> {

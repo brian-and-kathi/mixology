@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { DecanterSeal } from "@/components/DecanterSeal";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon } from "@/components/GlassIcon";
 import { MoodLine } from "@/components/MoodLine";
@@ -313,6 +314,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
             <BandStars avg={payload.rating} />
           </div>
           <h3 className="tv-band-name">{payload.name}</h3>
+          {payload.decanting ? <DecanterSeal className="tv-band-seal" /> : null}
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
           {payload.detail ? <p className="tv-band-serve">{payload.detail}</p> : null}
         </>

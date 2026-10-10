@@ -195,7 +195,7 @@ export function CastButton({ type, id, servings, onServings }: { type: CastType;
   const remaining = cast ? Date.parse(cast.expires_at) - (now + offset) : 0;
   const onTv = !!cast && cast.type === type && cast.id === id && remaining > 0;
 
-  // This recipe is already on the TV and the slider moved: tell the TV without restarting the 5 minutes.
+  // This recipe is already on the TV and the slider moved: tell the TV without restarting the 10 minutes.
   useEffect(() => {
     if (type !== "recipe" || servings == null || !onTv) return;
     if (remoteServings.current == null || servings === remoteServings.current) return;

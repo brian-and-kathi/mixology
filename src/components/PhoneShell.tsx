@@ -8,6 +8,7 @@ import { GuestChrome } from "./GuestChrome";
 export function PhoneShell({
   title,
   titleBadge,
+  mark,
   lead,
   back,
   pinBack = false,
@@ -19,6 +20,8 @@ export function PhoneShell({
   title?: string;
   /** Pour page: the spec badge, on its own line under the title (the title keeps the full width). */
   titleBadge?: ReactNode;
+  /** Beside the title, such as the decanter seal on a pour. */
+  mark?: ReactNode;
   lead?: ReactNode;
   back?: { href: string; label: string };
   /** Keep the back link where it rests, beside the menu button, while the page scrolls (recipe page). */
@@ -71,6 +74,7 @@ export function PhoneShell({
               ) : (
                 <h1>{title}</h1>
               )}
+              {mark}
             </div>
           ) : null}
         </header>

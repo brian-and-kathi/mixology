@@ -603,6 +603,8 @@ export type Pour = {
   serves_rocks: boolean;
   serves_chilled: boolean;
   featured: boolean;
+  /** The bottle is in a decanter (products.decanting), not its labelled bottle. */
+  decanting: boolean;
 };
 
 /** A pour's detail page and cast: only while it's on Pours (menu_neat) and not reserved (migration 032). */
@@ -611,7 +613,8 @@ export async function loadPour(id: string): Promise<Pour | null> {
   const [pour] = await query<Pour & { label: string | null }>(
     `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full_name, n.brand, n.origin,
             n.description, n.serve_note, n.rating, n.abv::text AS abv, n.serves_neat, n.serves_rocks, n.serves_chilled,
-            n.primary_spec_name AS spec, p.spec_label AS label, (n.id IN (SELECT featured_product_ids())) AS featured
+            n.primary_spec_name AS spec, p.spec_label AS label, (n.id IN (SELECT featured_product_ids())) AS featured,
+            p.decanting
        FROM menu_neat n JOIN products p ON p.id = n.id WHERE n.id = $1 AND NOT n.reserved`,
     [id],
   );

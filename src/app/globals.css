@@ -273,6 +273,9 @@ h1, h2, p { margin: 0; }
 /* Sized to stay on one line beside the menu button (the script face is ~11 font-sizes wide). */
 .phone-wordmark { font-size: min(1.9rem, calc((100vw - 2 * (12px + 1.1rem) - 64px) / 11.2)); white-space: nowrap; }
 .phone-title { display: flex; align-items: center; gap: 1rem; }
+/* Pour page: a wax seal at the right of the title when the bottle is in a decanter. */
+.decanter-seal { flex: none; width: 4.75rem; height: 4.75rem; margin-left: auto; transform: rotate(-11deg); filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.45)); }
+.tv-band-seal { width: calc(12vh * var(--s)); height: calc(12vh * var(--s)); margin: 0.6vh 0 0.4vh; }
 /* Font option B: DM Serif Display, its only weight (400; no faux bold). */
 .phone-title h1 { font-family: var(--font-title), Georgia, serif; font-size: 2rem; font-weight: 400; letter-spacing: 0; line-height: 1.08; }
 .back { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 1rem; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; font-size: 1rem; }
@@ -339,7 +342,7 @@ a.card:active { background: #202020; }
   .ingredients li { grid-column: 1 / -1; grid-template-columns: subgrid; }
 }
 .measure { white-space: nowrap; }
-/* Recipe servings: 1 is the card as written; 2–4 scale the measured lines. */
+/* Recipe servings: 1 is the card as written; 2–6 scale the measured lines. */
 .servings { margin: 0 0 0.85rem; }
 .servings-label { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.95rem; color: var(--quiet); }
 .servings-label b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }

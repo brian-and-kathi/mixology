@@ -6,7 +6,7 @@ import { CastButton } from "@/components/CastButton";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { RecipePin } from "@/components/RecipePin";
 import { altWords } from "@/lib/alt-words";
-import { cap, lineText, scaleAmount, scaleMethod, scaleProse } from "@/lib/format";
+import { cap, lineText, MAX_SERVINGS, scaleAmount, scaleMethod, scaleProse } from "@/lib/format";
 
 export type ScaleLine = {
   position: number;
@@ -108,18 +108,18 @@ function Servings({ value, onChange }: { value: number; onChange: (n: number) =>
       <input
         type="range"
         min={1}
-        max={4}
+        max={MAX_SERVINGS}
         step={1}
         value={value}
         aria-labelledby={label}
         aria-valuemin={1}
-        aria-valuemax={4}
+        aria-valuemax={MAX_SERVINGS}
         aria-valuenow={value}
         aria-valuetext={value === 1 ? "1 serving" : `${value} servings`}
         onChange={(e) => onChange(Number(e.target.value))}
       />
       <div className="servings-ticks" aria-hidden>
-        <span>1</span><span>2</span><span>3</span><span>4</span>
+        {Array.from({ length: MAX_SERVINGS }, (_, i) => <span key={i + 1}>{i + 1}</span>)}
       </div>
     </div>
   );

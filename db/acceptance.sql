@@ -1663,7 +1663,7 @@ BEGIN
   RAISE NOTICE 'check 33 passed';
 END $$;
 
--- 34. Recipe cast servings (037): 1–4, default 1. Zero and five are rejected.
+-- 34. Recipe cast servings (037, widened by 038): 1–6, default 1. Zero and seven are rejected.
 -- The insert omits the column, the way casts from before this column did.
 DO $$
 DECLARE
@@ -1674,15 +1674,15 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM tv_cast WHERE id = 1 AND item_id = v_id AND servings = 1) THEN
     RAISE EXCEPTION 'check 34 failed: a new cast did not default to 1 serving';
   END IF;
-  UPDATE tv_cast SET servings = 4 WHERE id = 1;
-  IF NOT EXISTS (SELECT 1 FROM tv_cast WHERE id = 1 AND servings = 4) THEN
-    RAISE EXCEPTION 'check 34 failed: 4 servings was not stored';
+  UPDATE tv_cast SET servings = 6 WHERE id = 1;
+  IF NOT EXISTS (SELECT 1 FROM tv_cast WHERE id = 1 AND servings = 6) THEN
+    RAISE EXCEPTION 'check 34 failed: 6 servings was not stored';
   END IF;
   BEGIN UPDATE tv_cast SET servings = 0 WHERE id = 1; RAISE EXCEPTION 'check 34 failed: 0 servings was accepted';
   EXCEPTION WHEN check_violation THEN NULL; END;
-  BEGIN UPDATE tv_cast SET servings = 5 WHERE id = 1; RAISE EXCEPTION 'check 34 failed: 5 servings was accepted';
+  BEGIN UPDATE tv_cast SET servings = 7 WHERE id = 1; RAISE EXCEPTION 'check 34 failed: 7 servings was accepted';
   EXCEPTION WHEN check_violation THEN NULL; END;
-  IF NOT EXISTS (SELECT 1 FROM tv_cast WHERE id = 1 AND servings = 4) THEN
+  IF NOT EXISTS (SELECT 1 FROM tv_cast WHERE id = 1 AND servings = 6) THEN
     RAISE EXCEPTION 'check 34 failed: a rejected servings change stuck';
   END IF;
   DELETE FROM tv_cast WHERE id = 1;

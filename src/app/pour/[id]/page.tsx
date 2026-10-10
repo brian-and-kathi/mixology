@@ -2,6 +2,7 @@ import { ClosedPage } from "@/components/ClosedPage";
 import { guestGate, publicStatus } from "@/lib/bar-status";
 import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
+import { DecanterSeal } from "@/components/DecanterSeal";
 import { DrinkLead } from "@/components/DrinkLead";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { PhoneShell } from "@/components/PhoneShell";
@@ -38,7 +39,7 @@ export default async function PourPage({ params }: { params: Promise<{ id: strin
 
   return (
     // Title: the short name; the type badge always sits on its own line under it, so the title keeps the full width.
-    <PhoneShell bar={bar} title={pour.name} titleBadge={pour.spec || pour.featured ? <span className="title-badges">{pour.spec ? <span className="spec-badge title-badge">{pour.spec}</span> : null}{pour.featured ? <FeaturedTag /> : null}</span> : undefined} editHref={editHref} back={{ href: "/menu?tab=pours", label: "Pours" }} lead={<DrinkLead glass="rocks" kind="product" id={pour.id} rating={rating} />}>
+    <PhoneShell bar={bar} title={pour.name} titleBadge={pour.spec || pour.featured ? <span className="title-badges">{pour.spec ? <span className="spec-badge title-badge">{pour.spec}</span> : null}{pour.featured ? <FeaturedTag /> : null}</span> : undefined} mark={pour.decanting ? <DecanterSeal /> : undefined} editHref={editHref} back={{ href: "/menu?tab=pours", label: "Pours" }} lead={<DrinkLead glass="rocks" kind="product" id={pour.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
       <CastButton type="pour" id={pour.id} />
       <section>

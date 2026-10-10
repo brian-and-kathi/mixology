@@ -4,10 +4,12 @@ const PLURALS: Record<string, string> = {
   slice: "slices", wedge: "wedges", leaf: "leaves", sprig: "sprigs", twist: "twists", drop: "drops", pinch: "pinches", cup: "cups",
 };
 
-/** Guest recipe servings: 1, 2, 3, or 4. Anything else is one serving. */
+/** Guest recipe servings: 1 through 6. Anything else is one serving. */
+export const MAX_SERVINGS = 6;
+
 export function clampServings(value: unknown): number {
   const n = typeof value === "number" ? value : Number(value);
-  return Number.isInteger(n) && n >= 1 && n <= 4 ? n : 1;
+  return Number.isInteger(n) && n >= 1 && n <= MAX_SERVINGS ? n : 1;
 }
 
 const FRAC_IN: Record<string, number> = { "¼": 0.25, "½": 0.5, "¾": 0.75 };

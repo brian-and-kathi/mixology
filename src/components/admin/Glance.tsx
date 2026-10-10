@@ -80,7 +80,7 @@ export function Glance({ data, shop }: { data: GlanceData; shop: ShopItem[] }) {
       showShop(before.filter((item) => !drop.has(shopKey(item.label))));
     } else {
       const kept = dropLegacy && legacy ? before.filter((item) => shopKey(item.label) !== shopKey(legacy)) : before;
-      showShop([...kept, ...missing.map((label, i) => ({ id: `pending-${n}-${i}`, label, done: false }))]);
+      showShop([...kept, ...missing.map((label, i) => ({ id: `pending-${n}-${i}`, label, done: false, doubleCheck: false }))]);
     }
     const work = async () => {
       try {

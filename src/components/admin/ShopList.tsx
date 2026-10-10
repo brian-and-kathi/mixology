@@ -6,7 +6,8 @@ import type { ShopItem } from "@/lib/shopping";
 
 /**
  * Free-text shopping list. Type anything, tick it while shopping. Checked lines stay put and
- * strike through, so the list does not jump. The server list replaces local state after each save.
+ * strike through, so the list does not jump. A line whose name is already on the shelf gets a
+ * Double check badge. The server list replaces local state after each save.
  */
 export function ShopList({ initial }: { initial: ShopItem[] }) {
   const [items, setItems] = useState(initial);
@@ -110,6 +111,7 @@ export function ShopList({ initial }: { initial: ShopItem[] }) {
                 />
                 <span>{item.label}</span>
               </label>
+              {item.doubleCheck ? <span className="a-shop-flag">Double check</span> : null}
               <button type="button" className="a-shop-x" aria-label={`Remove ${item.label}`} onClick={() => commit({ id: item.id, remove: true }, (rows) => rows.filter((row) => row.id !== item.id))}>
                 ×
               </button>

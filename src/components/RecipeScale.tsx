@@ -17,9 +17,7 @@ export type ScaleLine = {
   required: boolean;
   useInstead: string | null;
   note: string | null;
-  parts: { text: string; featured?: boolean }[] | null;
-  /** Decanter badges for this ingredient, such as "Bourbon". Empty when it is poured from a labelled bottle. */
-  decanters: string[];
+  parts: { text: string; featured?: boolean; decanting?: boolean }[] | null;
   alternates: { name: string; amount: string | null; unit: string | null; note: string | null }[];
 };
 
@@ -60,13 +58,14 @@ export function RecipeScale({ id, glass, title, lines, methodLabel, method }: {
                   {!line.available ? <span className="tag-out">out tonight</span> : null}
                   {line.useInstead ? <strong> (use {cap(line.useInstead)})</strong> : null}
                   {!line.required ? <span className="quiet"> (optional)</span> : null}
-                  {line.decanters.length ? (
-                    <span className="decanter">{line.decanters.map((badge) => `${badge} decanter`).join(" · ")}</span>
-                  ) : null}
                   {line.parts ? (
                     <span className="quiet bottles">
-                      {line.parts.map((part, i) =>
-                        part.featured ? <span key={i}><span className="feat-name">{part.text}</span><FeaturedTag /></span> : part.text)}
+                      {line.parts.map((part, i) => {
+                        const mark = part.decanting ? <sup className="decanting">[decanting]</sup> : null;
+                        if (part.featured) return <span key={i}><span className="feat-name">{part.text}</span><FeaturedTag />{mark}</span>;
+                        if (mark) return <span key={i}>{part.text}{mark}</span>;
+                        return <span key={i}>{part.text}</span>;
+                      })}
                     </span>
                   ) : null}
                   {line.note ? <span className="quiet note">{scaleProse(line.note, servings)}</span> : null}

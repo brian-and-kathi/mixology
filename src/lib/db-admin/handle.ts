@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { lineStatements, readAlternates } from "@/lib/alternates-db";
-import { addSubstitution, deleteSubstitution, RECIPE_UNITS } from "@/lib/admin-write";
+import { addSubstitution, clearSiblingDecanting, deleteSubstitution, RECIPE_UNITS } from "@/lib/admin-write";
 import { formatUpc, upcSearchText } from "@/lib/format";
 import { normalizeOrigin } from "@/lib/us-states";
 import {
@@ -396,6 +396,8 @@ async function saveProduct(id: string | null, input: ReturnType<typeof productIn
   for (const specId of input.specIds) {
     stmts.push(["INSERT INTO product_specs (product_id, spec_id, is_primary) VALUES ($1, $2, $3)", [productId, specId, specId === input.primary]]);
   }
+  // One bottle per ingredient. Specs are in place, so a second whiskey comes out of its decanter.
+  stmts.push(clearSiblingDecanting(productId));
   await tx(stmts);
   return productId;
 }

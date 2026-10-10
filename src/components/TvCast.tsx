@@ -227,9 +227,6 @@ function BandBody({ payload }: { payload: CastPayload }) {
                   {l.name}
                   {/* Alternates (migration 034): muted, same line, never a badge. */}
                   {l.or ? <>{" "}<span className={l.or_more ? "alt-or alt-or-keep" : "alt-or"}>{l.or}{l.or_more ? <span className="alt-more-tv">+{l.or_more}</span> : null}</span></> : null}
-                  {l.decanters?.length ? (
-                    <small className="tv-band-decanter">{l.decanters.map((badge) => `${badge} decanter`).join(" · ")}</small>
-                  ) : null}
                   {l.out || l.use_instead || l.optional || l.note || l.alt_notes?.length ? (
                     <small>
                       {l.out ? <span className="tv-tag">out tonight</span> : null}
@@ -238,8 +235,12 @@ function BandBody({ payload }: { payload: CastPayload }) {
                   ) : null}
                   {l.bottle_parts ? (
                     <small className="tv-band-bottles">
-                      {l.bottle_parts.map((part, j) =>
-                        part.featured ? <span key={j}><span className="feat-name">{part.text}</span><FeaturedTag /></span> : part.text)}
+                      {l.bottle_parts.map((part, j) => {
+                        const mark = part.decanting ? <sup className="decanting">[decanting]</sup> : null;
+                        if (part.featured) return <span key={j}><span className="feat-name">{part.text}</span><FeaturedTag />{mark}</span>;
+                        if (mark) return <span key={j}>{part.text}{mark}</span>;
+                        return <span key={j}>{part.text}</span>;
+                      })}
                     </small>
                   ) : l.bottles ? <small className="tv-band-bottles">{l.bottles}</small> : null}
                 </span>

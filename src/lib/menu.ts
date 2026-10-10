@@ -280,12 +280,8 @@ export type RecipeLine = {
   preferred: boolean;
   /** Shown names in `bottles` that are featured (migration 030; in stock by definition). */
   featured: string[];
-  /**
-   * Decanter badges for the in-stock bottles behind this line (products.decanting). Each is the
-   * bottle's badge — its own label, or its primary ingredient — so "Bourbon" means the decanter
-   * whose badge says Bourbon. Empty when none of those bottles is in a decanter.
-   */
-  decanters: string[];
+  /** Shown names in `bottles` that are in a decanter (products.decanting). The card marks those names. */
+  decanting: string[];
   /**
    * The line's other choices a guest may use tonight (migration 034): its alternates with a bottle on the shelf
    * (in stock, not reserved), in priority order, not counting the one that leads. When the line's own ingredient is
@@ -316,25 +312,6 @@ export type Recipe = {
 
 /** `short`: the name shown for the bottle (short name, or the full name; Cellar wines always the full name). */
 type BottleFacts = { own: boolean | null; kind: string; has_bottles: boolean; stock: { name: string; brand: string | null; short?: string | null; featured?: boolean; decanting?: boolean; spec?: string | null; label?: string | null }[] };
-
-/**
- * Badges of the decanters a guest can pour this ingredient from. One badge per decanter, in stock
- * order, skipping a repeat (two bottles in decanters both badged Bourbon name it once).
- */
-export function decanterBadges(stock: BottleFacts["stock"]): string[] {
-  const seen = new Set<string>();
-  const badges: string[] = [];
-  for (const bottle of stock) {
-    if (!bottle.decanting) continue;
-    const badge = specLabel(bottle.spec, bottle.label);
-    if (!badge) continue;
-    const key = badge.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    badges.push(badge);
-  }
-  return badges;
-}
 
 /** Ingredient families that are bottles a guest would recognise; citrus, juice, syrups, garnishes, ice and water are not. */
 const BOTTLE_KINDS = new Set(["spirit", "modifier", "wine", "mixer"]);
@@ -397,21 +374,23 @@ export function bottleLine(names: string[], sep = " · ", preferred = false, max
   return bottleParts(names, sep, preferred, max).map((p) => p.text).join("");
 }
 
-/** A piece of a bottle line: a bottle (maybe featured), a separator, "+N more" or "None in stock". */
-export type BottlePart = { text: string; featured?: boolean };
+/** A piece of a bottle line: a bottle (maybe featured, maybe in a decanter), a separator, "+N more" or "None in stock". */
+export type BottlePart = { text: string; featured?: boolean; decanting?: boolean };
 
 /**
- * bottleLine as pieces, so a featured bottle (migration 030) can carry the copper "Featured" tag.
- * `featured`: shown names that are featured. Same text as bottleLine when joined.
+ * bottleLine as pieces, so a featured bottle (migration 030) can carry the copper "Featured" tag
+ * and a decanted bottle can carry "[decanting]". `featured` and `decanting` are shown names.
+ * Same text as bottleLine when the marks are ignored.
  */
-export function bottleParts(names: string[], sep = " · ", preferred = false, max = 3, featured: string[] = []): BottlePart[] {
+export function bottleParts(names: string[], sep = " · ", preferred = false, max = 3, featured: string[] = [], decanting: string[] = []): BottlePart[] {
   if (!names.length) return [{ text: "None in stock" }];
   const feat = new Set(featured);
-  const list = names.map((n, i) => ({ text: preferred && i === 0 ? `${n}\u00a0(preferred)` : n, featured: feat.has(n) }));
+  const dec = new Set(decanting);
+  const list = names.map((n, i) => ({ text: preferred && i === 0 ? `${n}\u00a0(preferred)` : n, featured: feat.has(n), decanting: dec.has(n) }));
   const parts: BottlePart[] = [];
   list.slice(0, max).forEach((b, i) => {
     if (i) parts.push({ text: sep });
-    parts.push(b.featured ? b : { text: b.text });
+    parts.push(b.featured || b.decanting ? b : { text: b.text });
   });
   if (list.length > max) parts.push({ text: `${sep}+${list.length - max}\u00a0more` });
   return parts;
@@ -453,7 +432,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
   // 021), the same function available_spec_ids() and so menu_mixed are built on: hops 0 is the shelf.
   // Bottles listed: the ingredient's own when it is in; else the named stand-in's; else the nearest
   // stand-in chain that makes the recipe buildable.
-  const rows = await query<Omit<RecipeLine, "bottles" | "featured" | "decanters"> & BottleFacts & { own_name: string; alt_leads: boolean; alt_names: string[] }>(
+  const rows = await query<Omit<RecipeLine, "bottles" | "featured" | "decanting"> & BottleFacts & { own_name: string; alt_leads: boolean; alt_names: string[] }>(
     // Reserved bottles (migration 032) are left out of the supply: never listed, never counted as on the shelf
     // (an always-available ingredient stays on the shelf without its reserved bottle).
     `WITH supply AS MATERIALIZED (
@@ -549,7 +528,11 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     // Featured bottles (migration 030), by the name the guest reads. Required lines only: an optional line
     // never features the drink (featured_recipe_ids), so its bottle line stays plain too.
     const featured = line.required ? shownNames(stock.filter((b) => b.featured).map((b) => b.name.trim()), stock)!.filter((n) => shown?.includes(n)) : [];
-    return { ...line, bottles: featuredBottlesFirst(shown, featured, preferred), preferred, featured, decanters: decanterBadges(stock) };
+    // The names the guest actually reads that are in a decanter. Lift them in front of other bottles
+    // (still after a preferred one) so "[decanting]" is not hidden behind "+N more".
+    const decanting = shown ? shownNames(stock.filter((b) => b.decanting).map((b) => b.name.trim()), stock)!.filter((n) => shown.includes(n)) : [];
+    const ordered = featuredBottlesFirst(featuredBottlesFirst(shown, featured, preferred), decanting, preferred);
+    return { ...line, bottles: ordered, preferred, featured, decanting };
   });
   // An alternate leading tonight takes the own ingredient's place in the method too (recipe page and TV card),
   // unless that would be fragile (see swapMethod).

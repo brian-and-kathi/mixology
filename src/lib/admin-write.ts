@@ -81,7 +81,39 @@ export async function setStock(id: string, inStock: boolean, undoOf?: number) {
   };
 }
 
-/** Put a bottle in a decanter, or back in its own bottle. The recipe card names the decanter by this bottle's badge. */
+/**
+ * One decanter per ingredient. When this bottle is decanting, any other bottle whose primary spec
+ * is the same (a second whiskey, not a bourbon beside a whiskey) is taken out. No-op when this
+ * bottle is not decanting, or it has no primary spec. Runs after the bottle's own spec links are saved.
+ */
+export function clearSiblingDecanting(id: string): Stmt {
+  return [
+    `WITH me AS (
+       SELECT spec_id FROM product_specs WHERE product_id = $1 AND is_primary LIMIT 1
+     ),
+     cleared AS (
+       UPDATE products p SET decanting = false
+        WHERE p.decanting AND p.id <> $1
+          AND EXISTS (SELECT 1 FROM products t WHERE t.id = $1 AND t.decanting)
+          AND EXISTS (
+            SELECT 1 FROM product_specs ps, me
+             WHERE ps.product_id = p.id AND ps.is_primary AND ps.spec_id = me.spec_id
+          )
+       RETURNING p.id, p.display_name
+     ),
+     logged AS (
+       INSERT INTO change_log (entity, entity_id, action, summary, before, after)
+       SELECT 'product', c.id::text, 'update', c.display_name || ' taken out of the decanter',
+              jsonb_build_object('decanting', true), jsonb_build_object('decanting', false)
+         FROM cleared c
+       RETURNING entity_id
+     )
+     SELECT c.id, c.display_name AS name FROM cleared c JOIN logged l ON l.entity_id = c.id::text`,
+    [id],
+  ];
+}
+
+/** Put a bottle in a decanter, or back in its own bottle. The recipe card marks that bottle with [decanting]. */
 export async function setDecanting(id: string, decanting: boolean) {
   if (!isUuid(id)) throw new UserError("Unknown bottle.");
   const results = await tx([
@@ -97,12 +129,14 @@ export async function setDecanting(id: string, decanting: boolean) {
        RETURNING id`,
       [id, decanting],
     ],
+    clearSiblingDecanting(id),
     ["SELECT display_name AS name, decanting FROM products WHERE id = $1", [id]],
   ]);
   const log = results[0] as { id: number }[];
-  const [product] = results[1] as { name: string; decanting: boolean }[];
+  const cleared = results[1] as { id: string; name: string }[];
+  const [product] = results[2] as { name: string; decanting: boolean }[];
   if (!product) throw new UserError("That bottle no longer exists.");
-  return { name: product.name, decanting: product.decanting, log_id: log[0]?.id ?? null };
+  return { name: product.name, decanting: product.decanting, log_id: log[0]?.id ?? null, cleared };
 }
 
 // ---------- Bottles ----------

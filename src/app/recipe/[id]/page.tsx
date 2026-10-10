@@ -50,8 +50,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
       required: line.required,
       useInstead: line.use_instead,
       note: line.note && !line.preferred ? line.note : null,
-      parts: line.bottles ? bottleParts(line.bottles, PHONE_DOT, line.preferred, or.text ? 2 : 3, line.featured) : null,
-      decanters: line.decanters,
+      parts: line.bottles ? bottleParts(line.bottles, PHONE_DOT, line.preferred, or.text ? 2 : 3, line.featured, line.decanting) : null,
       alternates: line.alternates,
     };
   });

@@ -16,9 +16,7 @@ export const CAST_TYPES = ["recipe", "pour", "wine"] as const;
 export type CastType = (typeof CAST_TYPES)[number];
 export const isCastType = (v: unknown): v is CastType => typeof v === "string" && (CAST_TYPES as readonly string[]).includes(v);
 
-export type CastLine = { amount: string; name: string; out: boolean; use_instead: string | null; optional: boolean; note: string | null; bottles: string | null; bottle_parts: { text: string; featured?: boolean }[] | null;
-  /** Decanter badges for this ingredient ("Bourbon" → the decanter badged Bourbon). Absent on an older cast. */
-  decanters?: string[];
+export type CastLine = { amount: string; name: string; out: boolean; use_instead: string | null; optional: boolean; note: string | null; bottles: string | null; bottle_parts: { text: string; featured?: boolean; decanting?: boolean }[] | null;
   /** Alternates (migration 034): the muted "or Cognac" / "or Cognac, Brandy" / "or Cognac" + or_more ("+2"), and their notes. */
   or?: string | null; or_more?: number; alt_notes?: string[] };
 export type CastPayload =
@@ -85,8 +83,7 @@ export async function castPayload(type: CastType, id: string, servings = 1): Pro
         note: l.note && !l.preferred ? scaleProse(l.note, scale) : null,
         // With alternates, the leading ingredient's bottles stop at 2 + "+N more" (same as the phone).
         bottles: l.bottles ? bottleLine(l.bottles, " · ", l.preferred, or.text ? 2 : 3) : null,
-        bottle_parts: l.bottles ? bottleParts(l.bottles, " · ", l.preferred, or.text ? 2 : 3, l.featured) : null,
-        decanters: l.decanters,
+        bottle_parts: l.bottles ? bottleParts(l.bottles, " · ", l.preferred, or.text ? 2 : 3, l.featured, l.decanting) : null,
         // The TV can't be tapped: three or more stay "or Cognac +2".
         or: or.text || null, or_more: or.more.length, alt_notes: or.notes.map((n) => scaleProse(n, scale)),
         };

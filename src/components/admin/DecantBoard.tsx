@@ -14,24 +14,46 @@ const fold = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[\u0300-\
 
 /**
  * Which bottle is in which decanter. The switch is the whole point of the row; the name still opens
- * the bottle. The quiet line is the badge a recipe card will use ("Bourbon" → "Bourbon decanter").
+ * the bottle. The quiet line is the badge on the glass ("Bourbon"). The recipe card marks the bottle.
  */
 export function DecantBoard({ items, initialQuery }: { items: StockItem[]; initialQuery: string }) {
   const [q, setQ] = useRememberedSearch(SEARCH.decanters, initialQuery);
   const [only, setOnly] = useState(false);
   const [override, setOverride] = useState<Record<string, boolean>>({});
   const [rowError, setRowError] = useState<Record<string, string>>({});
+  const [takenOut, setTakenOut] = useState<string | null>(null);
   const decantOf = (it: StockItem) => override[it.id] ?? it.decanting;
   const badgeOf = (it: StockItem) => specLabel(it.spec, it.label);
 
   async function flip(it: StockItem, to: boolean) {
-    setOverride((o) => ({ ...o, [it.id]: to }));
+    // Same primary ingredient shares one decanter. Turning this bottle on takes the other one out.
+    const siblings = to ? items.filter((other) => other.id !== it.id && it.spec && other.spec === it.spec && decantOf(other)) : [];
+    setOverride((o) => {
+      const next = { ...o, [it.id]: to };
+      for (const other of siblings) next[other.id] = false;
+      return next;
+    });
+    setTakenOut(null);
     setRowError(({ [it.id]: _gone, ...rest }) => rest);
     navigator.vibrate?.(10);
     try {
-      await api("/api/admin/decanting", "POST", { id: it.id, decanting: to });
+      const saved = await api<{ cleared: { id: string; name: string }[] }>("/api/admin/decanting", "POST", { id: it.id, decanting: to });
+      const cleared = saved.cleared ?? [];
+      if (cleared.length) {
+        setOverride((o) => {
+          const next = { ...o };
+          for (const bottle of cleared) next[bottle.id] = false;
+          return next;
+        });
+        const names = cleared.map((bottle) => bottle.name);
+        setTakenOut(names.length === 1 ? `${names[0]} was taken out of the decanter.` : `${names.join(", ")} were taken out of the decanter.`);
+      }
     } catch (e) {
-      setOverride((o) => ({ ...o, [it.id]: !to }));
+      setOverride((o) => {
+        const next = { ...o, [it.id]: !to };
+        for (const other of siblings) next[other.id] = true;
+        return next;
+      });
       setRowError((m) => ({ ...m, [it.id]: e instanceof Error ? e.message : "Couldn't save." }));
     }
   }
@@ -52,16 +74,14 @@ export function DecantBoard({ items, initialQuery }: { items: StockItem[]; initi
   const decanted = items.filter((it) => decantOf(it)).length;
 
   const clashes = useMemo(() => {
-    const byBadge = new Map<string, string[]>();
+    const bySpec = new Map<string, string[]>();
     for (const it of items) {
-      if (!decantOf(it) || !it.in_stock) continue;
-      const badge = badgeOf(it);
-      if (!badge) continue;
-      const names = byBadge.get(badge) ?? [];
+      if (!decantOf(it) || !it.spec) continue;
+      const names = bySpec.get(it.spec) ?? [];
       names.push(it.name);
-      byBadge.set(badge, names);
+      bySpec.set(it.spec, names);
     }
-    return [...byBadge.entries()].filter(([, names]) => names.length > 1);
+    return [...bySpec.entries()].filter(([, names]) => names.length > 1);
   }, [items, override]);
 
   return (
@@ -77,9 +97,10 @@ export function DecantBoard({ items, initialQuery }: { items: StockItem[]; initi
         </div>
       </div>
 
-      {clashes.map(([badge, names]) => (
-        <p key={badge} className="a-warn" role="status">
-          {names.length} bottles are in the {badge} decanter: {names.join(", ")}. A recipe card names that decanter once.
+      {takenOut ? <p className="a-ok" role="status">{takenOut}</p> : null}
+      {clashes.map(([spec, names]) => (
+        <p key={spec} className="a-warn" role="status">
+          {names.length} bottles of {spec} are decanted: {names.join(", ")}. Turn one on to leave only that bottle in the decanter.
         </p>
       ))}
 

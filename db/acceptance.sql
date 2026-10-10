@@ -1689,6 +1689,26 @@ BEGIN
   RAISE NOTICE 'check 34 passed';
 END $$;
 
+-- 35. Decanting is a menu change (039): the products update trigger no longer treats it as pop-up-only.
+DO $$
+DECLARE
+  def text;
+BEGIN
+  SELECT pg_get_triggerdef(oid) INTO def
+    FROM pg_trigger
+   WHERE tgname = 'products_bar_updated' AND tgrelid = 'products'::regclass AND NOT tgisinternal;
+  IF def IS NULL THEN
+    RAISE EXCEPTION 'check 35 failed: products_bar_updated is missing';
+  END IF;
+  IF def ILIKE '%decanting%' THEN
+    RAISE EXCEPTION 'check 35 failed: decanting is still pop-up-only';
+  END IF;
+  IF def NOT ILIKE '%pairing_notes%' THEN
+    RAISE EXCEPTION 'check 35 failed: the trigger lost its detail columns';
+  END IF;
+  RAISE NOTICE 'check 35 passed';
+END $$;
+
 DO $$
 BEGIN
   RAISE NOTICE 'all acceptance checks passed';

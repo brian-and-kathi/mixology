@@ -1,6 +1,6 @@
 /**
  * Reserved (migration 032): the inline skeleton key, a padlock fallback for the TV, and the antique brass
- * "Ask the host" tag. Brass is --reserved (globals.css), never the copper Featured color or the menu gold.
+ * "Reserved" tag. Brass is --reserved (globals.css), never the copper Featured color or the menu gold.
  * Icons are stroked in currentColor and sized in em, so they follow the text they sit in.
  */
 
@@ -30,12 +30,12 @@ export function PadlockIcon({ className = "", label }: { className?: string; lab
   );
 }
 
-/** The brass "Ask the host" pill, with the key. Guest pages and the TV; never alone: the item is also dimmed and sorted last. */
+/** The brass "Reserved" pill, with the key. Guest pages and the TV; never alone: the item is also dimmed and sorted last. */
 export function ReservedTag({ className = "", icon = true }: { className?: string; icon?: boolean }) {
   return (
     <span className={`res-tag${className ? ` ${className}` : ""}`}>
       {icon ? <KeyIcon /> : null}
-      Ask the host
+      Reserved
     </span>
   );
 }

@@ -548,7 +548,7 @@ sup.decanting { font-family: var(--font-sans), ui-sans-serif, system-ui, sans-se
 .tv-band-bottles .feat-tag { font-size: 0.8em; margin-left: 0.4em; padding: 0.15vh 0.7vh 0.25vh; vertical-align: 0.05em; }
 
 /* ---------- Reserved (migration 032) ----------
-   A reserved bottle, or a cocktail that needs one, stays on the menu but LOCKED: a skeleton key, the "Ask the host"
+   A reserved bottle, or a cocktail that needs one, stays on the menu but LOCKED: a skeleton key, the "Reserved"
    pill in muted antique brass, the item dimmed and sorted after the available items of its family. Brass is its own
    token, distinct from the menu gold (#b8903c) and the Featured copper (#e8804a): #a08a5c is 6.3:1 on #000 and
    5.5:1 on the #151515 card (AA for text). Never color alone: the key and the words always come with it. */
@@ -559,7 +559,7 @@ sup.decanting { font-family: var(--font-sans), ui-sans-serif, system-ui, sans-se
 .res-dim { opacity: 0.62; }
 .card.is-reserved .card-lead, .card.is-reserved .item-detail, .card.is-reserved .corner-badge, .card.is-reserved .card-rating { opacity: 0.55; }
 .phone-title-text .res-tag { margin-left: 0; font-size: calc(1.6rem * 0.52); vertical-align: baseline; }
-/* Locked page: the key in place of the glass, the occasion and "Ask the host". */
+/* Locked page: the key in place of the glass, the occasion and "Reserved". */
 .locked-lead { color: var(--reserved); }
 .locked-key { width: 3.4rem; height: 3.4rem; }
 .locked { margin-top: 0.5rem; }
@@ -671,7 +671,7 @@ sup.decanting { font-family: var(--font-sans), ui-sans-serif, system-ui, sans-se
 /* Phone recipe page: the drink's moods (Brian via Vincent, 2026-10-04), the TV cast card's quiet cream line, tucked
    just above the glass line. */
 /* Mood badges, shared by the recipe page and the TV cast band (components/MoodLine): outlined slate pills, unlike
-   the gold type/grape tags, the copper Featured tag and the brass "Ask the host". Text #d3dce6 on the faint fill
+   the gold type/grape tags, the copper Featured tag and the brass "Reserved". Text #d3dce6 on the faint fill
    over black is about 14:1; the #7d8fa3 outline about 6:1. */
 .mood-badges { display: flex; flex-wrap: wrap; align-items: center; list-style: none; margin: 0; padding: 0; }
 .mood-badge { display: inline-flex; align-items: center; border: 1px solid #7d8fa3; border-radius: 999px; background: rgba(125, 143, 163, 0.12); color: #d3dce6; font-weight: 500; line-height: 1.1; letter-spacing: 0.02em; white-space: nowrap; }

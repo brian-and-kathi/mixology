@@ -226,6 +226,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
                 <span className="amt">{l.amount}</span>
                 <span className={`what${l.out ? " out" : ""}`}>
                   {l.name}
+                  {l.spec_decanting ? <sup className="decanting">[decanting]</sup> : null}
                   {/* Alternates (migration 034): muted, same line, never a badge. */}
                   {l.or ? <>{" "}<span className={l.or_more ? "alt-or alt-or-keep" : "alt-or"}>{l.or}{l.or_more ? <span className="alt-more-tv">+{l.or_more}</span> : null}</span></> : null}
                   {l.out || l.use_instead || l.optional || l.note || l.alt_notes?.length ? (

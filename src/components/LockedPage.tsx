@@ -5,7 +5,7 @@ import type { Locked } from "@/lib/menu";
 
 /**
  * A reserved drink's page (migration 032): the name, the occasion if there is one ("Saved for Kathi's 50th")
- * and "Ask the host". Nothing else: no recipe, specs, serve, method, rating or Show on TV. The same page answers
+ * and "Reserved". Nothing else: no recipe, specs, serve, method, rating or Show on TV. The same page answers
  * a direct visit to the recipe, pour or wine URL, so nothing leaks from there either.
  */
 export function LockedPage({ locked, bar, back, editHref }: { locked: Locked; bar: BarView; back: { href: string; label: string }; editHref?: string }) {
@@ -14,7 +14,7 @@ export function LockedPage({ locked, bar, back, editHref }: { locked: Locked; ba
       lead={<div className="lead locked-lead"><KeyIcon className="locked-key" /></div>}>
       <section className="locked">
         {locked.note ? <p className="locked-note">Saved for {locked.note}</p> : null}
-        <p className="locked-ask">Ask the host</p>
+        <p className="locked-ask">Reserved</p>
       </section>
     </PhoneShell>
   );

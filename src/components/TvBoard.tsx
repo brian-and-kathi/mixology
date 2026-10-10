@@ -65,7 +65,7 @@ const TV_FEATURED_FLOURISH: Flourish = "sparkle";
 
 /**
  * Reserved rows (migration 032): the icon before the name. "padlock" (Brian, 2026-10-04: it reads better from the
- * couch); "key": the skeleton key the phone and admin use. The brass "Ask the host" tag ends the line under the name.
+ * couch); "key": the skeleton key the phone and admin use. The brass "Reserved" tag ends the line under the name.
  */
 const TV_RESERVED_ICON: "key" | "padlock" = "padlock";
 
@@ -149,7 +149,7 @@ export function tvWrapText(text: string): string {
 /**
  * The subtext under a TV name (Vincent, 2026-10-04): the whole line (fit[0], the longest candidate), wrapping
  * onto a second line when it is wider than the row, the same way long names wrap. Never clipped, never cut to
- * "· …". The Pours badge comes first and a Featured or "Ask the host" tag last; chips never break inside.
+ * "· …". The Pours badge comes first and a Featured or "Reserved" tag last; chips never break inside.
  * Row heights (and so sub-columns and paging) are measured from the rendered rows, so a wrapped line counts.
  */
 /** The same "[decanting]" mark the recipe card uses, on a spec the TV is listing. */
@@ -187,7 +187,7 @@ function FitLine({ fit, badge = null, origin = null, featured = false, reserved 
       {marked ? null : place ? text.slice(place.length) : text}
       {decanting && !badge ? <>{" "}<DecantMark /></> : null}
       {featured ? <span className="feat-tag tv-feat-tag">Featured</span> : null}
-      {reserved ? <span className="res-tag tv-res-tag">Ask the host</span> : null}
+      {reserved ? <span className="res-tag tv-res-tag">Reserved</span> : null}
     </span>
   );
 }
@@ -222,7 +222,7 @@ function Row({ item, rating }: { item: MenuItem; rating?: number }) {
   const tag = !!item.featured && TV_FEATURED === "tag";
   const star = !!item.featured && TV_FEATURED === "star";
   const fl = TV_FLOURISHES[TV_FEATURED_FLOURISH];
-  // Reserved (migration 032): dimmed, an icon before the name and the "Ask the host" tag under it. Never cast.
+  // Reserved (migration 032): dimmed, an icon before the name and the "Reserved" tag under it. Never cast.
   const locked = !!item.reserved;
   const below = !!item.spec || !!item.fit?.length || tag || locked || !!item.decanting || !!item.decanted?.length;
   return (

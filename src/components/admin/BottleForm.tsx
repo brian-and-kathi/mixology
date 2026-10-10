@@ -161,8 +161,8 @@ export function BottleForm({ product, specs: initialSpecs, families, shared, win
       {f.reserved ? (
         <label className="a-field">
           <span className="a-label">Occasion note (optional)</span>
-          <input value={f.reserved_note} onChange={(e) => set("reserved_note", e.target.value)} maxLength={40} placeholder="Kathi's 50th" />
-          <span className="a-quiet a-small">Guests still see it on the menu, locked: “Ask the host”{f.reserved_note.trim() ? `, “Saved for ${f.reserved_note.trim()}”` : ""}. Drinks that need it are locked too.</span>
+          <input value={f.reserved_note} onChange={(e) => set("reserved_note", e.target.value)} maxLength={40} placeholder="What's it's purpose?" />
+          <span className="a-quiet a-small">Guests still see it on the menu, locked: “Reserved”{f.reserved_note.trim() ? `, “Saved for ${f.reserved_note.trim()}”` : ""}. Drinks that need it are locked too.</span>
         </label>
       ) : null}
       {/* Soft warning (migration 030): more than 3 bottles Featured and in stock (what guests see). Non-blocking.

@@ -20,7 +20,7 @@ export type SectionId = (typeof SECTIONS)[number]["id"];
  * the TV shows the first (the whole line) and wraps it when it is too long (TvBoard FitLine, 2026-10-04); the
  * shorter candidates are no longer used.
  */
-export type Sub = { detail: string; fit: string[]; /** Place name as it appears at the start of `detail` (phone) and of the TV line. */ origin?: string; /** Shorter place shown on the TV when the phone line keeps the full origin. */ originTv?: string };
+export type Sub = { detail: string; fit: string[]; /** Place name as it appears at the start of `detail` (phone) and of the TV line. */ origin?: string; /** Shorter place shown on the TV when the phone line keeps the full origin. */ originTv?: string; /** Cocktail line: ingredient names (lowercase specs) whose bottle is in a decanter. The TV marks those words. */ decanted?: string[] };
 /**
  * `spec`: the badge after a Pours name ("Rye", see lib/spec-label; none when the name already says it);
  * other sections have none. `measure`: the text the TV sizes the column by (the full name, so column
@@ -28,7 +28,7 @@ export type Sub = { detail: string; fit: string[]; /** Place name as it appears 
  * spirit family after another family (lib/spirit-family.ts); (Cellar): the first wine of a category after another
  * category (wineCategory, migration 031). The phone and TV add the same small gap above it.
  */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40% abv" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean; /** Reserved (migration 032): a reserved bottle, or a cocktail that needs one. Still listed, LOCKED: key icon, brass "Reserved" tag, dimmed, after the available items of its family; no detail page, no cast. Never featured. */ reserved?: boolean; /** The occasion ("Kathi's 50th"), shown as "Saved for …". */ reservedNote?: string | null };
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40% abv" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean; /** Reserved (migration 032): a reserved bottle, or a cocktail that needs one. Still listed, LOCKED: key icon, brass "Reserved" tag, dimmed, after the available items of its family; no detail page, no cast. Never featured. */ reserved?: boolean; /** The occasion ("Kathi's 50th"), shown as "Saved for …". */ reservedNote?: string | null; /** This pour's bottle is in a decanter. The TV marks its spec. */ decanting?: boolean; /** Cocktail ingredients on this line whose bottle is in a decanter (lowercase spec names). */ decanted?: string[] };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -107,11 +107,11 @@ function byCategory(rows: (MenuItem & { group: number; category: string })[]): M
  */
 export async function loadMenu(): Promise<Menu> {
   const [pours, cocktails, cellar, lines] = await Promise.all([
-    query<{ id: string; name: string; full: string; origin: string | null; abv: string | null; type: string | null; label: string | null; family: string | null; featured: boolean; reserved: boolean; reserved_note: string | null }>(
+    query<{ id: string; name: string; full: string; origin: string | null; abv: string | null; type: string | null; label: string | null; family: string | null; featured: boolean; reserved: boolean; reserved_note: string | null; decanting: boolean }>(
       // Pours show the bottle's short name (migration 023; NULL = the full name) with a badge: its own badge
       // label, or else its type (spec_label is display only; the subtext's type fallback stays the ingredient).
       `SELECT n.id, COALESCE(p.short_name, n.display_name) AS name, n.display_name AS full, n.origin, n.abv::text AS abv, n.primary_spec_name AS type,
-              p.spec_label AS label, (p.id IN (SELECT featured_product_ids())) AS featured, n.reserved, n.reserved_note,
+              p.spec_label AS label, (p.id IN (SELECT featured_product_ids())) AS featured, n.reserved, n.reserved_note, p.decanting,
               -- The primary ingredient's family, for grouping (lib/spirit-family.ts). Ingredient names are unique.
               (SELECT f.slug FROM specs s JOIN spec_families sf ON sf.spec_id = s.id AND sf.is_primary
                  JOIN families f ON f.id = sf.family_id WHERE s.canonical_name = n.primary_spec_name) AS family
@@ -139,7 +139,7 @@ export async function loadMenu(): Promise<Menu> {
     pours: byFamily(pours.map((p) => {
       const badge = specLabel(p.type, p.label);
       return lock({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, badge), measure: p.full, ...pourLine(p),
-        abv: p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% abv` : null, featured: p.featured,
+        abv: p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% abv` : null, featured: p.featured, decanting: p.decanting,
         family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" }, p.reserved, p.reserved_note);
     })),
     cocktails: reservedLast<MenuItem>(featuredFirst<MenuItem>(cocktails.map(({ reserved, reserved_note, ...c }) =>
@@ -162,7 +162,8 @@ export async function loadMenu(): Promise<Menu> {
  * are not on the shelf here; a locked cocktail shows no line at all.
  */
 async function loadCocktailLines(): Promise<Map<string, Sub>> {
-  const rows = await query<{ recipe_id: string; names: string[] }>(
+  const [rows, decantedSpecs] = await Promise.all([
+    query<{ recipe_id: string; names: string[] }>(
     `WITH shelf AS (
        SELECT sp.id FROM specs sp
         WHERE sp.always_available
@@ -194,9 +195,23 @@ async function loadCocktailLines(): Promise<Map<string, Sub>> {
         AND s.required
         AND rl.role IS DISTINCT FROM 'garnish'
         AND s.spec_id NOT IN (SELECT spec_id FROM staple)
-      GROUP BY s.recipe_id`,
-  );
-  return new Map(rows.flatMap((r) => { const sub = ingredientLine(r.names); return sub ? [[r.recipe_id, sub] as [string, Sub]] : []; }));
+      GROUP BY s.recipe_id`),
+    // Specs whose in-stock bottle is in a decanter. The TV cocktail line marks that ingredient.
+    query<{ name: string }>(
+      `SELECT DISTINCT s.canonical_name AS name
+         FROM products p
+         JOIN product_specs ps ON ps.product_id = p.id AND ps.is_primary
+         JOIN specs s ON s.id = ps.spec_id
+        WHERE p.decanting AND p.in_stock AND NOT p.reserved`,
+    ),
+  ]);
+  const decanted = new Set(decantedSpecs.map((s) => s.name.toLowerCase()));
+  return new Map(rows.flatMap((r) => {
+    const sub = ingredientLine(r.names);
+    if (!sub) return [];
+    const hit = r.names.filter((n) => decanted.has(n.toLowerCase()));
+    return [[r.recipe_id, hit.length ? { ...sub, decanted: hit } : sub] as [string, Sub]];
+  }));
 }
 
 const first = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -282,6 +297,11 @@ export type RecipeLine = {
   featured: string[];
   /** Shown names in `bottles` that are in a decanter (products.decanting). The card marks those names. */
   decanting: string[];
+  /**
+   * The bottle line was left off because the ingredient already names that one bottle, and that bottle is
+   * in a decanter. The TV marks the ingredient. The phone still leaves the word unmarked.
+   */
+  specDecanting: boolean;
   /**
    * The line's other choices a guest may use tonight (migration 034): its alternates with a bottle on the shelf
    * (in stock, not reserved), in priority order, not counting the one that leads. When the line's own ingredient is
@@ -532,7 +552,9 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     // (still after a preferred one) so "[decanting]" is not hidden behind "+N more".
     const decanting = shown ? shownNames(stock.filter((b) => b.decanting).map((b) => b.name.trim()), stock)!.filter((n) => shown.includes(n)) : [];
     const ordered = featuredBottlesFirst(featuredBottlesFirst(shown, featured, preferred), decanting, preferred);
-    return { ...line, bottles: ordered, preferred, featured, decanting };
+    // No bottle line: the ingredient is the only name the guest sees, so the TV marks that word.
+    const specDecanting = !shown && stock.some((b) => b.decanting);
+    return { ...line, bottles: ordered, preferred, featured, decanting, specDecanting };
   });
   // An alternate leading tonight takes the own ingredient's place in the method too (recipe page and TV card),
   // unless that would be fragile (see swapMethod).

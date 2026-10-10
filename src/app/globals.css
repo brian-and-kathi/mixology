@@ -197,6 +197,9 @@ h1, h2, p { margin: 0; }
 .tv-band-line .what small { display: block; font-size: calc(2.04vh * var(--s)); line-height: 1.3; color: var(--quiet); margin-top: 0.2vh; }
 .tv-band-line .what .tv-band-bottles { color: var(--gold); font-family: var(--font-serif), Georgia, serif; font-style: italic; }
 .tv-band-line .what .decanting { font-size: calc(1.55vh * var(--s)); }
+/* TV board: the mark sits with the spec badge (1.375vh), not at 0.62em of the gold subtext. */
+.tv-detail .decanting { font-size: 1.375vh; margin-left: 0.35em; margin-right: 0.45em; vertical-align: 0.2em; }
+.tv-row.is-reserved .decanting { opacity: 0.6; }
 .tv-tag { display: inline-block; vertical-align: 0.2vh; margin-right: 1.1vh; padding: 0.37vh 1vh 0.46vh; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 999px; font: 500 calc(1.39vh * var(--s))/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
 .tv-band-text { font-size: calc(2.96vh * var(--s)); line-height: 1.45; color: rgba(255, 255, 255, 0.92); text-wrap: balance; }
 .tv-band-text + .tv-band-text { margin-top: 1.3vh; }

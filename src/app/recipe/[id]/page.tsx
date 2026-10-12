@@ -1,6 +1,7 @@
 import { ClosedPage } from "@/components/ClosedPage";
 import { guestGate, publicStatus } from "@/lib/bar-status";
 import { notFound } from "next/navigation";
+import { DecanterSeal } from "@/components/DecanterSeal";
 import { DrinkLead } from "@/components/DrinkLead";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { PhoneShell } from "@/components/PhoneShell";
@@ -59,6 +60,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   return (
     <PhoneShell bar={bar}
       title={recipe.name}
+      mark={lines.some((l) => l.specDecanting || l.parts?.some((p) => p.decanting)) ? <DecanterSeal /> : undefined}
       titleBadge={recipe.featured ? <FeaturedTag /> : undefined}
       editHref={editHref}
       back={{ href: "/menu?tab=cocktails", label: "Cocktails" }}

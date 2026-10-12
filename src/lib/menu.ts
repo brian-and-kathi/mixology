@@ -301,7 +301,7 @@ export type RecipeLine = {
   decanting: string[];
   /**
    * The bottle line was left off because the ingredient already names that one bottle, and that bottle is
-   * in a decanter. The recipe card marks that ingredient with a seal.
+   * in a decanter. The recipe card shows one seal when a line uses one.
    */
   specDecanting: boolean;
   /**

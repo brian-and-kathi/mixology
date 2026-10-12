@@ -2,6 +2,7 @@ import { isUuid, query } from "@/lib/db";
 import { spiritFamily } from "@/lib/spirit-family";
 import { badgeFor, specLabel } from "@/lib/spec-label";
 import { CELLAR_COLORS, cellarColor } from "@/lib/moods";
+import { abvLabel } from "@/lib/format";
 import { spelledOrigin } from "@/lib/us-states";
 import { swapMethodText } from "@/lib/alternates";
 export { altWords } from "@/lib/alt-words";
@@ -28,7 +29,7 @@ export type Sub = { detail: string; fit: string[]; /** Place name as it appears 
  * spirit family after another family (lib/spirit-family.ts); (Cellar): the first wine of a category after another
  * category (wineCategory, migration 031). The phone and TV add the same small gap above it.
  */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "40% abv" shown as a superscript on the TV title. Phone detail still says "40% ABV". */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean; /** Reserved (migration 032): a reserved bottle, or a cocktail that needs one. Still listed, LOCKED: key icon, brass "Reserved" tag, dimmed, after the available items of its family; no detail page, no cast. Never featured. */ reserved?: boolean; /** The occasion ("Kathi's 50th"), shown as "Saved for …". */ reservedNote?: string | null; /** This pour's bottle is in a decanter. The TV marks its spec. */ decanting?: boolean; /** Cocktail ingredients on this line whose bottle is in a decanter (lowercase spec names). */ decanted?: string[] };
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "56% abv" (whole percent). On the TV it is a subscript under the name, and a decanting "(dec)" sits above it. The phone detail uses the same words. */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean; /** Reserved (migration 032): a reserved bottle, or a cocktail that needs one. Still listed, LOCKED: key icon, brass "Reserved" tag, dimmed, after the available items of its family; no detail page, no cast. Never featured. */ reserved?: boolean; /** The occasion ("Kathi's 50th"), shown as "Saved for …". */ reservedNote?: string | null; /** This pour's bottle is in a decanter. Phone and TV show "(dec)" after the name. */ decanting?: boolean; /** Cocktail ingredients on this line whose bottle is in a decanter (lowercase spec names). */ decanted?: string[] };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -139,7 +140,7 @@ export async function loadMenu(): Promise<Menu> {
     pours: byFamily(pours.map((p) => {
       const badge = specLabel(p.type, p.label);
       return lock({ id: p.id, name: p.name, glass: "rocks", href: `/pour/${p.id}`, spec: badgeFor(p.name, badge), measure: p.full, ...pourLine(p),
-        abv: p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% abv` : null, featured: p.featured, decanting: p.decanting,
+        abv: abvLabel(p.abv) || null, featured: p.featured, decanting: p.decanting,
         family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" }, p.reserved, p.reserved_note);
     })),
     cocktails: reservedLast<MenuItem>(featuredFirst<MenuItem>(cocktails.map(({ reserved, reserved_note, ...c }) =>
@@ -220,8 +221,8 @@ const DOT = "\u00a0· ";
 const NBSP = "\u00a0";
 /** Phone subtext: a place name never splits inside a part ("Grand Rapids", "New York", "United Kingdom"); a line may still break after its comma. */
 const keepPlace = (region: string) => region.split(/,\s*/).map((part) => part.trim().replace(/\s+/g, NBSP)).filter(Boolean).join(", ");
-/** Phone subtext: the number and "ABV" stay together ("26% ABV" never leaves "ABV" alone on a line). */
-const keepAbv = (abv: string) => abv.replace(/ ABV$/, `${NBSP}ABV`);
+/** Phone subtext: the number and "abv" stay together ("56% abv" never leaves "abv" alone on a line). */
+const keepAbv = (abv: string) => abv.replace(/ abv$/, `${NBSP}abv`);
 
 /**
  * A list line ("Rye · sweet vermouth · cherry liqueur"), only the first word capitalized.
@@ -244,14 +245,15 @@ export function ingredientLine(names: string[]) {
 }
 
 /**
- * Pours. Phone: "Lake City, Michigan · 45% ABV" (one if the other is missing; neither, the type), with
- * no-break spaces inside "Lake City" and "45% ABV" so neither splits across lines.
- * TV: the whole place, "City, State" (Vincent, 2026-10-06; was the state alone). The ABV is a superscript on the name.
+ * Pours. Phone: "Lake City, Michigan · 56% abv" (one if the other is missing; neither, the type), with
+ * no-break spaces inside "Lake City" and "56% abv" so neither splits across lines. The percent is a whole number.
+ * TV: the whole place, "City, State" (Vincent, 2026-10-06; was the state alone). The ABV is a subscript on the name
+ * when the bottle is decanting (the "(dec)" badge sits above it); otherwise it stays a superscript on the name.
  * Origins are stored "City, ST" (admin saves normalize them); a US code is spelled out here, at display time only
  * (spelledOrigin: "Lake City, MI" -> "Lake City, Michigan"), the same on the TV, the phone and the cast card.
  */
 export function pourLine(p: { origin: string | null; abv: string | null; type: string | null }): Partial<Sub> {
-  const abv = p.abv && Number(p.abv) > 0 ? `${Number(p.abv)}% ABV` : "";
+  const abv = abvLabel(p.abv);
   const region = spelledOrigin(p.origin);
   if (!region && !abv) {
     const type = clean(p.type);
@@ -399,7 +401,7 @@ export type BottlePart = { text: string; featured?: boolean; decanting?: boolean
 
 /**
  * bottleLine as pieces, so a featured bottle (migration 030) can carry the copper "Featured" tag
- * and a decanted bottle can carry "[decanting]". `featured` and `decanting` are shown names.
+ * and a decanted bottle can carry "(dec)". `featured` and `decanting` are shown names.
  * Same text as bottleLine when the marks are ignored.
  */
 export function bottleParts(names: string[], sep = " · ", preferred = false, max = 3, featured: string[] = [], decanting: string[] = []): BottlePart[] {
@@ -549,7 +551,7 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     // never features the drink (featured_recipe_ids), so its bottle line stays plain too.
     const featured = line.required ? shownNames(stock.filter((b) => b.featured).map((b) => b.name.trim()), stock)!.filter((n) => shown?.includes(n)) : [];
     // The names the guest actually reads that are in a decanter. Lift them in front of other bottles
-    // (still after a preferred one) so "[decanting]" is not hidden behind "+N more".
+    // (still after a preferred one) so "(dec)" is not hidden behind "+N more".
     const decanting = shown ? shownNames(stock.filter((b) => b.decanting).map((b) => b.name.trim()), stock)!.filter((n) => shown.includes(n)) : [];
     const ordered = featuredBottlesFirst(featuredBottlesFirst(shown, featured, preferred), decanting, preferred);
     // No bottle line: the ingredient is the only name the guest sees, so the TV marks that word.

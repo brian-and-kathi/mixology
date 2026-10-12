@@ -17,7 +17,7 @@ export default async function DecantersPage({ searchParams }: { searchParams: Pr
   return (
     <>
       <h1 className="a-h1">Decanters</h1>
-      <p className="a-hint a-decant-lead">Mark the bottle that is in each decanter. Only one bottle of an ingredient can be in at a time: bourbon and whiskey can both be in, and a second whiskey takes the first one out. A recipe card lists that bottle with [decanting].</p>
+      <p className="a-hint a-decant-lead">Mark the bottle that is in each decanter. Only one bottle of an ingredient can be in at a time: bourbon and whiskey can both be in, and a second whiskey takes the first one out. A recipe card lists that bottle with (dec).</p>
       <DecantBoard items={items} initialQuery={q !== undefined ? cleanSearch(q) : saved} />
     </>
   );

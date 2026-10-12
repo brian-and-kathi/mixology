@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { DecanterSeal } from "@/components/DecanterSeal";
+import { DecantBadge } from "@/components/DecantBadge";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon } from "@/components/GlassIcon";
 import { MoodLine } from "@/components/MoodLine";
@@ -226,7 +226,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
                 <span className="amt">{l.amount}</span>
                 <span className={`what${l.out ? " out" : ""}`}>
                   {l.name}
-                  {l.spec_decanting ? <sup className="decanting">[decanting]</sup> : null}
+                  {l.spec_decanting ? <DecantBadge sup /> : null}
                   {/* Alternates (migration 034): muted, same line, never a badge. */}
                   {l.or ? <>{" "}<span className={l.or_more ? "alt-or alt-or-keep" : "alt-or"}>{l.or}{l.or_more ? <span className="alt-more-tv">+{l.or_more}</span> : null}</span></> : null}
                   {l.out || l.use_instead || l.optional || l.note || l.alt_notes?.length ? (
@@ -238,7 +238,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
                   {l.bottle_parts ? (
                     <small className="tv-band-bottles">
                       {l.bottle_parts.map((part, j) => {
-                        const mark = part.decanting ? <sup className="decanting">[decanting]</sup> : null;
+                        const mark = part.decanting ? <DecantBadge sup /> : null;
                         if (part.featured) return <span key={j}><span className="feat-name">{part.text}</span><FeaturedTag />{mark}</span>;
                         if (mark) return <span key={j}>{part.text}{mark}</span>;
                         return <span key={j}>{part.text}</span>;
@@ -314,8 +314,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
             <GlassIcon glass={payload.glass} className="tv-band-glass" />
             <BandStars avg={payload.rating} />
           </div>
-          <h3 className="tv-band-name">{payload.name}</h3>
-          {payload.decanting ? <DecanterSeal className="tv-band-seal" /> : null}
+          <h3 className="tv-band-name">{payload.name}{payload.decanting ? <DecantBadge sup /> : null}</h3>
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
           {payload.detail ? <p className="tv-band-serve">{payload.detail}</p> : null}
         </>

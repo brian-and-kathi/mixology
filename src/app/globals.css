@@ -10,7 +10,7 @@
   /* Gold accent, shared by the TV and the guest phone (admin never uses it): text, and a dimmer tone for lines. */
   --gold: #b8903c;
   --gold-line: #95753d;
-  /* Complement of gold: a cool blue for the "[decanting]" mark on a bottle name. 9.8:1 on #000. */
+  /* Complement of gold: a cool blue for the "(dec)" mark on a bottle name. 9.8:1 on #000. */
   --decanting: #8eb4e6;
   /* Featured (migration 030): warm copper, distinct from gold. 7.6:1 on #000, 6.6:1 on the #151515 card (AA).
      Never used alone on phone: featured items carry the "Featured" tag (components/FeaturedTag).
@@ -104,6 +104,11 @@ h1, h2, p { margin: 0; }
 /* Pours ABV, superscript on the title. Gold even when the highlighted row turns the name cream. */
 /* 0.46em of the 2.85vh name = 1.31vh (~14px at 1080p; was 0.41em of 2.75vh, ~12px), raised with the sublines (1.375 -> 1.6vh). */
 .tv-abv { font-family: var(--font-sans), sans-serif; font-variant-numeric: tabular-nums; font-size: 0.46em; font-weight: 600; line-height: 0; margin-left: 0.15em; color: var(--gold); vertical-align: super; white-space: nowrap; }
+/* Decanting pour: "(dec)" stacked above the ABV, both immediately after the name. The stack is only as wide as
+   the longer mark, so the subscript sits under the superscript. It grows that one row; other rows stay put. */
+.tv-name-tail { display: inline-flex; flex-direction: column; align-items: flex-start; vertical-align: middle; margin-left: 0.28em; line-height: 1; gap: 0.08em; }
+.tv-name-tail .dec-badge { font-size: 0.42em; margin-left: 0; line-height: 1; vertical-align: baseline; }
+.tv-name-tail .tv-abv { font-size: 0.46em; margin-left: 0; line-height: 1; vertical-align: baseline; }
 /* Spec badge after a Pours name on the TV ("Bowright Recurve [Rye]"), and the base for the phone corner badge and the
    pour page title badge: gold text at
    72% of the name size, weight 500, 1px gold-line border, 4px radius, 1px 6px padding. It rides in one
@@ -196,10 +201,10 @@ h1, h2, p { margin: 0; }
 .tv-band-line .what.out { color: rgba(255, 255, 255, 0.7); }
 .tv-band-line .what small { display: block; font-size: calc(2.04vh * var(--s)); line-height: 1.3; color: var(--quiet); margin-top: 0.2vh; }
 .tv-band-line .what .tv-band-bottles { color: var(--gold); font-family: var(--font-serif), Georgia, serif; font-style: italic; }
-.tv-band-line .what .decanting { font-size: calc(1.55vh * var(--s)); }
+.tv-band-line .what .dec-badge { font-size: calc(1.55vh * var(--s)); }
 /* TV board: the mark sits with the spec badge (1.375vh), not at 0.62em of the gold subtext. */
-.tv-detail .decanting { font-size: 1.375vh; margin-left: 0.35em; margin-right: 0.45em; vertical-align: 0.2em; }
-.tv-row.is-reserved .decanting { opacity: 0.6; }
+.tv-detail .dec-badge { font-size: 1.375vh; margin-left: 0.35em; margin-right: 0.45em; vertical-align: 0.2em; }
+.tv-row.is-reserved .dec-badge { opacity: 0.6; }
 .tv-tag { display: inline-block; vertical-align: 0.2vh; margin-right: 1.1vh; padding: 0.37vh 1vh 0.46vh; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 999px; font: 500 calc(1.39vh * var(--s))/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
 .tv-band-text { font-size: calc(2.96vh * var(--s)); line-height: 1.45; color: rgba(255, 255, 255, 0.92); text-wrap: balance; }
 .tv-band-text + .tv-band-text { margin-top: 1.3vh; }
@@ -276,9 +281,6 @@ h1, h2, p { margin: 0; }
 /* Sized to stay on one line beside the menu button (the script face is ~11 font-sizes wide). */
 .phone-wordmark { font-size: min(1.9rem, calc((100vw - 2 * (12px + 1.1rem) - 64px) / 11.2)); white-space: nowrap; }
 .phone-title { display: flex; align-items: center; gap: 1rem; }
-/* Pour page: a wax seal at the right of the title when the bottle is in a decanter. */
-.decanter-seal { flex: none; width: 4.75rem; height: 4.75rem; margin-left: auto; transform: rotate(-11deg); filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.45)); }
-.tv-band-seal { width: calc(12vh * var(--s)); height: calc(12vh * var(--s)); margin: 0.6vh 0 0.4vh; }
 /* Font option B: DM Serif Display, its only weight (400; no faux bold). */
 .phone-title h1 { font-family: var(--font-title), Georgia, serif; font-size: 2rem; font-weight: 400; letter-spacing: 0; line-height: 1.08; }
 .back { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 1rem; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; font-size: 1rem; }
@@ -355,8 +357,11 @@ a.card:active { background: #202020; }
 .ingredient .note { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
 /* In-stock bottles behind the ingredient (loadRecipe / spec_supply), under the name column. */
 .ingredient .bottles { display: block; font-size: 0.92rem; margin-top: 0.15rem; color: var(--gold); font-family: var(--font-serif), Georgia, serif; font-style: italic; }
-/* "[decanting]" sits above the bottle name, in the complement of the gold type. */
-sup.decanting { font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; font-style: normal; font-weight: 600; font-size: 0.62em; letter-spacing: 0.01em; line-height: 0; color: var(--decanting); margin-left: 0.15em; }
+/* "(dec)" follows a bottle name. On a recipe line it is a superscript; on a phone name it stays on the baseline. */
+.dec-badge { font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; font-style: normal; font-weight: 600; letter-spacing: 0.01em; color: var(--decanting); white-space: nowrap; }
+sup.dec-badge { font-size: 0.62em; line-height: 0; margin-left: 0.15em; vertical-align: super; }
+.item-name .dec-badge, .phone-title h1 .dec-badge { font-size: 0.72em; margin-left: 0.35em; vertical-align: 0.12em; }
+.card.is-reserved .dec-badge { opacity: 0.55; }
 .out { color: var(--quiet); }
 /* Alternates (migration 034): muted grey "or Cognac" on the ingredient's line; "+2" opens the rest. */
 .alt-or { color: var(--quiet); }

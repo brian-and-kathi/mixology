@@ -74,8 +74,22 @@ const mss = (ms: number) => {
  * "Show on TV" on every cocktail, pour and Cellar wine page (DESIGN §10). Casting replaces whatever is on
  * the TV with no confirmation; while this item is showing, anyone on this page can take it off.
  */
-export function CastButton({ type, id, servings, onServings }: { type: CastType; id: string; servings?: number; onServings?: (n: number) => void }) {
+export function CastButton({
+  type,
+  id,
+  servings,
+  onServings,
+  barOpen = true,
+}: {
+  type: CastType;
+  id: string;
+  servings?: number;
+  onServings?: (n: number) => void;
+  /** False while the bar is Closed: Show on TV does nothing. */
+  barOpen?: boolean;
+}) {
   const [cast, setCast] = useState<CastState>(null);
+  const [open, setOpen] = useState(barOpen);
   const [offset, setOffset] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
@@ -118,9 +132,13 @@ export function CastButton({ type, id, servings, onServings }: { type: CastType;
   // With the relay live, a "bar:cast" notice triggers the check and the poll slows to a fallback.
   const loadRef = useRef<() => Promise<void>>(async () => {});
   const relayLive = useRelay("bar:cast", () => void loadRef.current());
-  // The bar opened or closed (BarWatch). A close ends a cast from before it, and the 2:00 AM self-close
-  // publishes nothing, so ask now. (If casting is ever turned off while Closed, this is where it'd hook in.)
-  useEffect(() => onBarStatus(() => void loadRef.current()), []);
+  // The bar opened or closed (BarWatch). A close ends a cast, and the 2:00 AM self-close publishes
+  // nothing, so ask now. While Closed the button cannot start one.
+  useEffect(() => { setOpen(barOpen); }, [barOpen]);
+  useEffect(() => onBarStatus((detail) => {
+    setOpen(detail.open);
+    void loadRef.current();
+  }), []);
   useEffect(() => {
     let stop = false;
     let rev = "";
@@ -197,7 +215,7 @@ export function CastButton({ type, id, servings, onServings }: { type: CastType;
 
   // This recipe is already on the TV and the slider moved: tell the TV without restarting the 10 minutes.
   useEffect(() => {
-    if (type !== "recipe" || servings == null || !onTv) return;
+    if (type !== "recipe" || servings == null || !onTv || !open) return;
     if (remoteServings.current == null || servings === remoteServings.current) return;
     const n = servings;
     const t = window.setTimeout(() => {
@@ -211,9 +229,10 @@ export function CastButton({ type, id, servings, onServings }: { type: CastType;
       }).catch(() => {});
     }, 150);
     return () => window.clearTimeout(t);
-  }, [servings, onTv, type, id, apply]);
+  }, [servings, onTv, open, type, id, apply]);
 
   async function send(method: "POST" | "DELETE") {
+    if (method === "POST" && !open) return;
     setBusy(true);
     setError(null);
     setEnded(null);
@@ -241,7 +260,7 @@ export function CastButton({ type, id, servings, onServings }: { type: CastType;
 
   return (
     <div className="cast">
-      <button type="button" className={onTv ? "cast-btn on" : "cast-btn"} disabled={busy} onClick={() => send(onTv ? "DELETE" : "POST")}>
+      <button type="button" className={onTv ? "cast-btn on" : "cast-btn"} disabled={busy || (!open && !onTv)} onClick={() => send(onTv ? "DELETE" : "POST")}>
         <svg viewBox="0 0 24 24" aria-hidden className="cast-icon">
           <rect x="2.5" y="4" width="19" height="13" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
           <path d="M8 20.5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -250,8 +269,8 @@ export function CastButton({ type, id, servings, onServings }: { type: CastType;
         <span className="cast-label">{onTv ? "Take it off the TV" : "Show on TV"}</span>
         <span className="cast-label-short">{onTv ? "Take off" : "Show on TV"}</span>
       </button>
-      <p className="cast-status quiet" aria-live="polite" data-idle={error || onTv || ended ? undefined : ""}>
-        {error ? error : onTv ? `On the TV now · ${mss(remaining)} left` : ended ?? "\u00a0"}
+      <p className="cast-status quiet" aria-live="polite" data-idle={error || onTv || ended || !open ? undefined : ""}>
+        {error ? error : onTv ? `On the TV now · ${mss(remaining)} left` : ended ?? (open ? "\u00a0" : "The bar is closed")}
       </p>
     </div>
   );

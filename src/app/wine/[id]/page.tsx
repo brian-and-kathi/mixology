@@ -52,7 +52,7 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
     <PhoneShell bar={bar} title={wine.name} titleBadge={grape || wine.featured ? <span className="title-badges">{grape ? <span className="spec-badge title-badge">{grape}</span> : null}{wine.featured ? <FeaturedTag /> : null}</span> : undefined} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}
       lead={<DrinkLead glass={wineGlass(wine.sparkling, wine.type)} kind="product" id={wine.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
-      <CastButton type="wine" id={wine.id} />
+      <CastButton type="wine" id={wine.id} barOpen={bar.open} />
       {serve ? (
         <section>
           <h2>How it's served</h2>

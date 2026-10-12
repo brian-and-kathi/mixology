@@ -314,7 +314,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
             <GlassIcon glass={payload.glass} className="tv-band-glass" />
             <BandStars avg={payload.rating} />
           </div>
-          <h3 className="tv-band-name">{payload.name}{payload.decanting ? <DecantBadge sup /> : null}</h3>
+          <h3 className="tv-band-name">{payload.name}</h3>
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
           {payload.detail ? <p className="tv-band-serve">{payload.detail}</p> : null}
         </>

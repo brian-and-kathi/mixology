@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { castRateLimited, castRevision, currentCast, isCastType, setCastServings, startCast, stopCast, type CastType } from "@/lib/cast";
 import { clampServings } from "@/lib/format";
-import { guestGate } from "@/lib/bar-status";
+import { barStatus } from "@/lib/bar-status";
 import { isUuid } from "@/lib/db";
 import { publish } from "@/lib/relay";
 
@@ -40,10 +40,11 @@ const ip = (req: NextRequest) => (req.headers.get("x-forwarded-for") ?? "").spli
 /**
  * POST {type, id, servings?}: show a cocktail, pour or Cellar wine on the TV (replaces whatever is showing).
  * A recipe may include servings 1–6; the TV scales its measured lines. `{keep: true}` changes servings
- * on the recipe already up, without restarting its 10 minutes. While the bar is Closed, admins only (403).
+ * on the recipe already up, without restarting its 10 minutes. While the bar is Closed, nobody can
+ * cast, an admin included (403). Taking a cast off (DELETE) still works.
  */
 export async function POST(req: NextRequest) {
-  if (!(await guestGate()).allowed) return json({ error: "The bar is closed." }, 403);
+  if (!(await barStatus()).open) return json({ error: "The bar is closed." }, 403);
   if (castRateLimited(ip(req))) return json({ error: "Too many requests. Try again in a minute." }, 429);
   const item = await parse(req);
   if (!item) return json({ error: "Send {type: 'recipe' | 'pour' | 'wine', id}." }, 400);

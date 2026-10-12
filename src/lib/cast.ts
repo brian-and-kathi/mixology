@@ -133,11 +133,11 @@ async function winePayload(id: string): Promise<WinePayload | null> {
 type Row = { item_type: CastType; item_id: string; started_at: string; expires_at: string; servings: number };
 
 const CAST_ROW_PLAIN = "SELECT item_type, item_id, started_at, expires_at, servings FROM tv_cast WHERE id = 1 AND expires_at > now()";
-// Open/Closed (migration 029): a cast started before the bar closed is over (closing deletes it; at the
-// 2:00 AM self-close this hides it). Casts an admin starts while Closed still show.
+// Open/Closed (migration 029): nothing is cast while the bar is Closed. Closing deletes the row; the
+// 2:00 AM self-close writes nothing, so this hides the row until opening deletes it.
 const CAST_ROW_GATED = `SELECT t.item_type, t.item_id, t.started_at, t.expires_at, t.servings
   FROM tv_cast t LEFT JOIN bar_state() b ON true
- WHERE t.id = 1 AND t.expires_at > now() AND (b.closed_since IS NULL OR t.started_at >= b.closed_since)`;
+ WHERE t.id = 1 AND t.expires_at > now() AND b.is_open`;
 
 /** The live cast row, if any. Before migration 029 (no bar_state()), the plain rule. */
 async function castRow(): Promise<Row | undefined> {

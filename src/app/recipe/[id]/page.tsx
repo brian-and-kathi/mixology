@@ -51,6 +51,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
       useInstead: line.use_instead,
       note: line.note && !line.preferred ? line.note : null,
       parts: line.bottles ? bottleParts(line.bottles, PHONE_DOT, line.preferred, or.text ? 2 : 3, line.featured, line.decanting) : null,
+      specDecanting: line.specDecanting,
       alternates: line.alternates,
     };
   });
@@ -76,7 +77,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
       ) : null}
 
       {/* Pinned while the recipe scrolls. Servings scales the lines and, once cast, the TV. */}
-      <RecipeScale id={recipe.id} glass={recipe.glass ?? ""} title={recipe.name} lines={lines} methodLabel={methodLabel} method={method} />
+      <RecipeScale id={recipe.id} glass={recipe.glass ?? ""} title={recipe.name} lines={lines} methodLabel={methodLabel} method={method} barOpen={bar.open} />
 
       <RateDrink kind="recipe" id={recipe.id} name={recipe.name} initial={rating} />
     </PhoneShell>

@@ -180,6 +180,16 @@ export function methodParts(description: string | null, style: string | null | u
 }
 
 /**
+ * Guest alcohol: a whole percent and a lower-case unit ("56% abv").
+ * Empty when the value is missing or not above zero. 56.4 rounds to 56; 56.5 rounds to 57.
+ */
+export function abvLabel(abv: string | number | null | undefined): string {
+  const n = typeof abv === "number" ? abv : Number(abv);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return `${Math.round(n)}% abv`;
+}
+
+/**
  * A UPC/EAN as printed under the barcode. DISPLAY ONLY: stored values, saving and scan/lookup matching keep the
  * plain digits. After stripping non-digits:
  *   13 digits starting with 0 (an EAN-13 that is really a UPC-A): drop the 0, then as UPC-A;

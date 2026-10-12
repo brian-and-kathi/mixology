@@ -3,6 +3,7 @@
 import { useId, useRef, useState } from "react";
 import { AltOr } from "@/components/AltOr";
 import { CastButton } from "@/components/CastButton";
+import { DecantBadge } from "@/components/DecantBadge";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { RecipePin } from "@/components/RecipePin";
 import { altWords } from "@/lib/alt-words";
@@ -61,7 +62,7 @@ export function RecipeScale({ id, glass, title, lines, methodLabel, method }: {
                   {line.parts ? (
                     <span className="quiet bottles">
                       {line.parts.map((part, i) => {
-                        const mark = part.decanting ? <sup className="decanting">[decanting]</sup> : null;
+                        const mark = part.decanting ? <DecantBadge sup /> : null;
                         if (part.featured) return <span key={i}><span className="feat-name">{part.text}</span><FeaturedTag />{mark}</span>;
                         if (mark) return <span key={i}>{part.text}{mark}</span>;
                         return <span key={i}>{part.text}</span>;

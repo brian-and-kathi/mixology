@@ -113,7 +113,7 @@ export function clearSiblingDecanting(id: string): Stmt {
   ];
 }
 
-/** Put a bottle in a decanter, or back in its own bottle. The recipe card marks that bottle with [decanting]. */
+/** Put a bottle in a decanter, or back in its own bottle. The recipe card marks that bottle with (dec). */
 export async function setDecanting(id: string, decanting: boolean) {
   if (!isUuid(id)) throw new UserError("Unknown bottle.");
   const results = await tx([

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { DecantBadge } from "@/components/DecantBadge";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { GlassIcon, glassFootDrop } from "@/components/GlassIcon";
 import { ReservedTag } from "@/components/ReservedIcon";
@@ -346,6 +347,7 @@ function Card({ item, ws, famStart }: { item: BrowseItem; ws: string[]; famStart
               the corner badge takes, plus 8px, so the name wraps before it and never runs under it. */}
           {item.spec ? <span className="spec-badge badge-reserve" aria-hidden>{item.spec}</span> : null}
           {item.reserved ? <span className="res-dim"><Marked text={item.name} ws={ws} /></span> : <Marked text={item.name} ws={ws} />}
+          {item.decanting ? <DecantBadge /> : null}
           {/* Featured (migration 030): sorted first (lib/menu.ts), copper hairline and this tag. */}
           {item.featured ? <FeaturedTag /> : null}
           {/* Reserved (migration 032): dimmed, after the available items, brass key tag; the link opens the locked page. */}

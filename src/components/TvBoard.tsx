@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { DecantBadge } from "@/components/DecantBadge";
 import { GlassIcon } from "@/components/GlassIcon";
 import { KeyIcon, PadlockIcon } from "@/components/ReservedIcon";
 
@@ -152,9 +153,9 @@ export function tvWrapText(text: string): string {
  * "· …". The Pours badge comes first and a Featured or "Reserved" tag last; chips never break inside.
  * Row heights (and so sub-columns and paging) are measured from the rendered rows, so a wrapped line counts.
  */
-/** The same "[decanting]" mark the recipe card uses, on a spec the TV is listing. */
+/** The same "(dec)" mark the recipe card uses, on a spec the TV is listing. */
 function DecantMark() {
-  return <sup className="decanting">[decanting]</sup>;
+  return <DecantBadge sup />;
 }
 
 /**
@@ -173,7 +174,7 @@ function MarkedSpecs({ text, specs }: { text: string; specs: string[] }) {
   ));
 }
 
-function FitLine({ fit, badge = null, origin = null, featured = false, reserved = false, decanting = false, decanted = null }: { fit: string[]; badge?: string | null; origin?: string | null; featured?: boolean; reserved?: boolean; decanting?: boolean; decanted?: string[] | null }) {
+function FitLine({ fit, badge = null, origin = null, featured = false, reserved = false, decanted = null }: { fit: string[]; badge?: string | null; origin?: string | null; featured?: boolean; reserved?: boolean; decanted?: string[] | null }) {
   const raw = fit[0] ?? "";
   const text = tvWrapText(raw);
   const from = origin ? tvWrapText(origin) : "";
@@ -182,10 +183,8 @@ function FitLine({ fit, badge = null, origin = null, featured = false, reserved 
   return (
     <span className="tv-detail">
       {badge ? <span className="spec-badge">{badge}</span> : null}
-      {decanting && badge ? <><DecantMark />{" "}</> : null}
       {marked ?? (place ? <span className="tv-origin">{place}</span> : null)}
       {marked ? null : place ? text.slice(place.length) : text}
-      {decanting && !badge ? <>{" "}<DecantMark /></> : null}
       {featured ? <span className="feat-tag tv-feat-tag">Featured</span> : null}
       {reserved ? <span className="res-tag tv-res-tag">Reserved</span> : null}
     </span>
@@ -216,7 +215,8 @@ function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
 function Row({ item, rating }: { item: MenuItem; rating?: number }) {
   // Pours are grouped by spirit family: the first bottle of a family gets a small gap above it (.fam-start).
   const cls = "tv-row" + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "") + (item.reserved ? " is-reserved" : "");
-  // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name.
+  // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name,
+  // unless the bottle is decanting: then "(dec)" is a superscript stacked above the ABV subscript.
   // Featured (migration 030): copper name, plus the tag at the end of the line under it ("tag") or a star
   // before the name ("star", now the flourish in TV_FEATURED_FLOURISH); see TV_FEATURED.
   const tag = !!item.featured && TV_FEATURED === "tag";
@@ -224,7 +224,8 @@ function Row({ item, rating }: { item: MenuItem; rating?: number }) {
   const fl = TV_FLOURISHES[TV_FEATURED_FLOURISH];
   // Reserved (migration 032): dimmed, an icon before the name and the "Reserved" tag under it. Never cast.
   const locked = !!item.reserved;
-  const below = !!item.spec || !!item.fit?.length || tag || locked || !!item.decanting || !!item.decanted?.length;
+  const below = !!item.spec || !!item.fit?.length || tag || locked || !!item.decanted?.length;
+  const abv = item.abv?.replace(/ /g, "\u00a0");
   return (
     <li className={cls}>
       <Lead glass={item.glass} rating={rating} />
@@ -235,10 +236,20 @@ function Row({ item, rating }: { item: MenuItem; rating?: number }) {
           {locked ? (TV_RESERVED_ICON === "padlock" ? <PadlockIcon className="tv-res-icon" label="Reserved" /> : <KeyIcon className="tv-res-icon" label="Reserved" />) : null}
           {item.name}
           {star && fl.after ? <>{"\u00a0"}<span className="tv-feat-star tv-feat-after" data-flourish={TV_FEATURED_FLOURISH} aria-hidden>{fl.after}</span></> : null}
-          {/* "45% abv" never splits: a no-break space (TV only; the phone keeps item.detail). */}
-          {item.abv ? <sup className="tv-abv">{item.abv.replace(/ /g, "\u00a0")}</sup> : null}
+          {/* "56% abv" never splits: a no-break space (TV only; the phone keeps item.detail). */}
+          {item.decanting && abv ? (
+            <span className="tv-name-tail">
+              <DecantBadge sup />
+              <sub className="tv-abv">{abv}</sub>
+            </span>
+          ) : (
+            <>
+              {item.decanting ? <DecantBadge sup /> : null}
+              {abv ? <sup className="tv-abv">{abv}</sup> : null}
+            </>
+          )}
         </span>
-        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={tag} reserved={locked} decanting={!!item.decanting} decanted={item.decanted} /> : null}
+        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={tag} reserved={locked} decanted={item.decanted} /> : null}
       </span>
     </li>
   );

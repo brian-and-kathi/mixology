@@ -1,6 +1,6 @@
 import { query } from "@/lib/db";
 import { barVersions } from "@/lib/bar-versions";
-import { altGlassLine, cap, clampServings, lineText, methodParts, scaleAmount, scaleMethod, scaleProse, serveParts, tvGlassLine } from "@/lib/format";
+import { abvLabel, altGlassLine, cap, clampServings, lineText, methodParts, scaleAmount, scaleMethod, scaleProse, serveParts, tvGlassLine } from "@/lib/format";
 import { altWords, bottleLine, bottleParts, loadPour, loadRecipe, loadWine, wineGlass } from "@/lib/menu";
 import { cleanMoods } from "@/lib/moods";
 import { loadAverage } from "@/lib/ratings";
@@ -100,7 +100,7 @@ export async function castPayload(type: CastType, id: string, servings = 1): Pro
   if (!p) return null;
   const [spec] = await query<{ spec: string | null }>("SELECT primary_spec_name AS spec FROM menu_neat WHERE id = $1", [id]);
   // The TV band keeps the bottle's full name (its detail line already says the type).
-  const detail = [p.brand && !p.full_name.toLowerCase().includes(p.brand.toLowerCase()) ? p.brand : null, spec?.spec ? cap(spec.spec) : null, p.abv ? `${Number(p.abv)}% ABV` : null].filter(Boolean).join(" · ");
+  const detail = [p.brand && !p.full_name.toLowerCase().includes(p.brand.toLowerCase()) ? p.brand : null, spec?.spec ? cap(spec.spec) : null, abvLabel(p.abv) || null].filter(Boolean).join(" · ");
   const s = serveParts(p.serves_neat, p.serves_rocks, p.serves_chilled);
   return {
     type, id: p.id, name: p.full_name, glass: "rocks", detail: detail || null,

@@ -10,7 +10,7 @@
   /* Gold accent, shared by the TV and the guest phone (admin never uses it): text, and a dimmer tone for lines. */
   --gold: #b8903c;
   --gold-line: #95753d;
-  /* Complement of gold: a cool blue for the "(dec)" mark on a bottle name. 9.8:1 on #000. */
+  /* Complement of gold: a cool blue for the decanter seal. 9.8:1 on #000. */
   --decanting: #8eb4e6;
   /* Featured (migration 030): warm copper, distinct from gold. 7.6:1 on #000, 6.6:1 on the #151515 card (AA).
      Never used alone on phone: featured items carry the "Featured" tag (components/FeaturedTag).
@@ -196,7 +196,7 @@ h1, h2, p { margin: 0; }
 .tv-band-line .what.out { color: rgba(255, 255, 255, 0.7); }
 .tv-band-line .what small { display: block; font-size: calc(2.04vh * var(--s)); line-height: 1.3; color: var(--quiet); margin-top: 0.2vh; }
 .tv-band-line .what .tv-band-bottles { color: var(--gold); font-family: var(--font-serif), Georgia, serif; font-style: italic; }
-.tv-band-line .what .dec-badge { font-size: calc(1.55vh * var(--s)); }
+.tv-band-line .decanter-seal.inline { width: calc(2.6vh * var(--s)); height: calc(2.6vh * var(--s)); margin-left: 0.35em; vertical-align: -0.35vh; }
 .tv-tag { display: inline-block; vertical-align: 0.2vh; margin-right: 1.1vh; padding: 0.37vh 1vh 0.46vh; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 999px; font: 500 calc(1.39vh * var(--s))/1 var(--font-mono), ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
 .tv-band-text { font-size: calc(2.96vh * var(--s)); line-height: 1.45; color: rgba(255, 255, 255, 0.92); text-wrap: balance; }
 .tv-band-text + .tv-band-text { margin-top: 1.3vh; }
@@ -349,11 +349,11 @@ a.card:active { background: #202020; }
 .ingredient .note { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
 /* In-stock bottles behind the ingredient (loadRecipe / spec_supply), under the name column. */
 .ingredient .bottles { display: block; font-size: 0.92rem; margin-top: 0.15rem; color: var(--gold); font-family: var(--font-serif), Georgia, serif; font-style: italic; }
-/* "(dec)" follows a bottle name. On a recipe line it is a superscript; on a phone name it stays on the baseline. */
-.dec-badge { font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; font-style: normal; font-weight: 600; letter-spacing: 0.01em; color: var(--decanting); white-space: nowrap; }
-sup.dec-badge { font-size: 0.62em; line-height: 0; margin-left: 0.15em; vertical-align: super; }
-.item-name .dec-badge, .phone-title h1 .dec-badge, .ingredient .dec-badge { font-size: 0.72em; margin-left: 0.35em; vertical-align: 0.12em; }
-.card.is-reserved .dec-badge { opacity: 0.55; }
+/* Pour and wine cards: a wax seal at the right of the title when the bottle is in a decanter. */
+.decanter-seal { flex: none; width: 4.75rem; height: 4.75rem; margin-left: auto; transform: rotate(-11deg); filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.45)); }
+/* Ingredient line on a cocktail card: the same seal, small, after the name. */
+.decanter-seal.inline { display: inline-block; width: 1.45em; height: 1.45em; margin-left: 0.35em; transform: none; filter: none; vertical-align: -0.28em; }
+.decanter-seal.tv-band-seal { width: calc(12vh * var(--s)); height: calc(12vh * var(--s)); margin: 0.6vh 0 0.4vh; }
 .out { color: var(--quiet); }
 /* Alternates (migration 034): muted grey "or Cognac" on the ingredient's line; "+2" opens the rest. */
 .alt-or { color: var(--quiet); }

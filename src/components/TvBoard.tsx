@@ -193,7 +193,7 @@ function Row({ item, rating }: { item: MenuItem; rating?: number }) {
   // Pours are grouped by spirit family: the first bottle of a family gets a small gap above it (.fam-start).
   const cls = "tv-row" + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "") + (item.reserved ? " is-reserved" : "");
   // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name.
-  // The board never marks a decanter. That mark is only on a cast recipe's ingredient list.
+  // The board never marks a decanter. The seal is only on a cast card.
   // Featured (migration 030): copper name, plus the tag at the end of the line under it ("tag") or a star
   // before the name ("star", now the flourish in TV_FEATURED_FLOURISH); see TV_FEATURED.
   const tag = !!item.featured && TV_FEATURED === "tag";

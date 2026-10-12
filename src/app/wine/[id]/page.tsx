@@ -2,6 +2,7 @@ import { ClosedPage } from "@/components/ClosedPage";
 import { guestGate, publicStatus } from "@/lib/bar-status";
 import { notFound } from "next/navigation";
 import { CastButton } from "@/components/CastButton";
+import { DecanterSeal } from "@/components/DecanterSeal";
 import { DrinkLead } from "@/components/DrinkLead";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { PhoneShell } from "@/components/PhoneShell";
@@ -49,7 +50,7 @@ export default async function WinePage({ params }: { params: Promise<{ id: strin
   const serve = wineTemp({ chilled: wine.serves_chilled, neat: wine.serves_neat, rocks: wine.serves_rocks, styleGroup: wine.style_group });
 
   return (
-    <PhoneShell bar={bar} title={wine.name} titleBadge={grape || wine.featured ? <span className="title-badges">{grape ? <span className="spec-badge title-badge">{grape}</span> : null}{wine.featured ? <FeaturedTag /> : null}</span> : undefined} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}
+    <PhoneShell bar={bar} title={wine.name} titleBadge={grape || wine.featured ? <span className="title-badges">{grape ? <span className="spec-badge title-badge">{grape}</span> : null}{wine.featured ? <FeaturedTag /> : null}</span> : undefined} mark={wine.decanting ? <DecanterSeal /> : undefined} editHref={editHref} back={{ href: "/menu?tab=cellar", label: "Cellar" }}
       lead={<DrinkLead glass={wineGlass(wine.sparkling, wine.type)} kind="product" id={wine.id} rating={rating} />}>
       {details.length > 0 ? <p className="quiet">{details.join(" · ")}</p> : null}
       <CastButton type="wine" id={wine.id} barOpen={bar.open} />

@@ -3,7 +3,7 @@ import { adminApi } from "@/lib/admin-guard";
 import { setDecanting } from "@/lib/admin-write";
 
 /**
- * The TV board and a live cast both show the decanter. Publishing the cast also claims the menu
+ * A live cast shows the seal. The menu and the TV board do not. Publishing the cast also claims the menu
  * topic, because decanting bumps menu_version (migration 039).
  */
 export const POST = adminApi(async (req: Request) => {

@@ -3,7 +3,7 @@
 import { useId, useRef, useState } from "react";
 import { AltOr } from "@/components/AltOr";
 import { CastButton } from "@/components/CastButton";
-import { DecantBadge } from "@/components/DecantBadge";
+import { DecanterSeal } from "@/components/DecanterSeal";
 import { FeaturedTag } from "@/components/FeaturedTag";
 import { RecipePin } from "@/components/RecipePin";
 import { altWords } from "@/lib/alt-words";
@@ -60,7 +60,7 @@ export function RecipeScale({ id, glass, title, lines, methodLabel, method, barO
                 <span className="measure">{text.amount}</span>
                 <span className="ingredient">
                   <span className={line.available ? "" : "out"}>{text.name}</span>
-                  {line.specDecanting ? <DecantBadge /> : null}
+                  {line.specDecanting ? <DecanterSeal compact /> : null}
                   {or.text ? <AltOr text={or.text} more={or.more} /> : null}
                   {!line.available ? <span className="tag-out">out tonight</span> : null}
                   {line.useInstead ? <strong> (use {cap(line.useInstead)})</strong> : null}
@@ -68,7 +68,7 @@ export function RecipeScale({ id, glass, title, lines, methodLabel, method, barO
                   {line.parts ? (
                     <span className="quiet bottles">
                       {line.parts.map((part, i) => {
-                        const mark = part.decanting ? <DecantBadge sup /> : null;
+                        const mark = part.decanting ? <DecanterSeal compact /> : null;
                         if (part.featured) return <span key={i}><span className="feat-name">{part.text}</span><FeaturedTag />{mark}</span>;
                         if (mark) return <span key={i}>{part.text}{mark}</span>;
                         return <span key={i}>{part.text}</span>;

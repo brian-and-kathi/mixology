@@ -356,13 +356,17 @@ a.card:active { background: #202020; }
 .ingredient .note { display: block; font-size: 0.9rem; margin-top: 0.15rem; }
 /* In-stock bottles behind the ingredient (loadRecipe / spec_supply), under the name column. */
 .ingredient .bottles { display: block; font-size: 0.92rem; margin-top: 0.15rem; color: var(--gold); font-family: var(--font-serif), Georgia, serif; font-style: italic; }
-/* Words only, in a circle. On a phone card it floats at the title's upper right; the title paints over it. */
+/* Words only, on an ink blot. On a phone card it floats at the title's upper right; the title paints over it. */
 .decanter-seal {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.08em;
-  width: 5.6rem; height: 5.6rem; border-radius: 50%; background: #102844; color: #d7e6fb;
-  box-shadow: inset 0 0 0 2px #8eb4e6, inset 0 0 0 6px #102844, inset 0 0 0 7px rgba(142, 180, 230, 0.75), 0 5px 8px rgba(0, 0, 0, 0.45);
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 5.6rem; height: 5.6rem; color: var(--decanting);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 0.78rem; line-height: 1.05;
   letter-spacing: 0.01em; text-align: center; transform: rotate(-11deg); pointer-events: none;
+}
+.decanter-seal svg { position: absolute; inset: -12%; width: 124%; height: 124%; overflow: visible; fill: currentColor; opacity: 0.38; }
+.decanter-seal-words {
+  position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 0.28em 0.22em 0.2em; border-top: 0.16em solid currentColor; border-bottom: 0.16em solid currentColor;
 }
 .phone-title .decanter-seal { position: absolute; z-index: 0; top: -0.55rem; right: -0.15rem; margin: 0; }
 .out { color: var(--quiet); }

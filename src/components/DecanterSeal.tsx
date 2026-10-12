@@ -1,14 +1,37 @@
 /**
- * Circular seal for a card that uses a decanter. Words only, no picture. It floats behind the
- * title (and, on a cast, the rating) so that text paints over it. Phone and cast cards only;
- * the menu and the TV board stay unmarked.
+ * Ink-blotch seal for a card that uses a decanter. Words only, no picture, with a rule above
+ * and below them. It floats behind the title (and, on a cast, the rating) so that text paints
+ * over it. Phone and cast cards only; the menu and the TV board stay unmarked.
  */
+// One puddle. Specks are satellite droplets of the same ink.
+const OUTER =
+  "M60.0 9.1 C61.9 7.7 64.0 6.3 66.2 5.4 C68.3 4.5 70.6 3.8 72.9 3.6 C75.1 3.3 77.4 3.5 79.6 4.1 C81.7 4.6 83.8 5.6 85.6 6.8 C87.5 8.0 89.2 9.5 90.7 11.1 C92.2 12.8 93.5 14.6 94.7 16.5 C95.8 18.4 96.7 20.5 97.5 22.5 C98.3 24.5 98.8 26.6 99.3 28.7 C99.8 30.7 100.1 32.7 100.4 34.6 C100.6 36.6 101.1 38.4 100.8 40.4 C100.5 42.3 99.4 44.6 98.6 46.5 C97.8 48.4 95.6 50.3 95.9 51.8 C96.2 53.3 98.8 54.1 100.3 55.5 C101.7 56.8 103.6 58.4 104.6 60.0 C105.6 61.6 105.7 63.4 106.2 65.2 C106.7 67.0 107.3 68.9 107.6 70.9 C107.9 72.8 108.2 74.9 107.9 76.8 C107.6 78.6 106.7 80.5 105.6 81.9 C104.4 83.4 102.5 84.6 100.9 85.7 C99.2 86.8 97.2 87.5 95.7 88.5 C94.2 89.5 92.8 90.3 91.9 91.9 C91.1 93.6 90.8 95.5 90.4 98.1 C90.0 100.7 90.4 104.6 89.8 107.4 C89.1 110.2 88.1 113.6 86.4 114.8 C84.6 116.0 81.6 115.5 79.1 114.7 C76.6 113.8 73.6 111.1 71.3 109.5 C69.0 107.9 67.0 106.3 65.1 105.2 C63.2 104.0 61.6 103.5 60.0 102.6 C58.4 101.6 57.0 100.1 55.5 99.5 C54.1 98.9 52.9 98.3 51.1 99.0 C49.3 99.6 47.1 102.2 44.7 103.6 C42.4 105.0 39.7 106.5 37.3 107.2 C34.9 107.8 32.4 107.7 30.2 107.4 C28.0 107.1 25.8 106.3 23.8 105.4 C21.8 104.4 19.9 103.1 18.3 101.7 C16.6 100.3 15.1 98.6 13.9 96.8 C12.7 95.0 11.6 92.9 10.9 90.9 C10.2 88.8 9.8 86.5 9.6 84.3 C9.5 82.0 9.8 79.6 10.2 77.4 C10.6 75.2 11.4 73.0 11.9 71.0 C12.4 68.9 13.2 67.1 13.4 65.2 C13.7 63.4 13.7 61.8 13.5 60.0 C13.3 58.2 12.5 56.5 12.0 54.6 C11.5 52.7 10.7 50.7 10.6 48.7 C10.5 46.8 10.6 44.7 11.3 43.0 C12.1 41.3 13.6 39.7 15.2 38.4 C16.8 37.2 19.0 36.3 20.9 35.4 C22.8 34.6 24.8 34.0 26.6 33.4 C28.4 32.8 30.1 32.2 31.8 31.8 C33.5 31.4 35.4 31.5 36.9 31.1 C38.4 30.7 39.7 30.4 40.8 29.4 C41.8 28.4 42.3 26.5 43.2 25.1 C44.1 23.6 45.1 22.0 46.3 20.7 C47.4 19.4 48.8 18.5 50.2 17.2 C51.6 16.0 53.1 14.7 54.7 13.3 C56.4 12.0 58.1 10.4 60.0 9.1 Z";
+const SPECKS: [number, number, number][] = [
+  [14, 38, 2.4],
+  [24, 18, 1.4],
+  [109, 26, 2.1],
+  [118, 64, 3.2],
+  [112, 102, 1.6],
+  [18, 104, 2.2],
+  [40, 116, 1.3],
+  [96, 14, 1.5],
+  [8, 72, 1.2],
+];
+
 export function DecanterSeal({ className = "" }: { className?: string }) {
   const classes = ["decanter-seal", className].filter(Boolean).join(" ");
   return (
     <span className={classes} role="img" aria-label="In the decanter">
-      <span>In the</span>
-      <span>Decanter</span>
+      <svg viewBox="-12 -12 144 144" aria-hidden>
+        <path d={OUTER} />
+        {SPECKS.map(([cx, cy, r]) => (
+          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} />
+        ))}
+      </svg>
+      <span className="decanter-seal-words">
+        <span>In the</span>
+        <span>Decanter</span>
+      </span>
     </span>
   );
 }

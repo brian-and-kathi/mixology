@@ -42,6 +42,8 @@ export type WinePayload = {
   note: string | null;
   /** Guests' average, two decimals, or null when nobody has voted. A vote bumps cast_version, so the band refetches this. */
   rating: number | null;
+  /** The bottle is in a decanter. The cast card shows the seal; the board and the menu do not. */
+  decanting: boolean;
 };
 export type Cast = { type: CastType; id: string; started_at: string; expires_at: string; payload: CastPayload };
 
@@ -127,6 +129,7 @@ async function winePayload(id: string): Promise<WinePayload | null> {
     serve_note: w.serve_note?.trim() || null,
     note: w.description?.trim() || null,
     rating: await castRating("product", w.id),
+    decanting: w.decanting,
   };
 }
 

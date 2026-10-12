@@ -21,7 +21,7 @@ export type SectionId = (typeof SECTIONS)[number]["id"];
  * the TV shows the first (the whole line) and wraps it when it is too long (TvBoard FitLine, 2026-10-04); the
  * shorter candidates are no longer used.
  */
-export type Sub = { detail: string; fit: string[]; /** Place name as it appears at the start of `detail` (phone) and of the TV line. */ origin?: string; /** Shorter place shown on the TV when the phone line keeps the full origin. */ originTv?: string; /** Cocktail line: ingredient names (lowercase specs) whose bottle is in a decanter. The menu board leaves them unmarked; a cast recipe marks them. */ decanted?: string[] };
+export type Sub = { detail: string; fit: string[]; /** Place name as it appears at the start of `detail` (phone) and of the TV line. */ origin?: string; /** Shorter place shown on the TV when the phone line keeps the full origin. */ originTv?: string; /** Cocktail line: ingredient names (lowercase specs) whose bottle is in a decanter. The menu and the TV board leave them unmarked; a cast recipe marks them with a seal. */ decanted?: string[] };
 /**
  * `spec`: the badge after a Pours name ("Rye", see lib/spec-label; none when the name already says it);
  * other sections have none. `measure`: the text the TV sizes the column by (the full name, so column
@@ -29,7 +29,7 @@ export type Sub = { detail: string; fit: string[]; /** Place name as it appears 
  * spirit family after another family (lib/spirit-family.ts); (Cellar): the first wine of a category after another
  * category (wineCategory, migration 031). The phone and TV add the same small gap above it.
  */
-export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "56% abv" (whole percent). On the TV board it is a superscript on the name. The phone detail uses the same words. */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean; /** Reserved (migration 032): a reserved bottle, or a cocktail that needs one. Still listed, LOCKED: key icon, brass "Reserved" tag, dimmed, after the available items of its family; no detail page, no cast. Never featured. */ reserved?: boolean; /** The occasion ("Kathi's 50th"), shown as "Saved for …". */ reservedNote?: string | null; /** This pour's bottle is in a decanter. The phone shows "(dec)" after the name. The TV board does not. */ decanting?: boolean; /** Cocktail ingredients on this line whose bottle is in a decanter (lowercase spec names). */ decanted?: string[] };
+export type MenuItem = { id: string; name: string; glass: string | null; href: string | null; detail?: string | null; fit?: string[]; spec?: string | null; /** Pours: "56% abv" (whole percent). On the TV board it is a superscript on the name. The phone detail uses the same words. */ abv?: string | null; /** Place name at the start of `detail`, for coloring it like the bottle. */ origin?: string | null; /** Place name at the start of the TV line, when that line is shorter than `detail`. */ originTv?: string | null; measure?: string; famStart?: boolean; /** Featured (migration 030): sorted to the top of its list, with the copper "Featured" tag. */ featured?: boolean; /** Reserved (migration 032): a reserved bottle, or a cocktail that needs one. Still listed, LOCKED: key icon, brass "Reserved" tag, dimmed, after the available items of its family; no detail page, no cast. Never featured. */ reserved?: boolean; /** The occasion ("Kathi's 50th"), shown as "Saved for …". */ reservedNote?: string | null; /** This pour's bottle is in a decanter. The menu and the TV board leave it unmarked; the pour card shows a seal. */ decanting?: boolean; /** Cocktail ingredients on this line whose bottle is in a decanter (lowercase spec names). */ decanted?: string[] };
 export type Menu = Record<SectionId, MenuItem[]>;
 
 const byName = (a: MenuItem, b: MenuItem) =>
@@ -301,7 +301,7 @@ export type RecipeLine = {
   decanting: string[];
   /**
    * The bottle line was left off because the ingredient already names that one bottle, and that bottle is
-   * in a decanter. The phone and the TV mark that ingredient with (dec).
+   * in a decanter. The recipe card marks that ingredient with a seal.
    */
   specDecanting: boolean;
   /**
@@ -401,7 +401,7 @@ export type BottlePart = { text: string; featured?: boolean; decanting?: boolean
 
 /**
  * bottleLine as pieces, so a featured bottle (migration 030) can carry the copper "Featured" tag
- * and a decanted bottle can carry "(dec)". `featured` and `decanting` are shown names.
+ * and a decanted bottle can carry the seal. `featured` and `decanting` are shown names.
  * Same text as bottleLine when the marks are ignored.
  */
 export function bottleParts(names: string[], sep = " · ", preferred = false, max = 3, featured: string[] = [], decanting: string[] = []): BottlePart[] {
@@ -551,10 +551,10 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     // never features the drink (featured_recipe_ids), so its bottle line stays plain too.
     const featured = line.required ? shownNames(stock.filter((b) => b.featured).map((b) => b.name.trim()), stock)!.filter((n) => shown?.includes(n)) : [];
     // The names the guest actually reads that are in a decanter. Lift them in front of other bottles
-    // (still after a preferred one) so "(dec)" is not hidden behind "+N more".
+    // (still after a preferred one) so the seal is not hidden behind "+N more".
     const decanting = shown ? shownNames(stock.filter((b) => b.decanting).map((b) => b.name.trim()), stock)!.filter((n) => shown.includes(n)) : [];
     const ordered = featuredBottlesFirst(featuredBottlesFirst(shown, featured, preferred), decanting, preferred);
-    // No bottle line: the ingredient is the only name the guest sees, so the phone and the TV mark that word.
+    // No bottle line: the ingredient is the only name the guest sees, so the recipe card marks that word.
     const specDecanting = !shown && stock.some((b) => b.decanting);
     return { ...line, bottles: ordered, preferred, featured, decanting, specDecanting };
   });
@@ -591,6 +591,8 @@ export type Wine = {
   wine_effervescence: string | null;
   fortified: boolean;
   style_group: string | null;
+  /** The bottle is in a decanter. The wine card shows a seal; the menu and the TV board do not. */
+  decanting: boolean;
 };
 
 /** A Cellar wine's detail page and cast: only while it's in the guest Cellar (menu_wines) and not reserved (migration 032). */
@@ -600,7 +602,7 @@ export async function loadWine(id: string): Promise<Wine | null> {
     `SELECT w.id, w.display_name AS name, p.brand, w.origin, w.grape, p.abv::text AS abv, w.description, w.serve_note, w.pairing_notes,
             (w.wine_effervescence = 'sparkling') AS sparkling, p.serves_chilled, p.serves_neat, p.serves_rocks,
             (w.id IN (SELECT featured_product_ids())) AS featured,
-            p.packaged_name, w.wine_color, w.wine_effervescence, COALESCE(w.fortified, false) AS fortified, w.style_group,
+            p.packaged_name, w.wine_color, w.wine_effervescence, COALESCE(w.fortified, false) AS fortified, w.style_group, p.decanting,
             (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
               WHERE ps.product_id = w.id ORDER BY ps.is_primary DESC LIMIT 1) AS type
        FROM menu_wines w JOIN products p ON p.id = w.id

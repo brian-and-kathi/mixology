@@ -20,7 +20,7 @@ export function PhoneShell({
   title?: string;
   /** Pour page: the spec badge, on its own line under the title (the title keeps the full width). */
   titleBadge?: ReactNode;
-  /** After the title text, such as the "(dec)" badge on a pour. */
+  /** Beside the title, such as the decanter seal on a pour or wine. */
   mark?: ReactNode;
   lead?: ReactNode;
   back?: { href: string; label: string };
@@ -68,12 +68,13 @@ export function PhoneShell({
               {lead}
               {titleBadge ? (
                 <div className="phone-title-text">
-                  <h1>{title}{mark}</h1>
+                  <h1>{title}</h1>
                   {titleBadge}
                 </div>
               ) : (
-                <h1>{title}{mark}</h1>
+                <h1>{title}</h1>
               )}
+              {mark}
             </div>
           ) : null}
         </header>

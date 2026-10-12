@@ -19,6 +19,8 @@ export type ScaleLine = {
   useInstead: string | null;
   note: string | null;
   parts: { text: string; featured?: boolean; decanting?: boolean }[] | null;
+  /** The ingredient name stands in for its one bottle, and that bottle is in a decanter. */
+  specDecanting?: boolean;
   alternates: { name: string; amount: string | null; unit: string | null; note: string | null }[];
 };
 
@@ -27,8 +29,10 @@ export type ScaleLine = {
  * (not "top" or "rinse"). Show on TV sends the same number, and moving the slider while
  * that cast is up updates the TV without restarting it.
  */
-export function RecipeScale({ id, glass, title, lines, methodLabel, method }: {
+export function RecipeScale({ id, glass, title, lines, methodLabel, method, barOpen }: {
   id: string; glass: string; title: string; lines: ScaleLine[]; methodLabel: string; method: string[];
+  /** False while the bar is Closed: Show on TV stays disabled. */
+  barOpen: boolean;
 }) {
   const [servings, setServings] = useState(1);
   const touched = useRef(false);
@@ -39,6 +43,7 @@ export function RecipeScale({ id, glass, title, lines, methodLabel, method }: {
           type="recipe"
           id={id}
           servings={servings}
+          barOpen={barOpen}
           onServings={(n) => { if (!touched.current) setServings(n); }}
         />
       </RecipePin>
@@ -55,6 +60,7 @@ export function RecipeScale({ id, glass, title, lines, methodLabel, method }: {
                 <span className="measure">{text.amount}</span>
                 <span className="ingredient">
                   <span className={line.available ? "" : "out"}>{text.name}</span>
+                  {line.specDecanting ? <DecantBadge /> : null}
                   {or.text ? <AltOr text={or.text} more={or.more} /> : null}
                   {!line.available ? <span className="tag-out">out tonight</span> : null}
                   {line.useInstead ? <strong> (use {cap(line.useInstead)})</strong> : null}

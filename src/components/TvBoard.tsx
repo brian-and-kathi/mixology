@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { DecantBadge } from "@/components/DecantBadge";
 import { GlassIcon } from "@/components/GlassIcon";
 import { KeyIcon, PadlockIcon } from "@/components/ReservedIcon";
 
@@ -153,38 +152,16 @@ export function tvWrapText(text: string): string {
  * "· …". The Pours badge comes first and a Featured or "Reserved" tag last; chips never break inside.
  * Row heights (and so sub-columns and paging) are measured from the rendered rows, so a wrapped line counts.
  */
-/** The same "(dec)" mark the recipe card uses, on a spec the TV is listing. */
-function DecantMark() {
-  return <DecantBadge sup />;
-}
-
-/**
- * A cocktail line with a mark on each ingredient whose bottle is in a decanter.
- * Items stay whole, the same way tvWrapText keeps a place name whole.
- */
-function MarkedSpecs({ text, specs }: { text: string; specs: string[] }) {
-  const set = new Set(specs.map((s) => s.toLowerCase()));
-  const items = text.split(" · ").filter((item) => item.trim());
-  return items.map((item, i) => (
-    <span key={`${item}-${i}`}>
-      {i ? "\u00a0· " : null}
-      {tvWrapText(item)}
-      {set.has(item.trim().toLowerCase()) ? <DecantMark /> : null}
-    </span>
-  ));
-}
-
-function FitLine({ fit, badge = null, origin = null, featured = false, reserved = false, decanted = null }: { fit: string[]; badge?: string | null; origin?: string | null; featured?: boolean; reserved?: boolean; decanted?: string[] | null }) {
+function FitLine({ fit, badge = null, origin = null, featured = false, reserved = false }: { fit: string[]; badge?: string | null; origin?: string | null; featured?: boolean; reserved?: boolean }) {
   const raw = fit[0] ?? "";
   const text = tvWrapText(raw);
   const from = origin ? tvWrapText(origin) : "";
   const place = from && text.startsWith(from) ? from : "";
-  const marked = decanted?.length ? <MarkedSpecs text={raw} specs={decanted} /> : null;
   return (
     <span className="tv-detail">
       {badge ? <span className="spec-badge">{badge}</span> : null}
-      {marked ?? (place ? <span className="tv-origin">{place}</span> : null)}
-      {marked ? null : place ? text.slice(place.length) : text}
+      {place ? <span className="tv-origin">{place}</span> : null}
+      {place ? text.slice(place.length) : text}
       {featured ? <span className="feat-tag tv-feat-tag">Featured</span> : null}
       {reserved ? <span className="res-tag tv-res-tag">Reserved</span> : null}
     </span>
@@ -215,8 +192,8 @@ function Lead({ glass, rating }: { glass: string | null; rating?: number }) {
 function Row({ item, rating }: { item: MenuItem; rating?: number }) {
   // Pours are grouped by spirit family: the first bottle of a family gets a small gap above it (.fam-start).
   const cls = "tv-row" + (item.famStart ? " fam-start" : "") + (item.featured ? " is-featured" : "") + (item.reserved ? " is-reserved" : "");
-  // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name,
-  // unless the bottle is decanting: then "(dec)" is a superscript stacked above the ABV subscript.
+  // Pours: the spec badge is always on the line under the name. ABV is a superscript on the name.
+  // The board never marks a decanter. That mark is only on a cast recipe's ingredient list.
   // Featured (migration 030): copper name, plus the tag at the end of the line under it ("tag") or a star
   // before the name ("star", now the flourish in TV_FEATURED_FLOURISH); see TV_FEATURED.
   const tag = !!item.featured && TV_FEATURED === "tag";
@@ -224,7 +201,7 @@ function Row({ item, rating }: { item: MenuItem; rating?: number }) {
   const fl = TV_FLOURISHES[TV_FEATURED_FLOURISH];
   // Reserved (migration 032): dimmed, an icon before the name and the "Reserved" tag under it. Never cast.
   const locked = !!item.reserved;
-  const below = !!item.spec || !!item.fit?.length || tag || locked || !!item.decanted?.length;
+  const below = !!item.spec || !!item.fit?.length || tag || locked;
   const abv = item.abv?.replace(/ /g, "\u00a0");
   return (
     <li className={cls}>
@@ -237,19 +214,9 @@ function Row({ item, rating }: { item: MenuItem; rating?: number }) {
           {item.name}
           {star && fl.after ? <>{"\u00a0"}<span className="tv-feat-star tv-feat-after" data-flourish={TV_FEATURED_FLOURISH} aria-hidden>{fl.after}</span></> : null}
           {/* "56% abv" never splits: a no-break space (TV only; the phone keeps item.detail). */}
-          {item.decanting && abv ? (
-            <span className="tv-name-tail">
-              <DecantBadge sup />
-              <sub className="tv-abv">{abv}</sub>
-            </span>
-          ) : (
-            <>
-              {item.decanting ? <DecantBadge sup /> : null}
-              {abv ? <sup className="tv-abv">{abv}</sup> : null}
-            </>
-          )}
+          {abv ? <sup className="tv-abv">{abv}</sup> : null}
         </span>
-        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={tag} reserved={locked} decanted={item.decanted} /> : null}
+        {below ? <FitLine fit={item.fit?.length ? item.fit : [""]} badge={item.spec} origin={item.originTv ?? item.origin} featured={tag} reserved={locked} /> : null}
       </span>
     </li>
   );

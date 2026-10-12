@@ -89,19 +89,20 @@ export const guestGate = cache(async (): Promise<Gate> => {
 });
 
 /**
- * Admin switch. Opening sets open_until to the next 2:00 AM Eastern. Closing clears the TV cast in the same
- * transaction. Opening also deletes a cast from before the last close: the 2:00 AM self-close writes nothing,
- * so that cast is only hidden (castRow()), and reopening within its 10 minutes would bring it back. A cast an
- * admin started while Closed stays. Logs to change_log only when the effective state changes. Returns the new
+ * Admin switch. Opening sets open_until to the next 2:00 AM Eastern. A cast cannot be up while Closed:
+ * closing deletes it, and opening from Closed deletes it too. The 2:00 AM self-close writes nothing, so
+ * that row is only hidden (castRow()) until the bar is opened. Opening again while the bar is already
+ * open leaves a live cast up. Logs to change_log only when the effective state changes. Returns the new
  * state and whether a cast was taken down.
  */
 export async function setBarOpen(open: boolean, now = new Date()): Promise<{ status: BarStatus; castCleared: boolean }> {
   const until = open ? nextCloseAt(now).toISOString() : null;
   const results = (await sql().transaction((t) => [
-    // Before the status row changes, while bar_state() still says when the bar last closed.
+    // Before the status row changes. Closing, or opening from Closed, takes the cast down. Opening
+    // while already open (b.is_open) leaves it.
     t.query(
       `DELETE FROM tv_cast t USING bar_state() b
-        WHERE t.id = 1 AND (NOT $1::boolean OR (b.closed_since IS NOT NULL AND t.started_at < b.closed_since))
+        WHERE t.id = 1 AND (NOT $1::boolean OR NOT b.is_open)
        RETURNING t.id`,
       [open],
     ),

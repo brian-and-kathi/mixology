@@ -1185,7 +1185,7 @@ END $$;
 
 -- 26. Bar Open/Closed (migration 029): one row; Open always carries a closing time within 25 hours; the bar is
 --     open only before open_until, closes itself when that passes and stays closed; a cast started before the
---     bar closed is hidden, one an admin starts while Closed shows; opens and closes can be logged.
+--     bar closed is hidden, including one started while Closed; opens and closes can be logged.
 DO $$
 DECLARE
   s record;
@@ -1236,17 +1236,17 @@ BEGIN
     RAISE EXCEPTION 'check 26 failed: a bar past its closing time reads as %', s;
   END IF;
 
-  -- Casts: one started before the self-close is hidden; one started after (an admin, while Closed) shows.
+  -- Casts: nothing shows while Closed, whether it started before the close or during it.
   SELECT recipe_id INTO v_recipe FROM (SELECT id AS recipe_id FROM recipes LIMIT 1) r;
   DELETE FROM tv_cast;
   INSERT INTO tv_cast (id, item_type, item_id, started_at, expires_at) VALUES (1, 'recipe', v_recipe, now() - interval '7 minutes', now() + interval '1 minute');
   SELECT count(*) INTO n FROM tv_cast t LEFT JOIN bar_state() b ON true
-   WHERE t.id = 1 AND t.expires_at > now() AND (b.closed_since IS NULL OR t.started_at >= b.closed_since);
+   WHERE t.id = 1 AND t.expires_at > now() AND b.is_open;
   IF n <> 0 THEN RAISE EXCEPTION 'check 26 failed: a cast from before the close is still shown'; END IF;
   UPDATE tv_cast SET started_at = now() - interval '1 minute', expires_at = now() + interval '4 minutes';
   SELECT count(*) INTO n FROM tv_cast t LEFT JOIN bar_state() b ON true
-   WHERE t.id = 1 AND t.expires_at > now() AND (b.closed_since IS NULL OR t.started_at >= b.closed_since);
-  IF n <> 1 THEN RAISE EXCEPTION 'check 26 failed: a cast started while Closed is hidden'; END IF;
+   WHERE t.id = 1 AND t.expires_at > now() AND b.is_open;
+  IF n <> 0 THEN RAISE EXCEPTION 'check 26 failed: a cast started while Closed is still shown'; END IF;
 
   -- Closed by an admin: closed since the change.
   UPDATE bar_status SET is_open = false, open_until = NULL, changed_at = now();

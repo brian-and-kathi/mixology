@@ -205,6 +205,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
             </div>
           ) : null}
           <h3 className="tv-band-name">{payload.name}</h3>
+          {payload.lines.some((l) => l.spec_decanting || l.bottle_parts?.some((p) => p.decanting)) ? <DecanterSeal label={payload.decanter_labels} /> : null}
           {/* Moods (Brian via Vincent, 2026-10-04): the /menu chip labels on one quiet line under the name; none, no line. */}
           <MoodLine moods={payload.moods} className="tv-band-moods" />
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
@@ -226,7 +227,6 @@ function BandBody({ payload }: { payload: CastPayload }) {
                 <span className="amt">{l.amount}</span>
                 <span className={`what${l.out ? " out" : ""}`}>
                   {l.name}
-                  {l.spec_decanting ? <DecanterSeal compact /> : null}
                   {/* Alternates (migration 034): muted, same line, never a badge. */}
                   {l.or ? <>{" "}<span className={l.or_more ? "alt-or alt-or-keep" : "alt-or"}>{l.or}{l.or_more ? <span className="alt-more-tv">+{l.or_more}</span> : null}</span></> : null}
                   {l.out || l.use_instead || l.optional || l.note || l.alt_notes?.length ? (
@@ -237,12 +237,11 @@ function BandBody({ payload }: { payload: CastPayload }) {
                   ) : null}
                   {l.bottle_parts ? (
                     <small className="tv-band-bottles">
-                      {l.bottle_parts.map((part, j) => {
-                        const mark = part.decanting ? <DecanterSeal compact /> : null;
-                        if (part.featured) return <span key={j}><span className="feat-name">{part.text}</span><FeaturedTag />{mark}</span>;
-                        if (mark) return <span key={j}>{part.text}{mark}</span>;
-                        return <span key={j}>{part.text}</span>;
-                      })}
+                      {l.bottle_parts.map((part, j) => (
+                        part.featured
+                          ? <span key={j}><span className="feat-name">{part.text}</span><FeaturedTag /></span>
+                          : <span key={j}>{part.text}</span>
+                      ))}
                     </small>
                   ) : l.bottles ? <small className="tv-band-bottles">{l.bottles}</small> : null}
                 </span>
@@ -274,7 +273,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
             <BandScore avg={payload.rating} />
           </div>
           <h3 className="tv-band-name">{payload.name}</h3>
-          {payload.decanting ? <DecanterSeal className="tv-band-seal" /> : null}
+          {payload.decanting ? <DecanterSeal label={payload.decanter_label} /> : null}
           {payload.grapes.length ? (
             <ul className="tv-band-grapes" aria-label={payload.grapes.length > 1 ? "Grapes" : "Grape"}>
               {payload.grapes.map((g) => <li key={g} className="tv-band-grape">{g}</li>)}
@@ -316,7 +315,7 @@ function BandBody({ payload }: { payload: CastPayload }) {
             <BandStars avg={payload.rating} />
           </div>
           <h3 className="tv-band-name">{payload.name}</h3>
-          {payload.decanting ? <DecanterSeal className="tv-band-seal" /> : null}
+          {payload.decanting ? <DecanterSeal label={payload.decanter_label} /> : null}
           {payload.featured ? <p className="tv-band-feat"><FeaturedTag /></p> : null}
           {payload.detail ? <p className="tv-band-serve">{payload.detail}</p> : null}
         </>

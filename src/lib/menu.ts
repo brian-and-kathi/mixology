@@ -301,9 +301,11 @@ export type RecipeLine = {
   decanting: string[];
   /**
    * The bottle line was left off because the ingredient already names that one bottle, and that bottle is
-   * in a decanter. The recipe card marks that ingredient with a seal.
+   * in a decanter. The recipe card shows one seal when a line uses one.
    */
   specDecanting: boolean;
+  /** Badge on the decanter for the bottles this line is marking ("Vodka", "London dry gin"). */
+  decanterLabels: string[];
   /**
    * The line's other choices a guest may use tonight (migration 034): its alternates with a bottle on the shelf
    * (in stock, not reserved), in priority order, not counting the one that leads. When the line's own ingredient is
@@ -364,6 +366,22 @@ export function bottleNames(spec: string, f: BottleFacts): string[] | null {
  * What the guest reads for each bottle on the line: its short name ("Bowright Recurve" under "Rye"), or
  * the full name when it has none. The "already says it" and "preferred" rules above run on full names.
  */
+/**
+ * The badge printed on the decanter for the bottles this line is marking. Same words as the admin
+ * decanters list (spec label, else the primary ingredient). Empty when this line is not decanting.
+ */
+export function decanterLabelsFor(stock: BottleFacts["stock"], decantingShown: string[], specDecanting: boolean): string[] {
+  const labels: string[] = [];
+  for (const bottle of stock) {
+    if (!bottle.decanting) continue;
+    const shown = (bottle.short ?? bottle.name).trim();
+    if (!specDecanting && !decantingShown.includes(shown) && !decantingShown.includes(bottle.name.trim())) continue;
+    const label = specLabel(bottle.spec, bottle.label);
+    if (label && !labels.includes(label)) labels.push(label);
+  }
+  return labels;
+}
+
 export function shownNames(names: string[] | null, stock: BottleFacts["stock"]): string[] | null {
   if (!names) return names;
   const shown = new Map(stock.map((b) => [b.name.trim(), (b.short ?? b.name).trim()]));
@@ -556,7 +574,8 @@ export async function loadRecipe(id: string): Promise<Recipe | null> {
     const ordered = featuredBottlesFirst(featuredBottlesFirst(shown, featured, preferred), decanting, preferred);
     // No bottle line: the ingredient is the only name the guest sees, so the recipe card marks that word.
     const specDecanting = !shown && stock.some((b) => b.decanting);
-    return { ...line, bottles: ordered, preferred, featured, decanting, specDecanting };
+    const decanterLabels = decanterLabelsFor(stock, decanting, specDecanting);
+    return { ...line, bottles: ordered, preferred, featured, decanting, specDecanting, decanterLabels };
   });
   // An alternate leading tonight takes the own ingredient's place in the method too (recipe page and TV card),
   // unless that would be fragile (see swapMethod).
@@ -593,23 +612,28 @@ export type Wine = {
   style_group: string | null;
   /** The bottle is in a decanter. The wine card shows a seal; the menu and the TV board do not. */
   decanting: boolean;
+  /** Badge on that decanter, or null when this wine is not decanting. */
+  decanterLabel: string | null;
 };
 
 /** A Cellar wine's detail page and cast: only while it's in the guest Cellar (menu_wines) and not reserved (migration 032). */
 export async function loadWine(id: string): Promise<Wine | null> {
   if (!isUuid(id)) return null;
-  const [wine] = await query<Wine>(
+  const [wine] = await query<Omit<Wine, "decanterLabel"> & { spec_label: string | null }>(
     `SELECT w.id, w.display_name AS name, p.brand, w.origin, w.grape, p.abv::text AS abv, w.description, w.serve_note, w.pairing_notes,
             (w.wine_effervescence = 'sparkling') AS sparkling, p.serves_chilled, p.serves_neat, p.serves_rocks,
             (w.id IN (SELECT featured_product_ids())) AS featured,
             p.packaged_name, w.wine_color, w.wine_effervescence, COALESCE(w.fortified, false) AS fortified, w.style_group, p.decanting,
+            NULLIF(btrim(p.spec_label), '') AS spec_label,
             (SELECT s.canonical_name FROM product_specs ps JOIN specs s ON s.id = ps.spec_id
               WHERE ps.product_id = w.id ORDER BY ps.is_primary DESC LIMIT 1) AS type
        FROM menu_wines w JOIN products p ON p.id = w.id
       WHERE w.id = $1 AND NOT w.reserved`,
     [id],
   );
-  return wine ?? null;
+  if (!wine) return null;
+  const { spec_label, ...rest } = wine;
+  return { ...rest, decanterLabel: wine.decanting ? specLabel(wine.type, spec_label) : null };
 }
 
 export type Pour = {
@@ -631,6 +655,8 @@ export type Pour = {
   featured: boolean;
   /** The bottle is in a decanter (products.decanting), not its labelled bottle. */
   decanting: boolean;
+  /** Badge on that decanter ("Gin"), or null when this pour is not decanting. */
+  decanterLabel: string | null;
 };
 
 /** A pour's detail page and cast: only while it's on Pours (menu_neat) and not reserved (migration 032). */
@@ -646,7 +672,8 @@ export async function loadPour(id: string): Promise<Pour | null> {
   );
   if (!pour) return null;
   const { label, ...rest } = pour;
-  return { ...rest, spec: badgeFor(pour.name, specLabel(pour.spec, label)) };
+  const decanterLabel = pour.decanting ? specLabel(pour.spec, label) : null;
+  return { ...rest, spec: badgeFor(pour.name, specLabel(pour.spec, label)), decanterLabel };
 }
 
 /** What a guest may see of a locked (reserved, migration 032) item: its name and the occasion. Nothing else. */

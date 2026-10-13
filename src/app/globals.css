@@ -364,13 +364,13 @@ a.card:active { background: #202020; }
   letter-spacing: 0.01em; text-align: center; transform: rotate(-11deg); pointer-events: none;
 }
 .decanter-seal-wax { position: absolute; inset: -4%; width: 108%; height: 108%; overflow: visible; fill: var(--decanting); opacity: 0.4; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2)); }
-/* The ring stays inside the wax (the disc's narrowest radius is about 73% of the seal).
+/* The ring stays just inside the wax (the disc's narrowest diameter is about 73% of the seal).
    Its stroke matches the page behind the wax, and matches the rules' weight. Overflow clips the rules. */
 .decanter-seal-ring {
   --seal-stroke: 0.16em;
   position: relative; z-index: 1; box-sizing: border-box; flex: none;
   display: flex; align-items: center; justify-content: center;
-  width: 58%; aspect-ratio: 1;
+  width: 71%; aspect-ratio: 1;
   padding: 0.42em; border: var(--seal-stroke) solid var(--bg); border-radius: 50%; overflow: hidden;
 }
 .tv-band .decanter-seal-ring { border-color: #121212; }

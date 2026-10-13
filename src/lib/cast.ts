@@ -20,8 +20,8 @@ export type CastLine = { amount: string; name: string; out: boolean; use_instead
   /** Alternates (migration 034): the muted "or Cognac" / "or Cognac, Brandy" / "or Cognac" + or_more ("+2"), and their notes. */
   or?: string | null; or_more?: number; alt_notes?: string[] };
 export type CastPayload =
-  | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; featured: boolean; lines: CastLine[]; method_label: string; method: string[]; moods?: string[]; rating: number | null; servings: number }
-  | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean; decanting: boolean; rating: number | null }
+  | { type: "recipe"; id: string; name: string; glass: string | null; serve: string | null; alt: string | null; featured: boolean; lines: CastLine[]; method_label: string; method: string[]; moods?: string[]; rating: number | null; servings: number; /** Badges on the decanters this build uses. */ decanter_labels: string[] }
+  | { type: "pour"; id: string; name: string; glass: "rocks"; detail: string | null; serve: string; serve_quiet: string[]; note: string | null; featured: boolean; decanting: boolean; /** Badge on that decanter, when decanting. */ decanter_label: string | null; rating: number | null }
   | WinePayload;
 /** A Cellar wine's card (Brian via Rachel, 2026-10-06). Every field but the name may be missing; the card leaves it out. */
 export type WinePayload = {
@@ -44,6 +44,8 @@ export type WinePayload = {
   rating: number | null;
   /** The bottle is in a decanter. The cast card shows the seal; the board and the menu do not. */
   decanting: boolean;
+  /** Badge on that decanter, when decanting. */
+  decanter_label: string | null;
 };
 export type Cast = { type: CastType; id: string; started_at: string; expires_at: string; payload: CastPayload };
 
@@ -63,8 +65,10 @@ export async function castPayload(type: CastType, id: string, servings = 1): Pro
   if (type === "recipe") {
     const r = await loadRecipe(id);
     if (!r) return null;
+    const visible = r.lines.filter((l) => l.required || l.available || l.use_instead);
+    const decanter_labels = [...new Set(visible.filter((l) => l.specDecanting || l.decanting.length).flatMap((l) => l.decanterLabels))];
     return {
-      type, id: r.id, name: r.name, glass: r.glass,
+      type, id: r.id, name: r.name, glass: r.glass, decanter_labels,
       serve: r.glass ? tvGlassLine(r.glass, r.service_style, r.glass_note) : null,
       alt: r.alt_glass ? altGlassLine(r.alt_glass, r.alt_service_style, r.service_style) : null,
       // Same as the phone: an optional ingredient that is out with no stand-in is left off.
@@ -106,7 +110,7 @@ export async function castPayload(type: CastType, id: string, servings = 1): Pro
   const s = serveParts(p.serves_neat, p.serves_rocks, p.serves_chilled);
   return {
     type, id: p.id, name: p.full_name, glass: "rocks", detail: detail || null,
-    serve: s.main, serve_quiet: [...(p.serve_note ? [p.serve_note] : []), ...s.quiet], note: p.description, featured: p.featured, decanting: p.decanting,
+    serve: s.main, serve_quiet: [...(p.serve_note ? [p.serve_note] : []), ...s.quiet], note: p.description, featured: p.featured, decanting: p.decanting, decanter_label: p.decanterLabel,
     rating: await castRating("product", p.id),
   };
 }
@@ -130,6 +134,7 @@ async function winePayload(id: string): Promise<WinePayload | null> {
     note: w.description?.trim() || null,
     rating: await castRating("product", w.id),
     decanting: w.decanting,
+    decanter_label: w.decanterLabel,
   };
 }
 

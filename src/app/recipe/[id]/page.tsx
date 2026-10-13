@@ -40,7 +40,8 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const { label: methodLabel, paragraphs: method } = methodParts(recipe.description, recipe.method_style);
   // An optional ingredient that is out tonight (with no stand-in) is left off. Amounts stay as stored;
   // the slider scales them. Bottle lines are capped at 2 when the line has an alternate, same as before.
-  const lines: ScaleLine[] = recipe.lines.filter((line) => line.required || line.available || line.use_instead).map((line) => {
+  const visible = recipe.lines.filter((line) => line.required || line.available || line.use_instead);
+  const lines: ScaleLine[] = visible.map((line) => {
     const or = altWords(line);
     return {
       position: line.position,
@@ -60,7 +61,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   return (
     <PhoneShell bar={bar}
       title={recipe.name}
-      mark={lines.some((l) => l.specDecanting || l.parts?.some((p) => p.decanting)) ? <DecanterSeal /> : undefined}
+      mark={lines.some((l) => l.specDecanting || l.parts?.some((p) => p.decanting)) ? <DecanterSeal label={[...new Set(visible.filter((line) => line.specDecanting || line.decanting.length).flatMap((line) => line.decanterLabels))]} /> : undefined}
       titleBadge={recipe.featured ? <FeaturedTag /> : undefined}
       editHref={editHref}
       back={{ href: "/menu?tab=cocktails", label: "Cocktails" }}

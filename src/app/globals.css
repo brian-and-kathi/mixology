@@ -359,15 +359,16 @@ a.card:active { background: #202020; }
 /* Words only, on a wax disc. On a phone card it floats at the title's upper right; the title paints over it. */
 .decanter-seal {
   position: relative; display: flex; align-items: center; justify-content: center;
-  width: 5.6rem; height: 5.6rem; color: var(--decanting);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 0.78rem; line-height: 1.05;
+  width: 6.2rem; height: 6.2rem; color: #000;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 0.64rem; line-height: 1.05;
   letter-spacing: 0.01em; text-align: center; transform: rotate(-11deg); pointer-events: none;
 }
-.decanter-seal svg { position: absolute; inset: -4%; width: 108%; height: 108%; overflow: visible; fill: currentColor; opacity: 0.72; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)); }
+.decanter-seal svg { position: absolute; inset: -4%; width: 108%; height: 108%; overflow: visible; fill: var(--decanting); opacity: 0.4; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2)); }
 .decanter-seal-words {
   position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center;
-  padding: 0.28em 0.22em 0.2em; border-top: 0.16em solid currentColor; border-bottom: 0.16em solid currentColor;
+  padding: 0.18em 0.12em 0.14em; border-top: 0.16em solid currentColor; border-bottom: 0.16em solid currentColor;
 }
+.decanter-seal-words span { white-space: nowrap; }
 .phone-title .decanter-seal { position: absolute; z-index: 0; top: -0.55rem; right: -0.15rem; margin: 0; }
 .out { color: var(--quiet); }
 /* Alternates (migration 034): muted grey "or Cognac" on the ingredient's line; "+2" opens the rest. */

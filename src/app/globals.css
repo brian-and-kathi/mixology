@@ -10,8 +10,8 @@
   /* Gold accent, shared by the TV and the guest phone (admin never uses it): text, and a dimmer tone for lines. */
   --gold: #b8903c;
   --gold-line: #95753d;
-  /* Complement of gold: a cool blue for the decanter seal. 9.8:1 on #000. */
-  --decanting: #8eb4e6;
+  /* Golden brown for the decanter seal. Shown partly transparent, over the page. */
+  --decanting: #e2b56a;
   /* Featured (migration 030): warm copper, distinct from gold. 7.6:1 on #000, 6.6:1 on the #151515 card (AA).
      Never used alone on phone: featured items carry the "Featured" tag (components/FeaturedTag).
      On TV the board uses a copper ★ before the name instead (TvBoard TV_FEATURED). */
@@ -363,7 +363,7 @@ a.card:active { background: #202020; }
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 0.58rem; line-height: 1.05;
   letter-spacing: 0.01em; text-align: center; transform: rotate(-11deg); pointer-events: none;
 }
-.decanter-seal-wax { position: absolute; inset: -4%; width: 108%; height: 108%; overflow: visible; fill: var(--decanting); opacity: 0.4; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2)); }
+.decanter-seal-wax { position: absolute; inset: -4%; width: 108%; height: 108%; overflow: visible; fill: var(--decanting); opacity: 0.55; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2)); }
 /* The ring stays just inside the wax (the disc's narrowest diameter is about 73% of the seal).
    Its stroke matches the page behind the wax, and matches the rules' weight. Overflow clips the rules. */
 .decanter-seal-ring {

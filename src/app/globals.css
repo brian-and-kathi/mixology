@@ -363,11 +363,25 @@ a.card:active { background: #202020; }
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 0.64rem; line-height: 1.05;
   letter-spacing: 0.01em; text-align: center; transform: rotate(-11deg); pointer-events: none;
 }
-.decanter-seal svg { position: absolute; inset: -4%; width: 108%; height: 108%; overflow: visible; fill: var(--decanting); opacity: 0.4; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2)); }
-.decanter-seal-words {
-  position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center;
-  padding: 0.18em 0.12em 0.14em; border-top: 0.16em solid currentColor; border-bottom: 0.16em solid currentColor;
+.decanter-seal-wax { position: absolute; inset: -4%; width: 108%; height: 108%; overflow: visible; fill: var(--decanting); opacity: 0.4; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2)); }
+/* The ring and the rules share one weight. Overflow clips the rules to the inside of the stroke. */
+.decanter-seal-ring {
+  --seal-stroke: 0.16em;
+  position: relative; z-index: 1; box-sizing: content-box;
+  display: flex; align-items: center; justify-content: center;
+  width: max-content; aspect-ratio: 1; min-width: 5.5em;
+  padding: 0.55em; border: var(--seal-stroke) solid currentColor; border-radius: 50%; overflow: hidden;
 }
+.decanter-seal-words {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  padding: 0.16em 0 0.12em;
+}
+.decanter-seal-words::before, .decanter-seal-words::after {
+  content: ""; position: absolute; left: 50%; width: 8em; height: 0;
+  border-top: var(--seal-stroke) solid currentColor; transform: translateX(-50%);
+}
+.decanter-seal-words::before { top: 0; }
+.decanter-seal-words::after { bottom: 0; }
 .decanter-seal-words span { white-space: nowrap; }
 .phone-title .decanter-seal { position: absolute; z-index: 0; top: -0.55rem; right: -0.15rem; margin: 0; }
 .out { color: var(--quiet); }

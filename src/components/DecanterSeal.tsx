@@ -1,6 +1,7 @@
 /**
  * Wax-seal stamp for a card that uses a decanter. Words only, no picture, with a rule above
- * and below them: "in the", the decanter's label, "decanter". It floats behind the title
+ * and below them: "in the", the decanter's label, "decanter", inside a circle of the
+ * same weight. It floats behind the title
  * (and, on a cast, the rating) so that text paints over it. Phone and cast cards only;
  * the menu and the TV board stay unmarked.
  */
@@ -13,13 +14,15 @@ export function DecanterSeal({ label, className = "" }: { label?: string | strin
   const classes = ["decanter-seal", className].filter(Boolean).join(" ");
   return (
     <span className={classes} role="img" aria-label={labels.length ? `in the ${labels.join(", ")} decanter` : "in the decanter"}>
-      <svg viewBox="-4 -4 128 128" aria-hidden>
+      <svg className="decanter-seal-wax" viewBox="-4 -4 128 128" aria-hidden>
         <path d={WAX} />
       </svg>
-      <span className="decanter-seal-words">
-        <span>in the</span>
-        {labels.map((text) => <span key={text} className="decanter-seal-label">{text}</span>)}
-        <span>decanter</span>
+      <span className="decanter-seal-ring">
+        <span className="decanter-seal-words">
+          <span>in the</span>
+          {labels.map((text) => <span key={text} className="decanter-seal-label">{text}</span>)}
+          <span>decanter</span>
+        </span>
       </span>
     </span>
   );

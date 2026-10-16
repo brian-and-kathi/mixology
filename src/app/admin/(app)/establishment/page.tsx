@@ -1,4 +1,5 @@
 import { BarCard } from "@/components/admin/BarCard";
+import { TvGameCard } from "@/components/admin/TvGameCard";
 import { Tonight } from "@/components/admin/Tonight";
 import { tonight } from "@/lib/night";
 
@@ -10,6 +11,7 @@ export default async function EstablishmentPage() {
   return (
     <div className="a-establish">
       <BarCard />
+      <TvGameCard />
       {night ? <Tonight night={night} /> : <p className="a-card a-quiet">Tonight&apos;s code needs a signing secret on the server.</p>}
     </div>
   );

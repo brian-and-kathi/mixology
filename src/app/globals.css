@@ -716,3 +716,18 @@ a.card:active { background: #202020; }
 /* /menu remembers its state for the visit (lib/menu-memory.ts): while a full page load restores it, the browse
    area is hidden for that first moment instead of flashing the unfiltered list. */
 html[data-menu-restore] .browse { visibility: hidden; }
+
+/* TV takeover by a Shindig game (TvGame, migration 041). The layer sits above the board and the cast band; the
+   cards and Shindig's own dashboard crossfade inside it. No speakeasy chrome over the game but a faint logo. */
+.tvg-board { min-height: 100vh; }
+.tvg-layer { position: fixed; inset: 0; z-index: 1000; background: #000; opacity: 0; pointer-events: none; transition: opacity var(--tvg-fade) ease; }
+.tvg-layer.on { opacity: 1; }
+.tvg-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; opacity: 0; transition: opacity var(--tvg-fade) ease; }
+.tvg-frame.on { opacity: 1; }
+.tvg-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.2vh; text-align: center; padding: 0 6vw;
+  opacity: 0; transition: opacity var(--tvg-fade) ease; background: radial-gradient(ellipse at center, color-mix(in srgb, var(--tvg-accent) 22%, #000) 0%, #000 70%); }
+.tvg-card.on { opacity: 1; }
+.tvg-kicker { margin: 0; font-size: 3.2vh; letter-spacing: 0.18em; text-transform: uppercase; color: #e9e4d8; opacity: 0.85; }
+.tvg-title { margin: 0; font-size: 9.5vh; line-height: 1.05; color: var(--tvg-accent); font-weight: 700; text-shadow: 0 0 4vh color-mix(in srgb, var(--tvg-accent) 45%, transparent); }
+.tvg-logo { position: absolute; left: 2vh; bottom: 1.6vh; font-size: 3vh; color: #f3ead8; opacity: 0; transition: opacity var(--tvg-fade) ease; }
+.tvg-logo.on { opacity: 0.4; }

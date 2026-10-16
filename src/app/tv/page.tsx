@@ -7,6 +7,7 @@ import { Frame } from "@/components/Frame";
 import { MenuQr } from "@/components/MenuQr";
 import { TvBoard } from "@/components/TvBoard";
 import { TvCastLayer } from "@/components/TvCast";
+import { TvGame } from "@/components/TvGame";
 import { BAR_NAME } from "@/lib/brand";
 import { loadMenu, SECTIONS } from "@/lib/menu";
 import { loadAllRatings } from "@/lib/ratings";
@@ -29,6 +30,8 @@ export default async function TvPage() {
 
   return (
     <>
+    {/* A running Shindig game takes the whole screen (migration 041); otherwise the board as before. */}
+    <TvGame>
     <TvCastLayer>
       <style>{"html, body { overflow: hidden; }"}</style>
       <AutoRefresh seconds={60} topic="bar:menu" version={version?.menu ?? null} />
@@ -45,8 +48,9 @@ export default async function TvPage() {
       )}
     </TvCastLayer>
     {bar.open ? null : <ClosedWatermark />}
-    <BarWatch {...publicStatus(bar)} />
     <Frame />
+    </TvGame>
+    <BarWatch {...publicStatus(bar)} />
     </>
   );
 }

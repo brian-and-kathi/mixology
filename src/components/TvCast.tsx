@@ -14,6 +14,8 @@ import { RELAY_FALLBACK_MS, useRelay } from "@/lib/use-relay";
 // With the realtime relay live, a "bar:cast" notice triggers the fetch instead and the poll
 // drops to a slow fallback (plus a check whenever the TV tab comes back into view).
 const POLL_MS = 4000;
+/** Window event TvGame fires when a Shindig game takes the screen. */
+export const TV_GAME_TAKEOVER = "tv-game:takeover";
 const SLIDE_MS = 400;
 
 type Highlight = { type: string; id: string } | null;
@@ -64,6 +66,16 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
     };
   }, []);
   const relayLive = useRelay("bar:cast", () => void pollRef.current());
+  // A Shindig game took the screen (TvGame, migration 041): the cast in progress is dropped for good, never resumed
+  // after the game; a new cast (or a re-cast, which has a new started_at) shows as usual.
+  const castRef = useRef<Cast | null>(null);
+  castRef.current = cast;
+  const [dropped, setDropped] = useState<string | null>(null);
+  useEffect(() => {
+    const onTakeover = () => { const c = castRef.current; if (c) setDropped(`${c.type}:${c.id}:${c.started_at}`); };
+    window.addEventListener(TV_GAME_TAKEOVER, onTakeover);
+    return () => window.removeEventListener(TV_GAME_TAKEOVER, onTakeover);
+  }, []);
   // The bar opened or closed (BarWatch): a cast from before a close is over, so ask again now.
   useEffect(() => onBarStatus(() => void pollRef.current()), []);
   useEffect(() => {
@@ -85,7 +97,7 @@ export function TvCastLayer({ children }: { children: ReactNode }) {
   }, [cast]);
 
   const serverNow = now + offset.current;
-  const live = cast && Date.parse(cast.expires_at) > serverNow ? cast : null;
+  const live = cast && Date.parse(cast.expires_at) > serverNow && `${cast.type}:${cast.id}:${cast.started_at}` !== dropped ? cast : null;
 
   // Slide in / out. A new cast while one is showing just swaps the content.
   useEffect(() => {

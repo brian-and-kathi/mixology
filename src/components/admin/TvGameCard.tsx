@@ -6,7 +6,7 @@ import { api } from "@/components/admin/api";
 type View = { source: string; target: { base: string; token: string } | null; dismissedAt: string | null };
 
 /**
- * Bar tab: "Show Shindig game from" (migration 041). While Shindig reports a live White Elephant game for this TV
+ * Bar tab: "Show White Elephant from" (migration 041). While Shindig reports a live White Elephant game for this TV
  * link, /tv shows Shindig's dashboard instead of the menu. "Back to menu" puts the menu back for the game in progress.
  */
 export function TvGameCard() {
@@ -25,9 +25,9 @@ export function TvGameCard() {
   }
   const dirty = !!view && source.trim() !== view.source;
   return (
-    <section className="a-card a-tvgame" aria-label="Shindig game on the TV">
-      <form onSubmit={(e) => { e.preventDefault(); void run("PUT", { source }, source.trim() ? "Saved. The TV switches when a game goes live." : "Off. The TV stays on the menu."); }}>
-        <label className="a-field"><span className="a-label">Show Shindig game from</span>
+    <section className="a-card a-tvgame" aria-label="White Elephant on the TV">
+      <form onSubmit={(e) => { e.preventDefault(); void run("PUT", { source }, source.trim() ? "Saved. The TV switches when White Elephant goes live." : "Off. The TV stays on the menu."); }}>
+        <label className="a-field"><span className="a-label">Show White Elephant from</span>
           <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Shindig TV link or token" maxLength={300} autoComplete="off" spellCheck={false} />
         </label>
         <div className="a-row-btns" style={{ justifyContent: "flex-start" }}>

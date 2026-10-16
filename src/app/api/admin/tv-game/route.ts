@@ -10,7 +10,7 @@ const view = async () => {
   return { source: row?.source ?? "", target: parseGameSource(row?.source), dismissedAt: row?.dismissed_at ?? null };
 };
 
-/** GET: the "Show Shindig game from" setting. */
+/** GET: the "Show White Elephant from" setting. */
 export const GET = adminApi(async () => NextResponse.json(await view()));
 
 /** PUT {source}: a Shindig TV token or URL; blank turns it off. */

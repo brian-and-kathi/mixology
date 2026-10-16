@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TV_GAME_TAKEOVER } from "@/components/TvCast";
 import { BAR_NAME } from "@/lib/brand";
+import { setTvHold } from "@/lib/tv-hold";
 
 /**
  * TV takeover by a Shindig White Elephant game (migration 041; Brian via Vincent, 2026-10-16).
@@ -105,6 +106,9 @@ export function TvGame({ children }: { children: ReactNode }) {
   }, []);
 
   const on = phase !== "menu";
+  // Hold the board's AutoRefresh while the game has the screen; a menu change waiting is applied on release.
+  useEffect(() => { setTvHold(on); }, [on]);
+  useEffect(() => () => setTvHold(false), []);
   const accent = game?.accent ?? DEFAULT_ACCENT;
   return (
     <>

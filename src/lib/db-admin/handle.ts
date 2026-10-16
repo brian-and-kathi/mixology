@@ -571,6 +571,7 @@ export async function handleDb(req: Request, parts: string[]): Promise<Response>
     if (parts[0] === "products" && parts[1] && isUuid(parts[1]) && parts.length === 2 && method === "GET") return productEdit(parts[1]);
     if (parts[0] === "products" && parts[1] && isUuid(parts[1]) && parts.length === 2 && method === "POST") return postProduct(req, parts[1]);
     if (parts[0] === "products" && parts[2] === "delete" && method === "POST") return postProductDelete(req, parts[1]);
+    if (parts[0] === "products" && parts[2] === "featured" && parts.length === 3 && method === "POST") return postFeatured(req, "product", parts[1]);
     if (parts[0] === "products" && parts[2] === "lookup" && parts.length === 3 && method === "POST") return postLookup(req, parts[1]);
     if (parts[0] === "products" && parts[2] === "lookup" && parts[3] === "delete" && method === "POST") return postLookupDelete(req, parts[1]);
 
@@ -580,6 +581,7 @@ export async function handleDb(req: Request, parts: string[]): Promise<Response>
     if (parts[0] === "recipes" && parts[1] && isUuid(parts[1]) && parts.length === 2 && method === "GET") return recipeEdit(parts[1]);
     if (parts[0] === "recipes" && parts[1] && isUuid(parts[1]) && parts.length === 2 && method === "POST") return postRecipe(req, parts[1]);
     if (parts[0] === "recipes" && parts[2] === "delete" && method === "POST") return postRecipeDelete(req, parts[1]);
+    if (parts[0] === "recipes" && parts[2] === "featured" && parts.length === 3 && method === "POST") return postFeatured(req, "recipe", parts[1]);
 
     return notFound(`${DB}`, "That page was not found.");
   } catch (error) {
@@ -688,7 +690,7 @@ async function specsPage(error: string | null) {
     error,
     body: `${heading("Specs", "Generic names a recipe can require. Bourbon does not satisfy whiskey unless you add a substitution.", `<a class="button" href="${DB}/specs/new">New spec</a>`)}
       ${searchForm("Find a spec by its name, slug, flavoring, or alias.", "specs")}
-      <div class="table-scroll"><table><thead><tr><th>Name</th>${flagHeads}<th>Primary family</th><th>Flavoring</th><th>Aliases</th><th></th></tr></thead>
+      <div class="table-scroll"><table><thead><tr><th>Name</th><th class="flag" data-tip="Featured (first in the list)">★</th>${flagHeads}<th>Primary family</th><th>Flavoring</th><th>Aliases</th><th></th></tr></thead>
       <tbody>${body || `<tr><td colspan="11" class="empty">No specs.</td></tr>`}</tbody></table></div>`,
   }));
 }
@@ -798,10 +800,38 @@ const PRODUCT_FLAGS: [string, string, string][] = [
   ["fortified", "F", "Fortified"],
 ];
 
+/**
+ * Featured (migrations 030 / 040), toggled inline on the Products and Recipes lists. A star button posts the flip and
+ * returns to the list. A reserved bottle can't be featured (CHECK products_reserved_not_featured, as in /admin), so its
+ * star is disabled. Recipes have no manual Reserved; a drink that needs a reserved bottle is simply never shown featured.
+ */
+function featuredToggle(kind: "products" | "recipes", id: unknown, on: boolean, name: unknown, reserved = false) {
+  if (reserved) return `<td class="flag feat-cell" data-tip="Reserved bottles can't be Featured"><span class="feat-star off" aria-label="Reserved; can't be Featured">☆</span></td>`;
+  const label = `${on ? "Unfeature" : "Feature"} ${String(name ?? "")}`;
+  return `<td class="flag feat-cell"><form method="post" action="${DB}/${kind}/${esc(id)}/featured">
+    <button class="icon feat-star${on ? " on" : ""}" type="submit" aria-pressed="${on}" aria-label="${esc(label)}" title="${esc(label)}">${on ? "★" : "☆"}</button></form></td>`;
+}
+
+async function postFeatured(req: Request, kind: "product" | "recipe", id: string) {
+  requireUuid(id);
+  const table = kind === "product" ? "products" : "recipes";
+  const nameCol = kind === "product" ? "display_name" : "name";
+  const [row] = await q<{ name: string; featured: boolean; reserved: boolean }>(
+    `SELECT ${nameCol} AS name, featured, ${kind === "product" ? "reserved" : "false AS reserved"} FROM ${table} WHERE id = $1`, [id]);
+  if (!row) return notFound(`${DB}/${table}`, "Not found.");
+  if (row.reserved && !row.featured) return go(req, `${DB}/${table}`); // exclusivity: never Featured and Reserved
+  await tx([
+    log(kind, id, "update", `${row.featured ? "Unfeatured" : "Featured"} ${row.name}`, { featured: row.featured }, { featured: !row.featured }),
+    [`UPDATE ${table} SET featured = NOT featured WHERE id = $1`, [id]],
+  ]);
+  return go(req, `${DB}/${table}`);
+}
+
 async function productsPage(saved: string | null) {
   const rows = await q<Bag>(
     `SELECT p.id, p.display_name, p.packaged_name, p.brand, p.origin, p.in_stock, p.upc,
             p.serves_neat, p.serves_rocks, p.serves_chilled, p.mix_only, p.serves_glass, p.serves_bottle, p.fortified, p.decanting,
+            p.featured, p.reserved,
             f.canonical_name AS family_name,
             coalesce(string_agg(s.canonical_name, ', ' ORDER BY ps.is_primary DESC, s.canonical_name), '') AS spec_names
        FROM products p
@@ -809,13 +839,14 @@ async function productsPage(saved: string | null) {
        LEFT JOIN product_specs ps ON ps.product_id = p.id
        LEFT JOIN specs s ON s.id = ps.spec_id
       GROUP BY p.id, f.canonical_name
-      ORDER BY p.display_name`,
+      ORDER BY p.featured DESC, p.display_name`,
   );
   const body = rows.map((product) => {
     const flags = PRODUCT_FLAGS.flatMap(([key, , label]) => (product[key] ? [label] : []));
-    const search = [product.display_name, product.packaged_name, product.brand, product.origin, upcSearchText(product.upc as string | null), product.family_name, product.spec_names, ...flags].filter(Boolean).join(" ");
+    const search = [product.display_name, product.packaged_name, product.brand, product.origin, upcSearchText(product.upc as string | null), product.family_name, product.spec_names, product.featured ? "Featured" : null, product.reserved ? "Reserved" : null, ...flags].filter(Boolean).join(" ");
     return `<tr data-search="${esc(search)}">
     <td><a href="${DB}/products/${product.id}">${esc(product.display_name)}</a><div class="hint">${esc(product.upc ? formatUpc(String(product.upc)) : "No UPC")}</div></td>
+    ${featuredToggle("products", product.id, !!product.featured, product.display_name, !!product.reserved)}
     ${PRODUCT_FLAGS.map(([key, letter, label]) => `<td class="flag"${product[key] ? ` data-tip="${esc(label)}"` : ""}>${product[key] ? letter : ""}</td>`).join("")}
     <td>${esc(product.family_name ?? "")}</td>
     <td>${esc(product.spec_names)}</td>
@@ -828,9 +859,9 @@ async function productsPage(saved: string | null) {
     active: `${DB}/products`,
     notice: saved ? `Saved ${saved}.` : "",
     body: `${heading("Products", `Each bottle, batch, or piece of produce is one row. Mark bottles in or out on <a href="/admin/stock">Admin stock</a>.`, `<a class="button" href="${DB}/products/new">New product</a>`)}
-      ${searchForm("Find a product by name, brand, origin, UPC, or a flag such as Neat.", "products")}
+      ${searchForm("Find a product by name, brand, origin, UPC, or a flag such as Neat or Featured.", "products")}
       <div class="table-scroll"><table><thead><tr><th>Name</th>${flagHeads}<th>Family</th><th>Specs</th><th></th></tr></thead>
-      <tbody>${body || `<tr><td colspan="12" class="empty">No products yet.</td></tr>`}</tbody></table></div>`,
+      <tbody>${body || `<tr><td colspan="13" class="empty">No products yet.</td></tr>`}</tbody></table></div>`,
   }));
 }
 
@@ -912,7 +943,7 @@ async function postLookupDelete(req: Request, id: string) {
 
 async function recipesPage() {
   const rows = await q<Bag>(`
-    SELECT r.id, r.name, r.section, r.rating, count(l.spec_id) AS lines,
+    SELECT r.id, r.name, r.section, r.rating, r.featured, count(l.spec_id) AS lines,
            coalesce(bool_and(l.available) FILTER (WHERE l.required), true) AS buildable,
            coalesce(json_agg(json_build_object('name', l.spec_name, 'required', l.required, 'status', l.status) ORDER BY l.position)
                     FILTER (WHERE NOT l.available), '[]') AS missing,
@@ -920,7 +951,7 @@ async function recipesPage() {
       FROM recipes r
       LEFT JOIN recipe_line_status l ON l.recipe_id = r.id
      GROUP BY r.id
-     ORDER BY buildable DESC, r.name`);
+     ORDER BY r.featured DESC, buildable DESC, r.name`);
   const why: Record<string, string> = { no_product: "no bottle linked", out_of_stock: "out of stock" };
   const body = rows.map((recipe) => {
     const missing = (recipe.missing as { name: string; required: boolean; status: string }[]) ?? [];
@@ -928,11 +959,12 @@ async function recipesPage() {
     const optional = missing.filter((line) => !line.required).map((line) => `${esc(line.name)} (${why[line.status] ?? esc(line.status)})`).join(", ");
     const search = [
       recipe.name, recipe.section, recipe.rating, recipe.ingredients,
-      recipe.buildable ? "Buildable" : "Not buildable",
+      recipe.buildable ? "Buildable" : "Not buildable", recipe.featured ? "Featured" : null,
       ...missing.flatMap((line) => [line.name, why[line.status] ?? line.status]),
     ].filter((part) => part != null && part !== "").join(" ");
     return `<tr data-search="${esc(search)}">
       <td>${recipe.buildable ? `<span class="pill ok">Buildable</span>` : `<span class="pill off">Not buildable</span>`}</td>
+      ${featuredToggle("recipes", recipe.id, !!recipe.featured, recipe.name)}
       <td><a href="${DB}/recipes/${recipe.id}">${esc(recipe.name)}</a></td>
       <td>${esc(recipe.section)}</td>
       <td>${esc(recipe.rating ?? "")}</td>
@@ -944,9 +976,9 @@ async function recipesPage() {
     title: "Recipes",
     active: `${DB}/recipes`,
     body: `${heading("Recipes", "Every recipe is listed. The mixed menu shows a recipe only when every required spec is available.", `<a class="button" href="${DB}/recipes/new">New recipe</a>`)}
-      ${searchForm("Find a recipe by name, ingredient, section, or whether it is buildable.", "recipes")}
-      <table><thead><tr><th>Status</th><th>Name</th><th>Section</th><th>Rating</th><th>Lines</th><th>Missing</th></tr></thead>
-      <tbody>${body || `<tr><td colspan="6" class="empty">No recipes yet.</td></tr>`}</tbody></table>`,
+      ${searchForm("Find a recipe by name, ingredient, section, whether it is buildable, or Featured.", "recipes")}
+      <table><thead><tr><th>Status</th><th class="flag" data-tip="Featured (first in the list)">★</th><th>Name</th><th>Section</th><th>Rating</th><th>Lines</th><th>Missing</th></tr></thead>
+      <tbody>${body || `<tr><td colspan="7" class="empty">No recipes yet.</td></tr>`}</tbody></table>`,
   }));
 }
 

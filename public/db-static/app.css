@@ -413,3 +413,10 @@ button.search-clear:hover { color: var(--text); background: rgba(255, 255, 255, 
   .top { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; padding: 12px 14px; }
   main { width: min(1100px, calc(100% - 24px)); }
 }
+
+/* Featured (migrations 030 / 040): inline star toggle on Products and Recipes. Copper like the guest tag; a reserved
+   bottle's star is dimmed and not a button (never Featured and Reserved). */
+.feat-cell form { display: inline; margin: 0; }
+.feat-star { font-size: 16px; line-height: 1; color: #8a8f98; }
+.feat-star.on { color: #e8804a; }
+.feat-star.off { opacity: 0.35; cursor: not-allowed; }

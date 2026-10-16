@@ -805,11 +805,11 @@ const PRODUCT_FLAGS: [string, string, string][] = [
  * returns to the list. A reserved bottle can't be featured (CHECK products_reserved_not_featured, as in /admin), so its
  * star is disabled. Recipes have no manual Reserved; a drink that needs a reserved bottle is simply never shown featured.
  */
-function featuredToggle(kind: "products" | "recipes", id: unknown, on: boolean, name: unknown, reserved = false) {
+function featuredToggle(kind: "products" | "recipes", id: unknown, on: boolean, name: unknown, reserved = false, viaBottle = false) {
   if (reserved) return `<td class="flag feat-cell" data-tip="Reserved bottles can't be Featured"><span class="feat-star off" aria-label="Reserved; can't be Featured">☆</span></td>`;
-  const label = `${on ? "Unfeature" : "Feature"} ${String(name ?? "")}`;
+  const label = `${on ? "Unfeature" : "Feature"} ${String(name ?? "")}${!on && viaBottle ? " (featured now through its bottle)" : ""}`;
   return `<td class="flag feat-cell"><form method="post" action="${DB}/${kind}/${esc(id)}/featured">
-    <button class="icon feat-star${on ? " on" : ""}" type="submit" aria-pressed="${on}" aria-label="${esc(label)}" title="${esc(label)}">${on ? "★" : "☆"}</button></form></td>`;
+    <button class="icon feat-star${on ? " on" : ""}" type="submit" aria-pressed="${on}" aria-label="${esc(label)}" title="${esc(label)}">${on ? "★" : viaBottle ? `<span class="feat-via">☆</span>` : "☆"}</button></form></td>`;
 }
 
 async function postFeatured(req: Request, kind: "product" | "recipe", id: string) {
@@ -943,7 +943,7 @@ async function postLookupDelete(req: Request, id: string) {
 
 async function recipesPage() {
   const rows = await q<Bag>(`
-    SELECT r.id, r.name, r.section, r.rating, r.featured, count(l.spec_id) AS lines,
+    SELECT r.id, r.name, r.section, r.rating, r.featured, (r.id IN (SELECT featured_recipe_ids())) AS any_featured, count(l.spec_id) AS lines,
            coalesce(bool_and(l.available) FILTER (WHERE l.required), true) AS buildable,
            coalesce(json_agg(json_build_object('name', l.spec_name, 'required', l.required, 'status', l.status) ORDER BY l.position)
                     FILTER (WHERE NOT l.available), '[]') AS missing,
@@ -951,7 +951,7 @@ async function recipesPage() {
       FROM recipes r
       LEFT JOIN recipe_line_status l ON l.recipe_id = r.id
      GROUP BY r.id
-     ORDER BY r.featured DESC, buildable DESC, r.name`);
+     ORDER BY r.featured DESC, any_featured DESC, buildable DESC, r.name`);
   const why: Record<string, string> = { no_product: "no bottle linked", out_of_stock: "out of stock" };
   const body = rows.map((recipe) => {
     const missing = (recipe.missing as { name: string; required: boolean; status: string }[]) ?? [];
@@ -959,12 +959,12 @@ async function recipesPage() {
     const optional = missing.filter((line) => !line.required).map((line) => `${esc(line.name)} (${why[line.status] ?? esc(line.status)})`).join(", ");
     const search = [
       recipe.name, recipe.section, recipe.rating, recipe.ingredients,
-      recipe.buildable ? "Buildable" : "Not buildable", recipe.featured ? "Featured" : null,
+      recipe.buildable ? "Buildable" : "Not buildable", recipe.featured || recipe.any_featured ? "Featured" : null, !recipe.featured && recipe.any_featured ? "Featured via bottle" : null,
       ...missing.flatMap((line) => [line.name, why[line.status] ?? line.status]),
     ].filter((part) => part != null && part !== "").join(" ");
     return `<tr data-search="${esc(search)}">
       <td>${recipe.buildable ? `<span class="pill ok">Buildable</span>` : `<span class="pill off">Not buildable</span>`}</td>
-      ${featuredToggle("recipes", recipe.id, !!recipe.featured, recipe.name)}
+      ${featuredToggle("recipes", recipe.id, !!recipe.featured, recipe.name, false, !recipe.featured && !!recipe.any_featured)}
       <td><a href="${DB}/recipes/${recipe.id}">${esc(recipe.name)}</a></td>
       <td>${esc(recipe.section)}</td>
       <td>${esc(recipe.rating ?? "")}</td>

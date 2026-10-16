@@ -118,8 +118,8 @@ export async function loadMenu(): Promise<Menu> {
                  JOIN families f ON f.id = sf.family_id WHERE s.canonical_name = n.primary_spec_name) AS family
          FROM menu_neat n JOIN products p ON p.id = n.id`,
     ),
-    query<{ id: string; name: string; glass: string | null; featured: boolean; reserved: boolean; reserved_note: string | null }>(
-      `SELECT m.id, m.name, g.name AS glass, (m.id IN (SELECT featured_recipe_ids())) AS featured, m.reserved, m.reserved_note
+    query<{ id: string; name: string; glass: string | null; featured: boolean; flagged: boolean; reserved: boolean; reserved_note: string | null }>(
+      `SELECT m.id, m.name, g.name AS glass, (m.id IN (SELECT featured_recipe_ids())) AS featured, r.featured AS flagged, m.reserved, m.reserved_note
          FROM menu_mixed m
          JOIN recipes r ON r.id = m.id
          LEFT JOIN glassware g ON g.id = r.glass_id`,
@@ -143,8 +143,12 @@ export async function loadMenu(): Promise<Menu> {
         abv: abvLabel(p.abv) || null, featured: p.featured, decanting: p.decanting,
         family: spiritFamily(p.type, p.family), sortBadge: badge ?? "" }, p.reserved, p.reserved_note);
     })),
-    cocktails: reservedLast<MenuItem>(featuredFirst<MenuItem>(cocktails.map(({ reserved, reserved_note, ...c }) =>
-      lock<MenuItem>({ ...c, href: `/recipe/${c.id}`, ...(reserved ? {} : lines.get(c.id) ?? {}) }, reserved, reserved_note)).sort(byName))),
+    // Featured (040): drinks Brian flagged come before drinks featured through their bottle (Brian via Vincent,
+    // 2026-10-16), then by name; the phone menu and the TV board both read this order.
+    cocktails: reservedLast<MenuItem>(featuredFirst<MenuItem>(cocktails
+      .sort((a, b) => Number(b.flagged) - Number(a.flagged) || a.name.localeCompare(b.name, "en", { sensitivity: "base" }))
+      .map(({ reserved, reserved_note, flagged: _f, ...c }) =>
+        lock<MenuItem>({ ...c, href: `/recipe/${c.id}`, ...(reserved ? {} : lines.get(c.id) ?? {}) }, reserved, reserved_note)))),
     // Cellar: the badge is the category. A grape always shows (Brian, 2026-10-04: "… Merlot 2020" still gets "Merlot");
     // with no grape, the type's label is hidden when the name already says it ("Señor Sangria", "Hakutsuru Sake").
     cellar: byCategory(cellar.map((w) => {

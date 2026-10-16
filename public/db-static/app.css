@@ -420,3 +420,5 @@ button.search-clear:hover { color: var(--text); background: rgba(255, 255, 255, 
 .feat-star { font-size: 16px; line-height: 1; color: #8a8f98; }
 .feat-star.on { color: #e8804a; }
 .feat-star.off { opacity: 0.35; cursor: not-allowed; }
+/* Featured through its bottle, not flagged: an outlined copper star (still clickable to flag it). */
+.feat-via { color: #e8804a; }

@@ -15,7 +15,7 @@ import { MAX_ALTERNATES, orText } from "@/lib/alternates";
 /** An alternate (migration 034): blank amount = the line's; `own` = "different amount" opened. */
 type Alt = { key: number; spec_id: string; amount: string; unit: string; note: string; own: boolean };
 type Line = { key: number; spec_id: string | null; amount: string; unit: string; required: boolean; role: string; note: string; alts: Alt[]; adding?: boolean };
-type Form = { name: string; description: string; method_style: string; glass_id: string; service_style: string; alt_glass_id: string; alt_service_style: string; glass_note: string; moods: string[]; lines: Line[] };
+type Form = { name: string; description: string; method_style: string; glass_id: string; service_style: string; alt_glass_id: string; alt_service_style: string; glass_note: string; moods: string[]; featured: boolean; lines: Line[] };
 
 const SERVICES: [string, string][] = [["", "—"], ["up", "Up (chilled, no ice)"], ["on the rocks", "Rocks (over ice)"], ["neat", "Neat (no ice)"], ["hot", "Hot"]];
 const ROLE_LABELS: [string, string][] = [["", "—"], ["base", "Base"], ["modifier", "Modifier"], ["juice", "Juice"], ["sweetener", "Sweetener"], ["garnish", "Garnish"], ["other", "Other"]];
@@ -26,7 +26,7 @@ function initial(r: RecipeRow | null): Form {
     name: r?.name ?? "", description: r?.description ?? "", method_style: r?.method_style ?? "",
     glass_id: r?.glass_id ? String(r.glass_id) : "", service_style: r?.service_style ?? "",
     alt_glass_id: r?.alt_glass_id ? String(r.alt_glass_id) : "", alt_service_style: r?.alt_service_style ?? "",
-    glass_note: r?.glass_note ?? "", moods: r?.moods ?? [],
+    glass_note: r?.glass_note ?? "", moods: r?.moods ?? [], featured: r?.featured ?? false,
     lines: (r?.lines ?? []).map((l) => ({
       key: ++seq, spec_id: l.spec_id, amount: l.amount ? String(Number(l.amount)) : "", unit: l.unit ?? "",
       required: l.required, role: l.role ?? "", note: l.note ?? "",
@@ -162,6 +162,15 @@ export function RecipeForm({ recipe, specs: initialSpecs, families, glassware, u
       <label className="a-field"><span className="a-label">Name</span>
         <input value={f.name} onChange={(e) => set("name", e.target.value)} required maxLength={120} />
       </label>
+
+      {/* Featured (migration 040), mirroring the bottle switch: copper tag and first in its section on the phone,
+          flourish and pinned first on the TV. A drink that needs a reserved bottle is locked and never shows as featured. */}
+      <div className="a-checks-row">
+        <label className="a-check">
+          <input type="checkbox" checked={f.featured} onChange={(e) => set("featured", e.target.checked)} />
+          <span>Featured</span>
+        </label>
+      </div>
 
       <fieldset className="a-fieldset">
         <legend className="a-label">Glass</legend>

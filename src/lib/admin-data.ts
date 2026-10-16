@@ -211,12 +211,14 @@ export type RecipeRow = {
   id: string; name: string; description: string | null; section: string; glass_id: number | null; service_style: string | null;
   alt_glass_id: number | null; alt_service_style: string | null; glass_note: string | null; method_style: string | null;
   /** Mood tags (migration 033), up to 3. */
-  moods: string[]; lines: RecipeLineRow[];
+  moods: string[];
+  /** Manual Featured switch (migration 040). */
+  featured: boolean; lines: RecipeLineRow[];
 };
 
 export async function loadRecipeRow(id: string): Promise<RecipeRow | null> {
   const [r] = await query<Omit<RecipeRow, "lines">>(
-    `SELECT id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, moods
+    `SELECT id, name, description, section, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, moods, featured
        FROM recipes WHERE id = $1`,
     [id],
   );

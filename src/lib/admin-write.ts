@@ -421,7 +421,9 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
   );
   if (found.glasses !== new Set(glassIds).size) throw new UserError("Unknown glass.");
   if (found.specs !== specIds.length) throw new UserError("One of the ingredients no longer exists. Pick it again.");
-  const vals = [rid, r.name, r.description, r.glass_id, r.service_style, r.alt_glass_id, r.alt_service_style, r.glass_note, r.method_style, r.moods];
+  // Featured (migration 040): the manual switch; absent (older clients) keeps the saved value.
+  const featured = body.featured === undefined ? null : bool(body.featured);
+  const vals = [rid, r.name, r.description, r.glass_id, r.service_style, r.alt_glass_id, r.alt_service_style, r.glass_note, r.method_style, r.moods, featured];
   // Lines are replaced; their alternates (migration 034) are read first and written back onto the new lines.
   const before = id ? await readAlternates(rid) : null;
   const stmts: Stmt[] = [];
@@ -433,14 +435,15 @@ export async function saveRecipe(id: string | null, body: Record<string, unknown
     ]);
     stmts.push([
       `UPDATE recipes SET name = $2, description = $3, glass_id = $4, service_style = $5, alt_glass_id = $6,
-              alt_service_style = $7, glass_note = $8, method_style = $9, moods = COALESCE($10::text[], moods) WHERE id = $1`,
+              alt_service_style = $7, glass_note = $8, method_style = $9, moods = COALESCE($10::text[], moods),
+              featured = COALESCE($11::boolean, featured) WHERE id = $1`,
       vals,
     ]);
     stmts.push(["DELETE FROM recipe_lines WHERE recipe_id = $1", [rid]]);
   } else {
     stmts.push([
-      `INSERT INTO recipes (id, name, description, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, moods, section)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::text[], '{}'), 'mixed')`,
+      `INSERT INTO recipes (id, name, description, glass_id, service_style, alt_glass_id, alt_service_style, glass_note, method_style, moods, section, featured)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10::text[], '{}'), 'mixed', COALESCE($11::boolean, false))`,
       vals,
     ]);
   }

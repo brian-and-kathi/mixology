@@ -139,6 +139,18 @@ export async function tonight(now = new Date()): Promise<Night | null> {
   };
 }
 
+/**
+ * Today's knock only (no spoken password is derived here). For the Shindig integration, which must never see the
+ * lounge password. Same derivation as tonight(): identical glasses for the same day and generation.
+ */
+export async function tonightKnock(now = new Date()): Promise<Pick<Night, "day" | "generation" | "glasses"> | null> {
+  const day = speakeasyDay(now);
+  const generation = await nightGeneration(day);
+  const buf = digest(day, generation);
+  if (!buf) return null;
+  const glass = (offset: number) => KNOCK_PAD[pick(buf, offset, KNOCK_PAD.length)]!.id;
+  return { day, generation, glasses: [glass(0), glass(2), glass(4)] };
+}
 /** Replace tonight's code and phrase. Guests holding the previous lounge cookie must knock again. */
 export async function rollNight(now = new Date()): Promise<Night> {
   const before = await tonight(now);
